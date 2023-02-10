@@ -1,0 +1,3 @@
+/**
+ * Shared global JavaScript functions.
+ */
