@@ -4,6 +4,10 @@ Defines configuration objects for the Flask server.
 
 # =============================================================================
 
+import os
+
+# =============================================================================
+
 __all__ = ("get_config",)
 
 # =============================================================================
@@ -15,9 +19,22 @@ class Config:
     DEBUG = False
     DEVELOPMENT = False
 
+    SECRET_KEY = "secret"
+
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
 
 class ProdConfig(Config):
     """The config object for production."""
+
+    SECRET_KEY = os.getenv("PROD_SECRET_KEY")
+
+    if os.getenv("SQLALCHEMY_DATABASE_URI"):
+        SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI").replace(
+            "postgres://", "postgresql://", 1
+        )
+    else:
+        SQLALCHEMY_DATABASE_URI = None
 
 
 class DevConfig(Config):
@@ -25,6 +42,20 @@ class DevConfig(Config):
 
     DEBUG = True
     DEVELOPMENT = True
+
+    # pylint: disable=import-outside-toplevel
+    from keys import DEV_POSTGRES_PASSWORD
+    from keys import DEV_SECRET_KEY as SECRET_KEY
+
+    SQLALCHEMY_DATABASE_URI = (
+        "postgresql://{username}:{password}@{server}:{port}/{db_name}".format(
+            username="postgres",
+            password=DEV_POSTGRES_PASSWORD,
+            server="localhost",
+            port=5432,
+            db_name="ectc-tournament-app-dev",
+        )
+    )
 
 
 # =============================================================================

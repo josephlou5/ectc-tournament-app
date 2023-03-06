@@ -1,0 +1,148 @@
+{% extends "shared/layout.jinja" %}
+
+{% block title %}
+Admin Settings
+{% endblock %}
+
+{% set service_account_email_id = "service-account-email" %}
+{% set copy_email_btn_id = "copy-service-account-email-btn" %}
+{% set service_account_creds_input_id = "service-account-credentials" %}
+{% set set_service_account_btn_id = "set-service-account-btn" %}
+
+{% block body %}
+<div id="admin-config-body" class="container-fluid">
+  <div class="row mb-2">
+    <div class="col">
+      <h2>Service Account</h2>
+      <div class="mb-2">
+        The service account is used to access Google Spreadsheets. Either make
+        your spreadsheet publicly accessible or share the spreadsheet with the
+        service account email with at least view permissions.
+      </div>
+      <div class="mb-2">
+        Current service account:
+        {% if service_account_email is none %}
+        <em>None</em>
+        {% else %}
+        <strong id="{{ service_account_email_id }}">
+          {{ service_account_email }}
+        </strong>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-success ms-2"
+          id="{{ copy_email_btn_id }}"
+        >
+          Copy
+        </button>
+        <span id="{{ copy_email_btn_id }}-success" class="ms-2"></span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-7">
+      <h4>Change Service Account</h4>
+      <div class="mb-2">
+        Please see
+        <a
+          href="https://docs.gspread.org/en/latest/oauth2.html#for-bots-using-service-account"
+          target="_blank"
+        >this page</a> for how to create a service account. Upload the
+        credentials JSON file here.
+      </div>
+
+      <div class="row">
+        <div class="col-sm-5">
+          <input
+            type="file"
+            id="{{ service_account_creds_input_id }}"
+            class="form-control"
+          />
+          <div
+            id="{{ service_account_creds_input_id }}-invalid"
+            class="invalid-feedback"
+          ></div>
+          <div id="{{ service_account_creds_input_id }}-success" class="mt-2">
+            {% for message in get_flashed_messages() %}
+            <div>{{ message }}</div>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="col-auto">
+          <button
+            type="button"
+            id="{{ set_service_account_btn_id }}"
+            class="btn btn-success"
+          >
+            Set Service Account
+          </button>
+        </div>
+      </div>
+      <div class="row" id="test"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+  function handleSetServiceAccountClicked() {
+    function setSuccessDivText(text) {
+      $('#{{ service_account_creds_input_id }}-success').html(text);
+    }
+
+    function clearSuccessDiv() {
+      setSuccessDivText('');
+    }
+
+    clearInvalid('{{ service_account_creds_input_id }}');
+    clearSuccessDiv();
+
+    const fileList = $('#{{ service_account_creds_input_id }}').prop('files');
+    if (fileList.length === 0) {
+      // Error: no file chosen
+      setInvalid('{{ service_account_creds_input_id }}', 'Please choose a file.');
+      return;
+    }
+
+    // read file
+    const file = fileList[0];
+    file.text().then((fileText) => {
+      ajaxRequest('POST', '{{ url_for("set_service_account") }}', {
+        contentType: 'application/json',
+        data: fileText,
+        success: (response, status, jqXHR) => {
+          if (response.success) {
+            // reload the page
+            location.reload();
+          } else {
+            // some failure
+            setInvalid(
+              '{{ service_account_creds_input_id }}',
+              response.reason ?? 'Unknown error: please try again'
+            );
+          }
+        },
+      })
+    });
+  }
+
+  $(document).ready(() => {
+    $('#{{ set_service_account_btn_id }}').click((event) => {
+      handleSetServiceAccountClicked();
+    });
+
+    $('#{{ copy_email_btn_id }}').click((event) => {
+      // copy the email to the user's clipboard
+      copyElementContent('{{ service_account_email_id }}', () => {
+        setElementTextFor('{{ copy_email_btn_id }}-success', 'Copied!', 30);
+      });
+    });
+
+    {% if get_flashed_messages() %}
+    // clear the flashed text after 60 seconds
+    clearElementAfter('{{ service_account_creds_input_id }}-success', 60);
+    {% endif %}
+  });
+</script>
+{% endblock %}

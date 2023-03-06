@@ -7,7 +7,7 @@
 
     <!-- Favicon -->
     {# TODO: add favicon #}
-    <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" />
+    <!-- <link rel="icon" href="{{ url_for('static', filename='logo.png') }}" /> -->
 
     <!-- Bootstrap CSS -->
     <link
@@ -23,6 +23,26 @@
       integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
       crossorigin="anonymous"
     ></script>
+
+    <!-- JQuery -->
+    <script
+      src="https://code.jquery.com/jquery-3.6.0.min.js"
+      integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4="
+      crossorigin="anonymous"
+    ></script>
+    <script type="text/javascript">
+      // Set up CSRF for jQuery requests
+      $.ajaxSetup({
+        beforeSend: function (xhr, settings) {
+          if (
+            !this.crossDomain &&
+            !/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type)
+          ) {
+            xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token() }}');
+          }
+        },
+      });
+    </script>
 
     <link
       rel="stylesheet"
@@ -41,4 +61,6 @@
       {% block body %}{% endblock %}
     </div>
   </body>
+
+  {% block script %}{% endblock %}
 </html>

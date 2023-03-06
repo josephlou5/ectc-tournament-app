@@ -5,8 +5,10 @@ Contains the global Flask app instance.
 # =============================================================================
 
 from flask import Flask
+from flask_wtf.csrf import CSRFProtect
 from werkzeug.exceptions import NotFound
 
+import db
 import views
 from config import get_config
 from utils.routes import _render
@@ -17,6 +19,12 @@ from utils.routes import _render
 
 app = Flask(__name__, instance_relative_config=True)
 app.config.from_object(get_config(app.debug))
+
+# Set up CSRF protection
+CSRFProtect().init_app(app)
+
+# Set up database
+db.init_app(app)
 
 
 @app.context_processor

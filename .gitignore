@@ -1,6 +1,9 @@
 # MacOS files
 .DS_Store
 
+# Private keys
+keys.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

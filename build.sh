@@ -10,4 +10,4 @@ python -m pip install pipenv wheel
 pipenv install --deploy --ignore-pipfile --verbose
 
 # Run database migrations
-# flask db upgrade
+flask db upgrade
