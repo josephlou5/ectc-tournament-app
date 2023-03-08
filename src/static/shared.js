@@ -4,12 +4,12 @@
 
 function ajaxRequest(method, url, options = {}) {
   if (!options.success) {
-    options.success = () => {
+    options.success = (response, status, jqXHR) => {
       location.reload();
     };
   }
   if (!options.error) {
-    options.error = () => {
+    options.error = (jqXHR, status, errorThrown) => {
       location.reload();
     };
   }
@@ -26,14 +26,26 @@ function copyElementContent(elementId, callback = null) {
   });
 }
 
+// maps: element id -> current timeout
+const TIMEOUTS = {};
+
 /**
  * Clears an element after the given amount of seconds.
  */
 function clearElementAfter(elementId, seconds = 60) {
   const element = $('#' + elementId);
-  if (element && element.html().trim() !== '') {
-    setTimeout(() => {
+  if (!element) return;
+  // clear any current timeouts
+  if (TIMEOUTS[elementId] != null) {
+    clearTimeout(TIMEOUTS[elementId]);
+    delete TIMEOUTS[elementId];
+  }
+  if (element.html().trim() !== '') {
+    TIMEOUTS[elementId] = setTimeout(() => {
       element.html('');
+      if (TIMEOUTS[elementId] != null) {
+        delete TIMEOUTS[elementId];
+      }
     }, seconds * 1000);
   }
 }

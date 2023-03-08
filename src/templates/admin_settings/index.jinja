@@ -123,6 +123,9 @@ Admin Settings
             );
           }
         },
+        error: (jqXHR, status, errorThrown) => {
+          setInvalid('{{ service_account_creds_input_id }}', jqXHR.statusText);
+        },
       })
     });
   }
