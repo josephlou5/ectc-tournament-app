@@ -33,7 +33,9 @@ def set_service_account():
         print("  Invalid JSON data given")
         return {"success": False, "reason": "Invalid JSON data"}
     print("Got service account info:", service_account_info)
-    error_msg, _ = fetch_roster_data.get_service_account(service_account_info)
+    error_msg, _ = fetch_roster_data.get_service_account_client(
+        service_account_info
+    )
     if error_msg is not None:
         print("  Validation failed:", error_msg)
         return {"success": False, "reason": error_msg}
