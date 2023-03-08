@@ -31,6 +31,7 @@ db.init_app(app)
 def inject_template_variables():
     return {
         "APP_NAME": "ECTC Tournament App",
+        "navbar_tabs": views.NAVBAR_TABS,
     }
 
 
