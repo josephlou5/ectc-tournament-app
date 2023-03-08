@@ -142,10 +142,8 @@ Admin Settings
       });
     });
 
-    {% if get_flashed_messages() %}
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ service_account_creds_input_id }}-success', 60);
-    {% endif %}
   });
 </script>
 {% endblock %}

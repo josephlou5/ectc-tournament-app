@@ -8,9 +8,16 @@ used in any of the functions.
 # =============================================================================
 
 import json
+from datetime import datetime
+
+import pytz
 
 from db._utils import query
 from db.models import GlobalState, db
+
+# =============================================================================
+
+EASTERN_TZ = pytz.timezone("US/Eastern")
 
 # =============================================================================
 
@@ -55,5 +62,34 @@ def set_service_account_info(data):
     global_state = _get()
     # use the most compact representation
     global_state.service_account = json.dumps(data, separators=(",", ":"))
+    db.session.commit()
+    return True
+
+
+def get_last_fetched_spreadsheet_url():
+    """Returns the url of the global last fetched spreadsheet, or None
+    if no spreadsheet was fetched from.
+    """
+    global_state = _get()
+    return global_state.last_roster_spreadsheet
+
+
+def get_last_fetched_time(tz=EASTERN_TZ):
+    """Returns the last fetched time of the roster spreadsheet, or None
+    if no spreadsheet was fetched from.
+    """
+    global_state = _get()
+    return global_state.last_fetched_tz(tz=tz)
+
+
+def set_last_fetched_spreadsheet_url(spreadsheet_url):
+    """Sets the global last fetched spreadsheet and last fetched time.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    global_state = _get()
+    global_state.last_roster_spreadsheet = spreadsheet_url
+    global_state.last_fetched_time = datetime.utcnow()
     db.session.commit()
     return True

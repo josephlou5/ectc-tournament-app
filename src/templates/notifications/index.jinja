@@ -1,0 +1,169 @@
+{% extends "shared/layout.jinja" %}
+
+{% block title %}
+Notifications
+{% endblock %}
+
+{% set roster_url_input_id = "roster-url-input" %}
+{% set open_roster_btn_id = "open-roster-btn" %}
+{% set fetch_roster_btn_id = "fetch-roster-btn" %}
+{% set fetch_roster_status_id = "fetch-roster-status" %}
+
+{% block body %}
+<div id="notifications-body" class="container-fluid">
+  <h2>Notifications</h2>
+
+  <div class="row mb-2">
+    <div class="col">
+      <h4>Roster Spreadsheet</h4>
+      <div class="mb-2">
+        The roster in the given Google Spreadsheet will be fetched whenever the
+        "Fetch Roster" button is pressed. There should be a worksheet called
+        <code>{{ roster_worksheet_name }}</code> with the full teams roster.
+        (Note: the header columns are case insensitive and must be unique.)
+      </div>
+      <div class="mb-2">
+        In order for the system to access your spreadsheet, either make it
+        publicly accessible or share the spreadsheet with the service account
+        email with at least view permissions. You can find the service account
+        email on the
+        <a href="{{ url_for('admin_settings') }}">Admin Settings</a> page.
+      </div>
+      <div class="mb-2">
+        <div class="row mb-2 align-items-center">
+          <label
+            for="{{ roster_url_input_id }}"
+            class="col-auto col-form-label"
+          >
+            URL
+          </label>
+          <div class="col-6">
+            <input
+              type="text"
+              id="{{ roster_url_input_id }}"
+              class="form-control"
+              value="{{ spreadsheet_url or '' }}"
+            />
+            <div
+              id="{{ roster_url_input_id }}-invalid"
+              class="invalid-feedback"
+            ></div>
+          </div>
+          <div class="col-auto">
+            <a
+              id="{{ open_roster_btn_id }}"
+              class="btn btn-sm btn-outline-success"
+              target="_blank"
+            >
+              Open
+            </a>
+          </div>
+        </div>
+        <div class="row mb-2 align-items-center">
+          <div class="col-auto">
+            <button id="{{ fetch_roster_btn_id }}" class="btn btn-success">
+              Fetch Roster
+            </button>
+          </div>
+          <div id="{{ fetch_roster_status_id }}" class="col">
+            {% for message in get_flashed_messages(category_filter=["info"]) %}
+            <div>{{ message }}</div>
+            {% endfor %}
+          </div>
+        </div>
+        {% if last_fetched_time is not none %}
+        <div class="mb-2">
+          Warning: Fetching again will override the current roster.
+        </div>
+        {% endif %}
+        <div class="row mb-2">
+          <div class="col">
+            Last fetched:
+            {% if last_fetched_time is none %}
+            <em>never</em>
+            {% else %}
+            <span>{{ last_fetched_time }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+  function getUrl() {
+    return $('#{{ roster_url_input_id }}').val().trim();
+  }
+
+  function handleRosterSpreadsheetUrlChanged() {
+    const url = getUrl();
+    const $openButton = $('#{{ open_roster_btn_id }}');
+    if (url === '') {
+      $openButton.addClass('disabled');
+      $openButton.removeAttr('href');
+    } else {
+      $openButton.removeClass('disabled');
+      $openButton.attr('href', url);
+    }
+  }
+
+  function handleFetchRosterClicked() {
+    if ($('#{{ fetch_roster_status_id }}').html().trim() === 'Fetching...') {
+      // currently fetching... don't process the click
+      return;
+    }
+
+    clearInvalid('{{ roster_url_input_id }}');
+
+    const url = getUrl();
+    if (url === '') {
+      // Error: no url given
+      setInvalid('{{ roster_url_input_id }}', 'Please enter a URL.');
+      return;
+    }
+
+    $('#{{ fetch_roster_status_id }}').html('Fetching...');
+    ajaxRequest('POST', '{{ url_for("fetch_roster") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({ url }),
+      success: (response, status, jqXHR) => {
+        // clear the status
+        $('#{{ fetch_roster_status_id }}').html('');
+        if (response.success) {
+          console.log(response.roster);
+          // reload the page
+          location.reload();
+        } else {
+          // some failure
+          setInvalid(
+            '{{ roster_url_input_id }}',
+            response.reason ?? 'Unknown error: please try again'
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        // clear the status
+        $('#{{ fetch_roster_status_id }}').html('');
+        setInvalid('{{ roster_url_input_id }}', jqXHR.statusText);
+      },
+    });
+  }
+
+  $(document).ready(() => {
+    handleRosterSpreadsheetUrlChanged();
+    $('#{{ roster_url_input_id }}').on('input', (event) => {
+      handleRosterSpreadsheetUrlChanged();
+    });
+
+    $('#{{ fetch_roster_btn_id }}').click((event) => {
+      handleFetchRosterClicked();
+    });
+
+    // clear the flashed text after 60 seconds
+    clearElementAfter('{{ fetch_roster_status_id }}', 60);
+  });
+</script>
+{% endblock %}

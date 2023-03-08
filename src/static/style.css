@@ -1,0 +1,14 @@
+code {
+  /* GitHub's default light theme code blocks */
+  border-radius: 6px;
+  background-color: rgb(175, 184, 193, 0.2);
+  color: black;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
+    Liberation Mono, monospace;
+  font-size: 85%;
+  line-height: 1.5;
+  margin: 0;
+  padding: 0.2em 0.4em;
+  white-space: break-spaces;
+  word-wrap: break-word;
+}
