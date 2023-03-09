@@ -82,7 +82,10 @@ Notifications
             {% if last_fetched_time is none %}
             <em>never</em>
             {% else %}
-            <span>{{ last_fetched_time }}</span>
+            {{ last_fetched_time }}
+            {% if has_fetch_logs %}
+            <a href="{{ url_for('fetch_roster_logs') }}">(logs)</a>
+            {% endif %}
             {% endif %}
           </div>
         </div>
@@ -133,7 +136,6 @@ Notifications
         // clear the status
         $('#{{ fetch_roster_status_id }}').html('');
         if (response.success) {
-          console.log(response.roster);
           // reload the page
           location.reload();
         } else {

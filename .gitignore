@@ -4,6 +4,9 @@
 # Private keys
 keys.py
 
+# Generated static files
+src/static/fetch_roster_logs.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

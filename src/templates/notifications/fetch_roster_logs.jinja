@@ -1,0 +1,42 @@
+{% extends "shared/layout.jinja" %}
+
+{% block title %}
+Fetch Roster Logs
+{% endblock %}
+
+{% macro log_level_class(log_level) %}
+{% if log_level == "ERROR" %}
+class="table-danger"
+{% elif log_level == "WARNING" %}
+class="table-warning"
+{% else %}
+{% endif %}
+{% endmacro %}
+
+{% block body %}
+<div id="logs-body" class="container-fluid">
+  <h2>Fetch Roster Logs</h2>
+  {% if time_fetched is none or logs is none %}
+  <div>No logs</div>
+  {% else %}
+  <h5>Time fetched: {{ time_fetched }}</h5>
+  <table class="table table-bordered table-hover">
+    <tr>
+      <th>Level</th>
+      <th>Sheet Row</th>
+      <th>Message</th>
+    </tr>
+    {% for log in logs %}
+    {% set log_level = log["level"] %}
+    <tr class="text-monospace">
+      <td {{ log_level_class(log_level) }}>{{ log_level }}</td>
+      <td>{{ log["row_num"] }}</td>
+      <td>{{ log["message"]|e }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <div>
+    <a href="{{ url_for('static', filename=fetch_logs_filename) }}">Raw logs</a>
+  </div>
+  {% endif %}
+{% endblock %}
