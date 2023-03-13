@@ -66,7 +66,8 @@ Notifications
             </button>
           </div>
           <div id="{{ fetch_roster_status_id }}" class="col">
-            {% for message in get_flashed_messages(category_filter=["info"]) %}
+            {% for message in
+               get_flashed_messages(category_filter=["fetch-roster-status"]) %}
             <div>{{ message }}</div>
             {% endfor %}
           </div>
@@ -97,8 +98,10 @@ Notifications
 
 {% block script %}
 <script>
+  const FETCHING_TEXT = 'Fetching...';
+
   function getUrl() {
-    return $('#{{ roster_url_input_id }}').val().trim();
+    return getInputValue('{{ roster_url_input_id }}');
   }
 
   function handleRosterSpreadsheetUrlChanged() {
@@ -114,7 +117,7 @@ Notifications
   }
 
   function handleFetchRosterClicked() {
-    if ($('#{{ fetch_roster_status_id }}').html().trim() === 'Fetching...') {
+    if ($('#{{ fetch_roster_status_id }}').html().trim() === FETCHING_TEXT) {
       // currently fetching... don't process the click
       return;
     }
@@ -128,7 +131,7 @@ Notifications
       return;
     }
 
-    $('#{{ fetch_roster_status_id }}').html('Fetching...');
+    $('#{{ fetch_roster_status_id }}').html(FETCHING_TEXT);
     ajaxRequest('POST', '{{ url_for("fetch_roster") }}', {
       contentType: 'application/json',
       data: JSON.stringify({ url }),
@@ -159,7 +162,6 @@ Notifications
     $('#{{ roster_url_input_id }}').on('input', (event) => {
       handleRosterSpreadsheetUrlChanged();
     });
-
     $('#{{ fetch_roster_btn_id }}').click((event) => {
       handleFetchRosterClicked();
     });

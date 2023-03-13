@@ -2,6 +2,8 @@
  * Shared global JavaScript functions.
  */
 
+/** JQUERY **/
+
 function ajaxRequest(method, url, options = {}) {
   if (!options.success) {
     options.success = (response, status, jqXHR) => {
@@ -17,14 +19,7 @@ function ajaxRequest(method, url, options = {}) {
   $.ajax({ method, url, ...options });
 }
 
-function copyElementContent(elementId, callback = null) {
-  const text = $('#' + elementId)
-    .text()
-    .trim();
-  navigator.clipboard.writeText(text).then(() => {
-    callback?.();
-  });
-}
+/** TIMEOUTS **/
 
 // maps: element id -> current timeout
 const TIMEOUTS = {};
@@ -59,6 +54,14 @@ function setElementTextFor(elementId, text, seconds = 60) {
   clearElementAfter(elementId, seconds);
 }
 
+/** FORMS **/
+
+function getInputValue(elementId) {
+  return $('#' + elementId)
+    .val()
+    .trim();
+}
+
 function clearInvalid(elementId) {
   $('#' + elementId).removeClass('is-invalid');
   $('#' + elementId + '-invalid').html('');
@@ -69,4 +72,15 @@ function setInvalid(elementId, message = null) {
     $('#' + elementId + '-invalid').html(message);
   }
   $('#' + elementId).addClass('is-invalid');
+}
+
+/** MISC **/
+
+function copyElementContent(elementId, callback = null) {
+  const text = $('#' + elementId)
+    .text()
+    .trim();
+  navigator.clipboard.writeText(text).then(() => {
+    callback?.();
+  });
 }

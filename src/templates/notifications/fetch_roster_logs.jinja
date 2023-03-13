@@ -9,7 +9,6 @@ Fetch Roster Logs
 class="table-danger"
 {% elif log_level == "WARNING" %}
 class="table-warning"
-{% else %}
 {% endif %}
 {% endmacro %}
 
@@ -30,7 +29,7 @@ class="table-warning"
     {% set log_level = log["level"] %}
     <tr class="text-monospace">
       <td {{ log_level_class(log_level) }}>{{ log_level }}</td>
-      <td>{{ log["row_num"] }}</td>
+      <td>{{ log["row_num"] or "" }}</td>
       <td>{{ log["message"]|e }}</td>
     </tr>
     {% endfor %}

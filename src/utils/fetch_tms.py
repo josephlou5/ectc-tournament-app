@@ -1,5 +1,5 @@
 """
-Fetches the full team roster from the given spreadsheet link.
+Fetches information from the TMS spreadsheet.
 """
 
 # =============================================================================
@@ -98,7 +98,10 @@ def get_service_account_client(service_account_info):
     return None, client
 
 
-def fetch(url):
+# =============================================================================
+
+
+def fetch_roster(url):
     """Fetches the full team roster from the given spreadsheet link.
 
     No validation is done beyond required and optional columns.
