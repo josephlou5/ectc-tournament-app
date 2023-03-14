@@ -6,9 +6,9 @@ Fetch Roster Logs
 
 {% macro log_level_class(log_level) %}
 {% if log_level == "ERROR" %}
-class="table-danger"
+table-danger
 {% elif log_level == "WARNING" %}
-class="table-warning"
+table-warning
 {% endif %}
 {% endmacro %}
 
@@ -21,15 +21,15 @@ class="table-warning"
   <h5>Time fetched: {{ time_fetched }}</h5>
   <table class="table table-bordered table-hover">
     <tr>
-      <th>Level</th>
-      <th>Sheet Row</th>
+      <th class="table-sm-col">Level</th>
+      <th class="table-sm-col">Sheet Row</th>
       <th>Message</th>
     </tr>
     {% for log in logs %}
     {% set log_level = log["level"] %}
     <tr class="text-monospace">
-      <td {{ log_level_class(log_level) }}>{{ log_level }}</td>
-      <td>{{ log["row_num"] or "" }}</td>
+      <td class="table-sm-col {{ log_level_class(log_level) }}">{{ log_level }}</td>
+      <td class="table-sm-col">{{ log["row_num"] or "" }}</td>
       <td>{{ log["message"]|e }}</td>
     </tr>
     {% endfor %}

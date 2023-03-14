@@ -18,6 +18,11 @@ code {
   word-wrap: break-word;
 }
 
+.table-sm-col {
+  width: 0;
+  white-space: nowrap;
+}
+
 .alert-sm {
   padding: 0.5rem 0.5rem !important;
 }
