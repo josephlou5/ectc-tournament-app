@@ -51,8 +51,23 @@ def fetch_roster():
         print(" ", "Failed:", error_msg)
         return {"success": False, "reason": error_msg}
 
-    # TODO: save in database
-    success = True
+    # save in database
+    print(" ", "Saving the roster to the database")
+    success = db.roster.set_roster(roster)
+    if success:
+        logs.append(
+            {
+                "level": "INFO",
+                "row_num": None,
+                "message": "Saved roster in database",
+            }
+        )
+    else:
+        # probably won't happen, since `fetch_roster()` should have good
+        # enough checks
+        logs.append(
+            {"level": "ERROR", "row_num": None, "message": "Database error"}
+        )
 
     # save the logs in a file
     full_logs = {

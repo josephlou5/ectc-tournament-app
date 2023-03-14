@@ -25,6 +25,13 @@ Notifications
         (Note: the header columns are case insensitive and must be unique.)
         {# TODO: add a help page with the full requirements of the worksheet #}
       </div>
+      {% if roster_last_fetched_time is not none %}
+      {# assume there is a roster #}
+      <div class="mb-2">
+        You can view the full roster here:
+        <a href="{{ url_for('view_full_roster') }}">Full Roster</a>
+      </div>
+      {% endif %}
       <div class="mb-2">
         {# no "mb-2" so the error messages are close to the button #}
         <div class="row align-items-center">
@@ -35,7 +42,9 @@ Notifications
           </div>
           <div id="{{ fetch_roster_status_id }}" class="col-auto">
             {% for message in flashed["fetch-roster"] %}
-            <div>{{ message }}</div>
+            {% call macros.bs_alert_sm("success", classes="me-2") %}
+            {{ message }}
+            {% endcall %}
             {% endfor %}
           </div>
         </div>
@@ -49,9 +58,12 @@ Notifications
           </div>
         </div>
         {% if roster_last_fetched_time is not none %}
-        <div class="row mb-2">
-          <div class="col">
+        <div class="row mt-3 mb-2">
+          {# alerts have weird spacings, so need to also have "mt-3" #}
+          <div class="col-auto">
+            {% call macros.bs_alert_sm("warning", dismissible=false) %}
             Warning: Fetching again will override the current roster.
+            {% endcall %}
           </div>
         </div>
         {% endif %}

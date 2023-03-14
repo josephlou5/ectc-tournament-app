@@ -1,0 +1,142 @@
+{% extends "shared/layout.jinja" %}
+
+{% block title %}
+Full Roster
+{% endblock %}
+
+{% macro team_member(user) %}
+{% if user is none %}
+<em>None</em>
+{% else %}
+{{ user.name }}
+{% endif %}
+{% endmacro %}
+
+{% block body %}
+<div id="roster-body" class="container-fluid">
+  <h2>Full Roster</h2>
+
+  <h4>Schools</h4>
+  {% if schools|length == 0 %}
+  <div>No schools</div>
+  {% else %}
+  <table class="table table-striped table-hover">
+    <tr>
+      <th class="table-sm-col"></th>
+      <th>School Name</th>
+    </tr>
+    {% for school in schools %}
+    <tr>
+      <th class="table-sm-col">{{ loop.index }}</th>
+      <td>{{ school.name }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <h4>Coaches</h4>
+  {% if coaches|length == 0 %}
+  <div>No coaches</div>
+  {% else %}
+  <table class="table table-striped table-hover">
+    <tr>
+      <th class="table-sm-col"></th>
+      <th>Name</th>
+      <th>Email</th>
+      <th>School</th>
+    </tr>
+    {% for coach in coaches %}
+    <tr>
+      <th class="table-sm-col">{{ loop.index }}</th>
+      <td>{{ coach.name }}</td>
+      <td>{{ coach.email }}</td>
+      <td>{{ coach.school.name }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <h4>Athletes</h4>
+  {% if athletes|length == 0 %}
+  <div>No athletes</div>
+  {% else %}
+  <table class="table table-striped table-hover">
+    <tr>
+      <th class="table-sm-col"></th>
+      <th>Name</th>
+      <th>Email</th>
+      <th>School</th>
+    </tr>
+    {% for athlete in athletes %}
+    <tr>
+      <th class="table-sm-col">{{ loop.index }}</th>
+      <td>{{ athlete.name }}</td>
+      <td>{{ athlete.email }}</td>
+      <td>{{ athlete.school.name }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <h4>Spectators</h4>
+  {% if spectators|length == 0 %}
+  <div>No spectators</div>
+  {% else %}
+  <table class="table table-striped table-hover">
+    <tr>
+      <th class="table-sm-col"></th>
+      <th>Name</th>
+      <th>Email</th>
+      <th>School</th>
+    </tr>
+    {% for spectator in spectators %}
+    <tr>
+      <th class="table-sm-col">{{ loop.index }}</th>
+      <td>{{ spectator.name }}</td>
+      <td>{{ spectator.email }}</td>
+      <td>{{ spectator.school.name }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <h4>Teams</h4>
+  {% if teams|length == 0 %}
+  <div>No teams</div>
+  {% else %}
+  <table class="table table-striped table-hover">
+    <tr>
+      <th class="table-sm-col"></th>
+      <th>School</th>
+      <th>Code</th>
+      <th>Light</th>
+      <th>Middle</th>
+      <th>Heavy</th>
+      <th>Alternates</th>
+    </tr>
+    {% for team in teams %}
+    <tr>
+      <th class="table-sm-col">{{ loop.index }}</th>
+      <td>{{ team.school.name }}</td>
+      <td>{{ team.code }}</td>
+      <td>{{ team_member(team.light) }}</td>
+      <td>{{ team_member(team.middle) }}</td>
+      <td>{{ team_member(team.heavy) }}</td>
+      <td>
+        {% if team.alternates|length == 0 %}
+        <em>None</em>
+        {% else %}
+        {% for alternate in team.alternates %}
+        <div>{{ alternate.name }}</div>
+        {% endfor %}
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <div>
+    <a href="{{ url_for('view_full_roster_raw') }}">Raw roster</a>
+  </div>
+{% endblock %}
