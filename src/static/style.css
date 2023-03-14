@@ -17,3 +17,15 @@ code {
   white-space: break-spaces;
   word-wrap: break-word;
 }
+
+.alert-sm {
+  padding: 0.5rem 0.5rem !important;
+}
+
+.alert-sm.alert-dismissible {
+  padding-right: 2.5rem !important;
+}
+
+.alert-sm .btn-close {
+  padding: 0.5rem 0.75rem !important;
+}

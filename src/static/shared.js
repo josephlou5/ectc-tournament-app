@@ -49,14 +49,17 @@ function clearElementAfter(elementId, seconds = 60) {
     clearTimeout(TIMEOUTS[elementId]);
     delete TIMEOUTS[elementId];
   }
-  if ($element.html().trim() !== '') {
-    TIMEOUTS[elementId] = setTimeout(() => {
+  // if the element has text, clear it after the specified time
+  if ($element.html().trim() === '') return;
+  TIMEOUTS[elementId] = setTimeout(() => {
+    const $element = $('#' + elementId);
+    if ($element.length > 0) {
       $element.html('');
-      if (TIMEOUTS[elementId] != null) {
-        delete TIMEOUTS[elementId];
-      }
-    }, seconds * 1000);
-  }
+    }
+    if (TIMEOUTS[elementId] != null) {
+      delete TIMEOUTS[elementId];
+    }
+  }, seconds * 1000);
 }
 
 /**
@@ -96,4 +99,20 @@ function copyElementContent(elementId, callback = null) {
   navigator.clipboard.writeText(text).then(() => {
     callback?.();
   });
+}
+
+function bsAlertSm(text, accent, tag = 'span') {
+  return `
+  <${tag}
+    class="alert alert-sm alert-${accent} alert-dismissible fade show"
+    role="alert"
+  >
+    ${text}
+    <button
+      type="button"
+      class="btn-close"
+      data-bs-dismiss="alert"
+      aria-label="Close"
+    ></button>
+  </${tag}>`;
 }

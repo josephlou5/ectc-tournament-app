@@ -19,7 +19,7 @@ Admin Settings
 {% set save_tms_url_btn_id = "save-tms-url-btn" %}
 {% set save_tms_url_status_id = "save-tms-url-status" %}
 
-{% set flashed = get_flashed_by_categories() %}
+{% set flashed = get_flashed_by_categories(subcategories=True) %}
 
 {% block body %}
 <div id="admin-config-body" class="container-fluid">
@@ -63,8 +63,8 @@ Admin Settings
         credentials JSON file here.
       </div>
 
-      <div class="row">
-        <div class="col-sm-5">
+      <div class="row mb-2">
+        <div class="col-6">
           <input
             type="file"
             id="{{ service_account_creds_input_id }}"
@@ -74,11 +74,6 @@ Admin Settings
             id="{{ service_account_creds_input_id }}-invalid"
             class="invalid-feedback"
           ></div>
-          <div id="{{ service_account_messages_id }}" class="mt-2">
-            {% for message in flashed["service-account"] %}
-            <div>{{ message }}</div>
-            {% endfor %}
-          </div>
         </div>
         <div class="col-auto">
           <button
@@ -88,10 +83,23 @@ Admin Settings
           >
             Set Service Account
           </button>
+          <span
+            id="{{ set_service_account_status_id }}"
+            class="col-auto ms-2 align-self-center"
+          ></span>
         </div>
-        <div id="{{ set_service_account_status_id }}" class="col-auto"></div>
       </div>
-      <div class="row" id="test"></div>
+      <div class="row mb-2">
+        <div id="{{ service_account_messages_id }}" class="col-auto">
+          {% for accent, messages in flashed["service-account"].items() %}
+          {% for message in messages %}
+          {% call macros.bs_alert(accent) %}
+          {{ message }}
+          {% endcall %}
+          {% endfor %}
+          {% endfor %}
+        </div>
+      </div>
     </div>
   </div>
 
@@ -104,10 +112,16 @@ Admin Settings
       </div>
       <div class="mb-2">
         <div class="row mb-2 align-items-center">
-          <label for="{{ tms_url_input_id }}" class="col-auto col-form-label">
-            URL
-          </label>
-          <div class="col-6">
+          <div class="col-auto pe-0">
+            <a
+              id="{{ open_tms_btn_id }}"
+              class="btn btn-sm btn-outline-success"
+              target="_blank"
+            >
+              Open
+            </a>
+          </div>
+          <div class="col-6 ms-0">
             <input
               type="text"
               id="{{ tms_url_input_id }}"
@@ -118,29 +132,27 @@ Admin Settings
               id="{{ tms_url_input_id }}-invalid"
               class="invalid-feedback"
             ></div>
-            <div id="{{ tms_url_messages_id }}">
-              {% for message in flashed["tms-spreadsheet"] %}
-              <div>{{ message }}</div>
-              {% endfor %}
-            </div>
           </div>
-          <div class="col-auto">
-            <a
-              id="{{ open_tms_btn_id }}"
-              class="btn btn-sm btn-outline-success"
-              target="_blank"
-            >
-              Open
-            </a>
-          </div>
-        </div>
-        <div class="row mb-2">
           <div class="col-auto">
             <button id="{{ save_tms_url_btn_id }}" class="btn btn-success">
               Save
             </button>
+            <span
+              id="{{ save_tms_url_status_id }}"
+              class="col-auto ms-2 align-self-center"
+            ></span>
           </div>
-          <div id="{{ save_tms_url_status_id }}" class="col-auto"></div>
+        </div>
+        <div class="row mb-2">
+          <div id="{{ tms_url_messages_id }}" class="col-auto">
+            {% for accent, messages in flashed["tms-spreadsheet"].items() %}
+            {% for message in messages %}
+            {% call macros.bs_alert(accent) %}
+            {{ message }}
+            {% endcall %}
+            {% endfor %}
+            {% endfor %}
+          </div>
         </div>
       </div>
     </div>
@@ -268,7 +280,11 @@ Admin Settings
     $('#{{ copy_email_btn_id }}').click((event) => {
       // copy the email to the user's clipboard
       copyElementContent('{{ service_account_email_id }}', () => {
-        setElementTextFor('{{ copy_email_status_id }}', 'Copied!', 30);
+        setElementTextFor(
+          '{{ copy_email_status_id }}',
+          bsAlertSm('Copied!', 'success'),
+          30
+        );
       });
     });
     $('#{{ set_service_account_btn_id }}').click((event) => {

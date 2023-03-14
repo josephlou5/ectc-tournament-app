@@ -53,7 +53,7 @@ def set_service_account():
     success_msg = "Successfully set service account"
     print(" ", success_msg)
     # use flash so the service account email is updated
-    flash(success_msg, "service-account")
+    flash(success_msg, "service-account.success")
 
     # verify access to TMS spreadsheet
     spreadsheet_id = db.global_state.get_tms_spreadsheet_id()
@@ -66,8 +66,11 @@ def set_service_account():
         if error_msg is not None:
             print(" ", "Error:", error_msg)
             flash(
-                f"Error accessing TMS spreadsheet: {error_msg}",
-                "service-account",
+                (
+                    "<strong>Error:</strong> Could not access TMS "
+                    f"spreadsheet: {error_msg}"
+                ),
+                "service-account.warning",
             )
         else:
             print(" ", "Verified: Service account can access TMS spreadsheet")
@@ -128,14 +131,17 @@ def set_tms_spreadsheet():
     success_msg = "Successfully saved TMS spreadsheet"
     print(" ", success_msg)
     # use flash so the clean url is updated
-    flash(success_msg, "tms-spreadsheet")
+    flash(success_msg, "tms-spreadsheet.success")
 
     if service_account_info is None:
         # only show this flash if the save to the database was
         # successful
         flash(
-            "Warning: No service account; could not verify access",
-            "tms-spreadsheet",
+            (
+                "<strong>Warning:</strong> No service account; could not "
+                "verify access"
+            ),
+            "tms-spreadsheet.warning",
         )
 
     return {"success": True}
