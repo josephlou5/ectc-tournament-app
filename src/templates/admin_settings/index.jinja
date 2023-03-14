@@ -6,8 +6,20 @@ Admin Settings
 
 {% set service_account_email_id = "service-account-email" %}
 {% set copy_email_btn_id = "copy-service-account-email-btn" %}
+{% set copy_email_status_id = "copy-service-account-email-status" %}
+
 {% set service_account_creds_input_id = "service-account-credentials" %}
+{% set service_account_messages_id = "service-account-messages" %}
 {% set set_service_account_btn_id = "set-service-account-btn" %}
+{% set set_service_account_status_id = "set-service-account-status" %}
+
+{% set tms_url_input_id = "tms-url-input" %}
+{% set tms_url_messages_id = "tms-url-messages" %}
+{% set open_tms_btn_id = "open-tms-btn" %}
+{% set save_tms_url_btn_id = "save-tms-url-btn" %}
+{% set save_tms_url_status_id = "save-tms-url-status" %}
+
+{% set flashed = get_flashed_by_categories() %}
 
 {% block body %}
 <div id="admin-config-body" class="container-fluid">
@@ -34,12 +46,12 @@ Admin Settings
         >
           Copy
         </button>
-        <span id="{{ copy_email_btn_id }}-success" class="ms-2"></span>
+        <span id="{{ copy_email_status_id }}" class="ms-2"></span>
         {% endif %}
       </div>
     </div>
   </div>
-  <div class="row">
+  <div class="row mb-2">
     <div class="col-7">
       <h4>Change Service Account</h4>
       <div class="mb-2">
@@ -62,8 +74,8 @@ Admin Settings
             id="{{ service_account_creds_input_id }}-invalid"
             class="invalid-feedback"
           ></div>
-          <div id="{{ service_account_creds_input_id }}-success" class="mt-2">
-            {% for message in get_flashed_messages() %}
+          <div id="{{ service_account_messages_id }}" class="mt-2">
+            {% for message in flashed["service-account"] %}
             <div>{{ message }}</div>
             {% endfor %}
           </div>
@@ -77,8 +89,60 @@ Admin Settings
             Set Service Account
           </button>
         </div>
+        <div id="{{ set_service_account_status_id }}" class="col-auto"></div>
       </div>
       <div class="row" id="test"></div>
+    </div>
+  </div>
+
+  <div class="row mb-2">
+    <div class="col">
+      <h2>TMS Spreadsheet</h2>
+      <div class="mb-2">
+        Please provide the URL of the TMS spreadsheet, which will be used to
+        fetch the full roster and the teams for each match.
+      </div>
+      <div class="mb-2">
+        <div class="row mb-2 align-items-center">
+          <label for="{{ tms_url_input_id }}" class="col-auto col-form-label">
+            URL
+          </label>
+          <div class="col-6">
+            <input
+              type="text"
+              id="{{ tms_url_input_id }}"
+              class="form-control"
+              value="{{ tms_spreadsheet_url or '' }}"
+            />
+            <div
+              id="{{ tms_url_input_id }}-invalid"
+              class="invalid-feedback"
+            ></div>
+            <div id="{{ tms_url_messages_id }}">
+              {% for message in flashed["tms-spreadsheet"] %}
+              <div>{{ message }}</div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="col-auto">
+            <a
+              id="{{ open_tms_btn_id }}"
+              class="btn btn-sm btn-outline-success"
+              target="_blank"
+            >
+              Open
+            </a>
+          </div>
+        </div>
+        <div class="row mb-2">
+          <div class="col-auto">
+            <button id="{{ save_tms_url_btn_id }}" class="btn btn-success">
+              Save
+            </button>
+          </div>
+          <div id="{{ save_tms_url_status_id }}" class="col-auto"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -87,16 +151,17 @@ Admin Settings
 {% block script %}
 <script>
   function handleSetServiceAccountClicked() {
-    function setSuccessDivText(text) {
-      $('#{{ service_account_creds_input_id }}-success').html(text);
+    const SETTING = 'Setting...';
+
+    if ($('#{{ set_service_account_status_id }}').html().trim() == SETTING) {
+      // currently setting; ignore click
+      return;
     }
 
-    function clearSuccessDiv() {
-      setSuccessDivText('');
-    }
-
+    // clear messages and status
+    $('#{{ service_account_messages_id }}').html('');
+    $('#{{ set_service_account_status_id }}').html('');
     clearInvalid('{{ service_account_creds_input_id }}');
-    clearSuccessDiv();
 
     const fileList = $('#{{ service_account_creds_input_id }}').prop('files');
     if (fileList.length === 0) {
@@ -108,6 +173,8 @@ Admin Settings
     // read file
     const file = fileList[0];
     file.text().then((fileText) => {
+      // set service account with file contents
+      $('#{{ set_service_account_status_id }}').html(SETTING);
       ajaxRequest('POST', '{{ url_for("set_service_account") }}', {
         contentType: 'application/json',
         data: fileText,
@@ -116,6 +183,8 @@ Admin Settings
             // reload the page
             location.reload();
           } else {
+            // clear status
+            $('#{{ set_service_account_status_id }}').html('');
             // some failure
             setInvalid(
               '{{ service_account_creds_input_id }}',
@@ -124,26 +193,103 @@ Admin Settings
           }
         },
         error: (jqXHR, status, errorThrown) => {
+          // clear status
+          $('#{{ set_service_account_status_id }}').html('');
           setInvalid('{{ service_account_creds_input_id }}', jqXHR.statusText);
         },
       })
     });
   }
 
-  $(document).ready(() => {
-    $('#{{ set_service_account_btn_id }}').click((event) => {
-      handleSetServiceAccountClicked();
-    });
+  function getUrl() {
+    return getInputValue('{{ tms_url_input_id }}');
+  }
 
+  function handleTMSSpreadsheetUrlChanged() {
+    const url = getUrl();
+    const $openButton = $('#{{ open_tms_btn_id }}');
+    if (url === '') {
+      $openButton.addClass('disabled');
+      $openButton.removeAttr('href');
+    } else {
+      $openButton.removeClass('disabled');
+      $openButton.attr('href', url);
+    }
+  }
+
+  function handleSaveTMSSpreadsheetClicked() {
+    const SAVING = 'Saving...';
+
+    if ($('#{{ save_tms_url_status_id }}').html().trim() === SAVING) {
+      // currently saving; ignore click
+      return;
+    }
+
+    // clear messages and status
+    $('#{{ tms_url_messages_id }}').html('');
+    $('#{{ save_tms_url_status_id }}').html('');
+    clearInvalid('{{ tms_url_input_id }}');
+
+    const url = getUrl();
+    if (url === '') {
+      // Error: no url given
+      setInvalid('{{ tms_url_input_id }}', 'Please enter a URL.');
+      return;
+    }
+
+    $('#{{ save_tms_url_status_id }}').html(SAVING);
+    ajaxRequest('POST', '{{ url_for("set_tms_spreadsheet") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({ url }),
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          // reload the page
+          location.reload();
+        } else {
+          // clear status
+          $('#{{ save_tms_url_status_id }}').html('');
+          // some failure
+          setInvalid(
+            '{{ tms_url_input_id }}',
+            response.reason ?? 'Unknown error: please try again'
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        // clear status
+        $('#{{ save_tms_url_status_id }}').html('');
+        setInvalid('{{ tms_url_input_id }}', jqXHR.statusText);
+      },
+    });
+  }
+
+  $(document).ready(() => {
+    // Service account
     $('#{{ copy_email_btn_id }}').click((event) => {
       // copy the email to the user's clipboard
       copyElementContent('{{ service_account_email_id }}', () => {
-        setElementTextFor('{{ copy_email_btn_id }}-success', 'Copied!', 30);
+        setElementTextFor('{{ copy_email_status_id }}', 'Copied!', 30);
       });
     });
-
+    $('#{{ set_service_account_btn_id }}').click((event) => {
+      handleSetServiceAccountClicked();
+    });
     // clear the flashed text after 60 seconds
-    clearElementAfter('{{ service_account_creds_input_id }}-success', 60);
+    clearElementAfter('{{ service_account_messages_id }}', 60);
+
+    // TMS Spreadsheet
+    handleTMSSpreadsheetUrlChanged();
+    $('#{{ tms_url_input_id }}').on('input', (event) => {
+      handleTMSSpreadsheetUrlChanged();
+    });
+    $('#{{ tms_url_input_id }}').onEnterKeyPress((event) => {
+      $('#{{ save_tms_url_btn_id }}').click();
+    });
+    $('#{{ save_tms_url_btn_id }}').click((event) => {
+      handleSaveTMSSpreadsheetClicked();
+    });
+    // clear the flashed text after 60 seconds
+    clearElementAfter('{{ tms_url_messages_id }}', 60);
   });
 </script>
 {% endblock %}

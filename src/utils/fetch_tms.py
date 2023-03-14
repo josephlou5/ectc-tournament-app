@@ -59,13 +59,10 @@ def url_to_id(url):
         return None
 
 
-def id_to_url(spreadsheet_id, worksheet_id=None):
-    """Converts a spreadsheet id to a corresponding link."""
-    # a valid spreadsheet link as of 2023-03-06
-    url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
-    if worksheet_id is not None:
-        url += f"/edit#gid={worksheet_id}"
-    return url
+def id_to_url(spreadsheet_id):
+    """Converts a spreadsheet id to a valid spreadsheet url."""
+    # this is the method used for the `Spreadsheet.url` property
+    return gspread.spreadsheet.SPREADSHEET_DRIVE_URL % spreadsheet_id
 
 
 # =============================================================================
@@ -73,36 +70,143 @@ def id_to_url(spreadsheet_id, worksheet_id=None):
 GLOBAL_SERVICE_ACCOUNT = None
 
 
-def get_service_account_client(service_account_info):
-    """Gets the service account using the given info.
+def get_service_account_client(
+    service_account_info=None, invalid_prefix=False
+):
+    """Gets the service account client.
+
+    If the info is not given, uses the one saved in the database.
 
     Returns:
         Union[Tuple[str, None], Tuple[None, gspread.Client]]:
             A tuple of an error message, or the service account client.
     """
     global GLOBAL_SERVICE_ACCOUNT  # pylint: disable=global-statement
+
+    # fetch info if not given
+    from_db = False
+    if service_account_info is None:
+        invalid_prefix = True
+        service_account_info = db.global_state.get_service_account_info()
+        if service_account_info is None:
+            return "No service account in database", None
+        from_db = True
+
     # check cached service account client
     if GLOBAL_SERVICE_ACCOUNT is not None:
-        email = service_account_info["client_email"]
-        if email == GLOBAL_SERVICE_ACCOUNT.auth.service_account_email:
+        email = service_account_info.get("client_email", None)
+        if (
+            email is not None
+            and email == GLOBAL_SERVICE_ACCOUNT.auth.service_account_email
+        ):
             # assume same service account
             return None, GLOBAL_SERVICE_ACCOUNT
+
+    # get client
     try:
         client = gspread.service_account_from_dict(
             service_account_info, scopes=gspread.auth.READONLY_SCOPES
         )
     except google.auth.exceptions.MalformedError as ex:
         GLOBAL_SERVICE_ACCOUNT = None
-        return str(ex), None
+        if from_db:
+            # remove the credentials from the database
+            _ = db.global_state.clear_service_account_info()
+        error_msg = str(ex)
+        if invalid_prefix:
+            error_msg = f"Invalid service account credentials: {error_msg}"
+        return error_msg, None
+
     GLOBAL_SERVICE_ACCOUNT = client
     return None, client
 
 
 # =============================================================================
 
+GLOBAL_TMS_SPREADSHEET = None
 
-def fetch_roster(url):
-    """Fetches the full team roster from the given spreadsheet link.
+
+def get_tms_spreadsheet(spreadsheet_id=None):
+    """Gets the TMS spreadsheet.
+
+    If the id is not given, uses the one saved in the database.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, gspread.Spreadsheet]]:
+            A tuple of an error message, or the spreadsheet.
+    """
+    global GLOBAL_TMS_SPREADSHEET  # pylint: disable=global-statement
+
+    error_msg, client = get_service_account_client()
+    if error_msg is not None:
+        return error_msg, None
+
+    # fetch id if not given
+    from_db = False
+    if spreadsheet_id is None:
+        spreadsheet_id = db.global_state.get_tms_spreadsheet_id()
+        if spreadsheet_id is None:
+            return "No TMS spreadsheet in database", None
+        from_db = True
+
+    # check cached spreadsheet
+    if GLOBAL_TMS_SPREADSHEET is not None:
+        if GLOBAL_TMS_SPREADSHEET.id == spreadsheet_id:
+            return None, GLOBAL_TMS_SPREADSHEET
+
+    # get spreadsheet
+    try:
+        spreadsheet = client.open_by_key(spreadsheet_id)
+    except gspread.SpreadsheetNotFound:
+        GLOBAL_TMS_SPREADSHEET = None
+        if from_db:
+            # remove the id from the database
+            _ = db.global_state.clear_tms_spreadsheet_id()
+        return "Spreadsheet not found", None
+    except gspread.exceptions.APIError as ex:
+        GLOBAL_TMS_SPREADSHEET = None
+        if from_db:
+            # remove the id from the database
+            _ = db.global_state.clear_tms_spreadsheet_id()
+        error = ex.response.json()["error"]
+        if error["code"] == 403 and error["status"] == "PERMISSION_DENIED":
+            return (
+                (
+                    "Service account does not have permission to open the "
+                    "spreadsheet"
+                ),
+                None,
+            )
+        if error["code"] == 404 and error["status"] == "NOT_FOUND":
+            # not sure why this isn't a `SpreadsheetNotFound` error?
+            return "Spreadsheet not found", None
+        raise
+
+    GLOBAL_TMS_SPREADSHEET = spreadsheet
+    return None, spreadsheet
+
+
+def get_worksheet(spreadsheet, worksheet_name, description=None):
+    """Gets the specified worksheet from the given spreadsheet.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, gspread.Worksheet]]:
+            A tuple of an error message, or the worksheet.
+    """
+    try:
+        worksheet = spreadsheet.worksheet(worksheet_name)
+    except gspread.WorksheetNotFound:
+        if description is None:
+            description = "Worksheet"
+        return f"{description} {worksheet_name!r} not found", None
+    return None, worksheet
+
+
+# =============================================================================
+
+
+def fetch_roster():
+    """Fetches the full team roster from the TMS spreadsheet.
 
     No validation is done beyond required and optional columns.
 
@@ -128,42 +232,15 @@ def fetch_roster(url):
     def _fetch_error(msg):
         return msg, None, None
 
-    service_account_info = db.global_state.get_service_account_info()
-    if service_account_info is None:
-        return _fetch_error("No service account in database")
-
-    error_msg, client = get_service_account_client(service_account_info)
+    error_msg, spreadsheet = get_tms_spreadsheet()
     if error_msg is not None:
-        return _fetch_error(
-            f"Invalid service account credentials: {error_msg}"
-        )
+        return _fetch_error(error_msg)
 
-    spreadsheet_id = url_to_id(url)
-    if spreadsheet_id is None:
-        return _fetch_error("Invalid spreadsheet link")
-
-    # get spreadsheet and worksheet
-    try:
-        spreadsheet = client.open_by_key(spreadsheet_id)
-    except gspread.SpreadsheetNotFound:
-        return _fetch_error("Spreadsheet not found")
-    except gspread.exceptions.APIError as ex:
-        error = ex.response.json()["error"]
-        if error["code"] == 403 and error["status"] == "PERMISSION_DENIED":
-            return _fetch_error(
-                "Service account does not have permission to open the "
-                "spreadsheet"
-            )
-        if error["code"] == 404 and error["status"] == "NOT_FOUND":
-            # not sure why this isn't a `SpreadsheetNotFound` error?
-            return _fetch_error("Spreadsheet not found")
-        raise
-    try:
-        worksheet = spreadsheet.worksheet(ROSTER_WORKSHEET_NAME)
-    except gspread.WorksheetNotFound:
-        return _fetch_error(
-            f"Roster worksheet {ROSTER_WORKSHEET_NAME!r} not found"
-        )
+    error_msg, worksheet = get_worksheet(
+        spreadsheet, ROSTER_WORKSHEET_NAME, description="Roster spreadsheet"
+    )
+    if error_msg is not None:
+        return _fetch_error(error_msg)
 
     worksheet_values = worksheet.get_values()
     if len(worksheet_values) == 0:
@@ -229,17 +306,12 @@ def fetch_roster(url):
         if len(roster[key]) == 0:
             return _fetch_error(f"Empty roster (no {key} found)")
 
-    spreadsheet_url_with_worksheet = id_to_url(spreadsheet_id, worksheet.id)
-    success = db.global_state.set_last_fetched_spreadsheet_url(
-        spreadsheet_url_with_worksheet
-    )
+    # save the last fetched time
+    success = db.global_state.set_roster_last_fetched_time()
     if not success:
-        return _fetch_error("Unknown database error; please try again later")
+        return _fetch_error("Database error")
 
     return None, logs, roster
-
-
-# =============================================================================
 
 
 def _list_of_items(items):

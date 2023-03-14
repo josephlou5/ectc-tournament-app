@@ -4,6 +4,17 @@
 
 /** JQUERY **/
 
+$.fn.onEnterKeyPress = function (func) {
+  const ENTER_KEY = 13;
+  return this.each(function () {
+    $(this).on('keypress', (event) => {
+      if (event.which === ENTER_KEY) {
+        func(event);
+      }
+    });
+  });
+};
+
 function ajaxRequest(method, url, options = {}) {
   if (!options.success) {
     options.success = (response, status, jqXHR) => {
@@ -28,16 +39,19 @@ const TIMEOUTS = {};
  * Clears an element after the given amount of seconds.
  */
 function clearElementAfter(elementId, seconds = 60) {
-  const element = $('#' + elementId);
-  if (!element) return;
+  const $element = $('#' + elementId);
+  if ($element.length == 0) {
+    console.log('clearElementAfter(): Error: element not found: #' + elementId);
+    return;
+  }
   // clear any current timeouts
   if (TIMEOUTS[elementId] != null) {
     clearTimeout(TIMEOUTS[elementId]);
     delete TIMEOUTS[elementId];
   }
-  if (element.html().trim() !== '') {
+  if ($element.html().trim() !== '') {
     TIMEOUTS[elementId] = setTimeout(() => {
-      element.html('');
+      $element.html('');
       if (TIMEOUTS[elementId] != null) {
         delete TIMEOUTS[elementId];
       }
@@ -49,8 +63,7 @@ function clearElementAfter(elementId, seconds = 60) {
  * Sets the text of an element for the given amount of seconds.
  */
 function setElementTextFor(elementId, text, seconds = 60) {
-  const element = $('#' + elementId);
-  element.html(text);
+  $('#' + elementId).html(text);
   clearElementAfter(elementId, seconds);
 }
 

@@ -7,7 +7,6 @@ used in any of the functions.
 
 # =============================================================================
 
-import json
 from datetime import datetime
 
 import pytz
@@ -22,7 +21,7 @@ EASTERN_TZ = pytz.timezone("US/Eastern")
 # =============================================================================
 
 
-def _get():
+def get():
     """Gets the single global state, and creates it if it doesn't exist."""
     global_state = query(GlobalState).first()
     if global_state is None:
@@ -36,21 +35,16 @@ def get_service_account_info():
     """Returns the global service account info as a dict, or None if
     there is no current service account.
     """
-    global_state = _get()
-    service_account_info_str = global_state.service_account
-    if service_account_info_str is None:
-        return None
-    return json.loads(service_account_info_str)
+    global_state = get()
+    return global_state.service_account_info
 
 
 def get_service_account_email():
     """Returns the email of the global service account, or None if there
     is no current service account.
     """
-    service_account_info = get_service_account_info()
-    if service_account_info is None:
-        return None
-    return service_account_info["client_email"]
+    global_state = get()
+    return global_state.service_account_email
 
 
 def set_service_account_info(data):
@@ -59,37 +53,72 @@ def set_service_account_info(data):
     Returns:
         bool: Whether the operation was successful.
     """
-    global_state = _get()
-    # use the most compact representation
-    global_state.service_account = json.dumps(data, separators=(",", ":"))
+    global_state = get()
+    global_state.service_account_info = data
     db.session.commit()
     return True
 
 
-def get_last_fetched_spreadsheet_url():
-    """Returns the url of the global last fetched spreadsheet, or None
-    if no spreadsheet was fetched from.
-    """
-    global_state = _get()
-    return global_state.last_roster_spreadsheet
-
-
-def get_last_fetched_time(tz=EASTERN_TZ):
-    """Returns the last fetched time of the roster spreadsheet, or None
-    if no spreadsheet was fetched from.
-    """
-    global_state = _get()
-    return global_state.last_fetched_tz(tz=tz)
-
-
-def set_last_fetched_spreadsheet_url(spreadsheet_url):
-    """Sets the global last fetched spreadsheet and last fetched time.
+def clear_service_account_info():
+    """Clears the global service account credentials.
 
     Returns:
         bool: Whether the operation was successful.
     """
-    global_state = _get()
-    global_state.last_roster_spreadsheet = spreadsheet_url
-    global_state.last_fetched_time = datetime.utcnow()
+    global_state = get()
+    global_state.service_account = None
+    db.session.commit()
+    return True
+
+
+def get_tms_spreadsheet_id():
+    """Returns the id of the saved global TMS spreadsheet, or None if it
+    has not been saved yet.
+    """
+    global_state = get()
+    return global_state.tms_spreadsheet_id
+
+
+def set_tms_spreadsheet_id(spreadsheet_id):
+    """Sets the given id as the global TMS spreadsheet id.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    global_state = get()
+    global_state.tms_spreadsheet_id = spreadsheet_id
+    db.session.commit()
+    return True
+
+
+def clear_tms_spreadsheet_id():
+    """Clears the global TMS spreadsheet id.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    global_state = get()
+    global_state.tms_spreadsheet_id = None
+    db.session.commit()
+    return True
+
+
+def get_roster_last_fetched_time(tz=EASTERN_TZ):
+    """Returns the last fetched time of the roster from the TMS
+    spreadsheet, or None if the spreadsheet was not fetched yet.
+    """
+    global_state = get()
+    return global_state.roster_last_fetched_tz(tz=tz)
+
+
+def set_roster_last_fetched_time():
+    """Sets the current time as the global last fetched time of the
+    roster.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    global_state = get()
+    global_state.roster_last_fetched_time = datetime.utcnow()
     db.session.commit()
     return True

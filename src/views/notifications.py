@@ -8,7 +8,7 @@ team info, and sending notifications.
 import json
 from pathlib import Path
 
-from flask import flash, request
+from flask import flash
 
 import db
 from utils import fetch_tms
@@ -18,14 +18,14 @@ from utils.routes import AppRoutes, _render
 
 app = AppRoutes()
 
-STATIC_FOLDER = Path(__file__).parent / ".." / "static"
-FETCH_ROSTER_LOGS_FILE = (STATIC_FOLDER / "fetch_roster_logs.json").resolve()
+STATIC_FOLDER = (Path(__file__).parent / ".." / "static").resolve()
+FETCH_ROSTER_LOGS_FILE = STATIC_FOLDER / "fetch_roster_logs.json"
 
 # =============================================================================
 
 
-def get_last_fetched_time_str():
-    last_fetched_dt = db.global_state.get_last_fetched_time()
+def get_roster_last_fetched_time_str():
+    last_fetched_dt = db.global_state.get_roster_last_fetched_time()
     if last_fetched_dt is None:
         return None
     return last_fetched_dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -33,53 +33,30 @@ def get_last_fetched_time_str():
 
 @app.route("/notifications", methods=["GET"])
 def notifications():
-    spreadsheet_url = db.global_state.get_last_fetched_spreadsheet_url()
-    last_fetched_time = get_last_fetched_time_str()
+    roster_last_fetched_time = get_roster_last_fetched_time_str()
     has_fetch_logs = FETCH_ROSTER_LOGS_FILE.exists()
     return _render(
         "notifications/index.jinja",
         roster_worksheet_name=fetch_tms.ROSTER_WORKSHEET_NAME,
-        spreadsheet_url=spreadsheet_url,
-        last_fetched_time=last_fetched_time,
+        roster_last_fetched_time=roster_last_fetched_time,
         has_fetch_logs=has_fetch_logs,
     )
 
 
 @app.route("/notifications/fetch_roster", methods=["POST"])
 def fetch_roster():
-    request_args = request.get_json(silent=True)
-    if request_args is None:
-        return {"success": False, "reason": "Invalid JSON data"}
-    if not isinstance(request_args, dict):
-        return {
-            "success": False,
-            "reason": "Invalid JSON data: expected mapping",
-        }
-    if "url" not in request_args:
-        return {
-            "success": False,
-            "reason": 'Invalid JSON data: missing "url" key',
-        }
-    url = request_args["url"]
-    if not isinstance(url, str):
-        return {
-            "success": False,
-            "reason": 'Invalid JSON data: expected string for "url" key',
-        }
-
-    print("Fetching roster from url:", url)
-
-    error_msg, logs, roster = fetch_tms.fetch_roster(url)
+    print(" ", "Fetching teams roster from TMS spreadsheet")
+    error_msg, logs, roster = fetch_tms.fetch_roster()
     if error_msg is not None:
         print(" ", "Failed:", error_msg)
         return {"success": False, "reason": error_msg}
 
-    # TODO: save the roster
+    # TODO: save in database
     success = True
 
     # save the logs in a file
     full_logs = {
-        "time_fetched": get_last_fetched_time_str(),
+        "time_fetched": get_roster_last_fetched_time_str(),
         "logs": logs,
     }
     FETCH_ROSTER_LOGS_FILE.write_text(
@@ -122,8 +99,8 @@ def fetch_roster():
     if not success:
         return {"success": False, "reason": "Database error"}
 
-    # use flash so that the url and last fetched time are updated
-    flash("Success", "fetch-roster-status")
+    # use flash so the last fetched time is updated
+    flash("Success", "fetch-roster")
     return {"success": True, "roster": roster}
 
 
@@ -141,6 +118,7 @@ def fetch_roster_logs():
             FETCH_ROSTER_LOGS_FILE.unlink()
     return _render(
         "notifications/fetch_roster_logs.jinja",
+        # for a link to the raw logs file
         fetch_logs_filename=FETCH_ROSTER_LOGS_FILE.name,
         time_fetched=time_fetched,
         logs=logs,

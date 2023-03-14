@@ -11,6 +11,7 @@ from werkzeug.exceptions import NotFound
 import db
 import views
 from config import get_config
+from utils import flask_utils
 from utils.routes import _render
 
 # =============================================================================
@@ -32,6 +33,7 @@ def inject_template_variables():
     return {
         "APP_NAME": "ECTC Tournament App",
         "navbar_tabs": views.NAVBAR_TABS,
+        "get_flashed_by_categories": flask_utils.get_flashed_by_categories,
     }
 
 
