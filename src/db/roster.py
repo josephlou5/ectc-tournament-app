@@ -81,8 +81,33 @@ def set_roster(roster):
     db.metadata.drop_all(bind=db.engine, tables=tables, checkfirst=True)
     db.metadata.create_all(bind=db.engine, tables=tables)
 
+    def school_sort_key(school):
+        # alphabetical
+        return school
+
+    def user_sort_key(user):
+        # school, role, email
+        role_id = ["COACH", "ATHLETE", "SPECTATOR"].index(user["role"])
+        return (user["school"], role_id, user["email"])
+
+    def team_sort_key(team):
+        # school, team code
+        # since team codes contain numbers, sort by length first
+        code = team["code"]
+        return (team["school"], len(code), code)
+
+    sort_keys = {
+        "schools": school_sort_key,
+        "users": user_sort_key,
+        "teams": team_sort_key,
+    }
+
+    def get_from_roster(key):
+        return sorted(roster[key], key=sort_keys[key])
+
     try:
-        for school_name in roster["schools"]:
+        # create schools in sorted order
+        for school_name in get_from_roster("schools"):
             school = School(school_name)
             db.session.add(school)
         # maps: school name -> school id
@@ -90,7 +115,8 @@ def set_roster(roster):
         for school in query(School).all():
             school_ids[school.name] = school.id
 
-        for user_info in roster["users"]:
+        # create users in school, role, and email order
+        for user_info in get_from_roster("users"):
             school_id = school_ids[user_info["school"]]
             user = User(
                 user_info["name"],
@@ -109,7 +135,7 @@ def set_roster(roster):
                 return None
             return athlete_ids[email]
 
-        for team_info in roster["teams"]:
+        for team_info in get_from_roster("teams"):
             school_id = school_ids[team_info["school"]]
             team = Team(
                 school_id,

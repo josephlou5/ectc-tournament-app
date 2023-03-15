@@ -46,6 +46,19 @@ TEAM_CODE_PATTERN = re.compile(r"(P|((Men|Women)'s ))[ABC]\d+")
 # =============================================================================
 
 
+def _list_of_items(items, sep="and"):
+    if len(items) == 0:
+        return None
+    if len(items) == 1:
+        return str(items[0])
+    if len(items) == 2:
+        return (f" {sep} ").join(map(str, items))
+    return ", ".join(map(str, items[:-1])) + f", {sep} " + str(items[-1])
+
+
+# =============================================================================
+
+
 def url_to_id(url):
     """Converts a spreadsheet url to the spreadsheet id.
 
@@ -302,9 +315,13 @@ def fetch_roster():
             yield row_values
 
     logs, roster = process_roster(yield_row_values)
+    invalid_parts = []
     for key in ("users", "teams", "schools"):
         if len(roster[key]) == 0:
-            return _fetch_error(f"Empty roster (no {key} found)")
+            invalid_parts.append(key)
+    if len(invalid_parts) > 0:
+        invalid_str = _list_of_items(invalid_parts, sep="or")
+        return _fetch_error(f"Empty roster (no valid {invalid_str} found)")
 
     # save the last fetched time
     success = db.global_state.set_roster_last_fetched_time()
@@ -314,23 +331,14 @@ def fetch_roster():
     return None, logs, roster
 
 
-def _list_of_items(items):
-    if len(items) == 0:
-        return None
-    if len(items) == 1:
-        return items[0]
-    if len(items) == 2:
-        return " and ".join(items)
-    return ", ".join(items[:-1]) + ", and " + items[-1]
-
-
 def process_roster(row_generator):
     """Processes the rows yielded by the given generator.
 
     Assumes emails uniquely identify each user, but doesn't do any
-    rigorous email checking. That is, emails are taken as they were
-    entered in the sheet, although they are technically case insensitive
-    and dot insensitive and parts after a "+" character can be ignored.
+    rigorous uniqueness checking. That is, emails are taken as they
+    appear in the sheet, although there are ways to make a single email
+    address different in a strict string comparison. See:
+    https://gmail.googleblog.com/2008/03/2-hidden-ways-to-get-more-from-your.html
 
     Returns:
         Tuple[List, Dict]:
@@ -355,12 +363,23 @@ def process_roster(row_generator):
     def _log(level, msg, row_num):
         logs.append({"level": level, "row_num": row_num, "message": msg})
 
-    # maps: school name -> true
+    # maps: school name -> number of athletes and teams
     schools = {}
     # maps: email -> user
     users = {}
+    # maps: email -> whether they are on a poomsae or sparring team
+    user_teams = {}
     # maps: (school, code) -> team
     teams = {}
+
+    def _add_school(school):
+        if school in schools:
+            return False
+        schools[school] = {
+            "athletes": 0,
+            "teams": 0,
+        }
+        return True
 
     def _add_user(email, name, role, school):
         users[email] = {
@@ -369,6 +388,8 @@ def process_roster(row_generator):
             "role": role,
             "school": school,
         }
+        if role == "ATHLETE":
+            schools[school]["athletes"] += 1
 
     def _add_team(school, team_code):
         team = {
@@ -396,8 +417,9 @@ def process_roster(row_generator):
             for key in ("light", "middle", "heavy"):
                 if team[key] is None:
                     team[key] = email
-                    return
-            team["alternates"].append(email)
+                    break
+            else:
+                team["alternates"].append(email)
         else:
             # sparring team: add for proper weight class
             # assume the weight class is not taken yet
@@ -457,8 +479,7 @@ def process_roster(row_generator):
 
         # simple case: non-athletes
         if not is_athlete:
-            if school not in schools:
-                schools[school] = True
+            if _add_school(school):
                 _log_info(f"Added school: {school}")
             _add_user(email, name, role, school)
             _log_info(f"Added {role.lower()}: {name_email} ({school})")
@@ -496,7 +517,9 @@ def process_roster(row_generator):
             if weight_class not in POSSIBLE_WEIGHT_CLASSES:
                 _log_error(f"Invalid weight class {weight_class!r} (skipped)")
                 continue
-        elif not is_sparring_team and weight_class is not None:
+        elif weight_class is not None and weight_class != "alternate":
+            # poomsae team with a possible alternate (but other weights
+            # emit this warning)
             _log_warning("Unnecessary fighting weight class for poomsae team")
             weight_class = None
 
@@ -507,7 +530,8 @@ def process_roster(row_generator):
             team = teams[school_team]
             if _is_user_in_team(team, email):
                 _log_warning(
-                    f"Athlete already in team {school_team_str!r} (skipped)"
+                    f"Athlete {name_email} already in team "
+                    f"{school_team_str!r} (skipped)"
                 )
                 continue
             # make sure there's an available spot for sparring team
@@ -525,24 +549,81 @@ def process_roster(row_generator):
             team = _add_team(school, team_code)
             created_team = True
 
-        if school not in schools:
-            schools[school] = True
+        if _add_school(school):
             _log_info(f"Added school: {school}")
         if email not in users:
             _add_user(email, name, role, school)
             _log_info(f"Added athlete: {name_email} ({school})")
         if created_team:
+            schools[school]["teams"] += 1
             _log_info(f"Added team: {school_team_str}")
 
+        # athlete can't be on multiple teams (as non-alternate)
+        team_type_key = "sparring" if is_sparring_team else "poomsae"
+        if weight_class != "alternate":
+            if email not in user_teams:
+                user_teams[email] = {
+                    "poomsae": False,
+                    "sparring": False,
+                }
+            if user_teams[email][team_type_key]:
+                _log_error(
+                    f"Athlete {name_email} already on a {team_type_key} team; "
+                    f"cannot also be on team {school_team_str!r}"
+                )
+                continue
+
         _add_user_to_team(team, email, weight_class)
-        msg = f"Added athlete {name_email} to team: {school_team_str}"
-        if is_sparring_team:
-            msg += f" ({weight_class.capitalize()})"
-        _log_info(msg)
+        if weight_class is None:
+            weight_str = ""
+        else:
+            weight_str = f" ({weight_class.capitalize()})"
+        _log_info(
+            f"Added athlete to team: {name_email}{weight_str} on "
+            f"{school_team_str}"
+        )
+
+        if weight_class != "alternate":
+            user_teams[email][team_type_key] = True
+
+    # at this point, all users must be on at least one team
+
+    for school, stats in schools.items():
+        missing = []
+        for key, num in stats.items():
+            if num == 0:
+                missing.append(key)
+        if len(missing) > 0:
+            missing_str = _list_of_items(missing, sep="or")
+            _log(
+                "WARNING",
+                f"School {school!r} does not have any {missing_str}",
+                None,
+            )
+
+    valid_teams = []
+    for school_code, team_info in teams.items():
+        has_team_members = False
+        for key in ("light", "middle", "heavy"):
+            if team_info[key] is not None:
+                has_team_members = True
+                break
+        if has_team_members:
+            valid_teams.append(team_info)
+            continue
+        school_team_str = " ".join(school_code)
+        _log(
+            "ERROR",
+            (
+                f"Team {school_team_str!r} does not have any main team "
+                "members (skipped)"
+            ),
+            None,
+        )
 
     roster = {
         "schools": list(schools.keys()),
         "users": list(users.values()),
-        "teams": list(teams.values()),
+        "teams": valid_teams,
     }
     return logs, roster
