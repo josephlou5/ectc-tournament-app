@@ -20,19 +20,23 @@ table-warning
   {% else %}
   <h5>Time fetched: {{ time_fetched }}</h5>
   <table class="table table-bordered table-hover">
-    <tr>
-      <th class="table-sm-col">Level</th>
-      <th class="table-sm-col">Sheet Row</th>
-      <th>Message</th>
-    </tr>
-    {% for log in logs %}
-    {% set log_level = log["level"] %}
-    <tr class="text-monospace">
-      <td class="table-sm-col {{ log_level_class(log_level) }}">{{ log_level }}</td>
-      <td class="table-sm-col">{{ log["row_num"] or "" }}</td>
-      <td>{{ log["message"]|e }}</td>
-    </tr>
-    {% endfor %}
+    <thead>
+      <tr>
+        <th class="table-sm-col">Level</th>
+        <th class="table-sm-col">Sheet Row</th>
+        <th>Message</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      {% set log_level = log["level"] %}
+      <tr class="text-monospace">
+        <td class="table-sm-col {{ log_level_class(log_level) }}">{{ log_level }}</td>
+        <td class="table-sm-col">{{ log["row_num"] or "" }}</td>
+        <td>{{ log["message"]|e }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
   </table>
   <div>
     <a href="{{ url_for('static', filename=fetch_logs_filename) }}">Raw logs</a>
