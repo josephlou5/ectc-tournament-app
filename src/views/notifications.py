@@ -8,10 +8,10 @@ team info, and sending notifications.
 import json
 from pathlib import Path
 
-from flask import flash, request
+from flask import flash, render_template, request
 
 import db
-from utils import fetch_tms
+from utils import fetch_tms, json_dump_compact
 from utils.routes import AppRoutes, _render
 
 # =============================================================================
@@ -40,6 +40,7 @@ def notifications():
         roster_worksheet_name=fetch_tms.ROSTER_WORKSHEET_NAME,
         roster_last_fetched_time=roster_last_fetched_time,
         has_fetch_logs=has_fetch_logs,
+        matches_worksheet_name=fetch_tms.MATCHES_WORKSHEET_NAME,
     )
 
 
@@ -279,6 +280,34 @@ def _parse_matches_query(matches_query):
     return None, list(match_numbers.keys())
 
 
+def _clean_matches_query(match_numbers):
+    """Returns a "clean" version of a matches query string that
+    represents the specified match numbers.
+    """
+    groups = []
+    group_start = None
+    group_end = None
+
+    def add_group():
+        if group_start == group_end:
+            groups.append(str(group_start))
+        else:
+            groups.append(f"{group_start}-{group_end}")
+
+    # find all consecutive groups
+    for num in sorted(set(match_numbers)):
+        if group_start is not None:
+            if num == group_end + 1:
+                group_end = num
+                continue
+            add_group()
+        group_start = num
+        group_end = num
+    if group_start is not None:
+        add_group()
+    return ",".join(groups)
+
+
 @app.route("/notifications/matches_info", methods=["GET"])
 def fetch_matches_info():
     def _error(msg):
@@ -301,6 +330,110 @@ def fetch_matches_info():
     match_numbers.sort()
     print(" ", "Parsed match numbers:", match_numbers)
 
-    # TODO: fetch match info
+    warnings = []
 
-    return {"success": True, "match_numbers": match_numbers}
+    # fetch info for all the matches
+    print(" ", "Fetching match info from TMS")
+    # if no matches found in TMS, returns error
+    error_msg, match_teams = fetch_tms.fetch_match_teams(match_numbers)
+    if error_msg is not None:
+        print(" ", "Error while fetching:", error_msg)
+        return _error(error_msg)
+
+    # get the team info for all the match teams
+    print(" ", "Fetching info for all match teams")
+    # maps: (school, code) -> list of match numbers
+    all_team_infos = {}
+    for match_team in match_teams:
+        match_number = match_team["number"]
+        if not match_team["found"]:
+            warnings.append(f"Match {match_number} not found")
+            continue
+        for color in ("blue_team", "red_team"):
+            team_info = match_team[color]
+            if not team_info["valid"]:
+                continue
+            school_team_code = team_info["school_code"]
+            if school_team_code not in all_team_infos:
+                all_team_infos[school_team_code] = []
+            all_team_infos[school_team_code].append(match_number)
+    if len(all_team_infos) == 0:
+        # no valid teams found
+        print(" ", "No valid matches found")
+        return _error("No valid matches were found")
+    # check if some teams have multiple matches
+    for (school, team_code), team_matches in all_team_infos.items():
+        if len(team_matches) <= 1:
+            continue
+        matches_list_str = ", ".join(map(str, team_matches))
+        warnings.append(
+            f'Matches {matches_list_str} have team "{school} {team_code}"'
+        )
+
+    # get the actual team infos from the database
+    team_infos = db.roster.get_teams(list(all_team_infos.keys()))
+
+    # combine the team info into match info
+    print(" ", "Compiling match infos")
+    matches = []
+    for match_team in match_teams:
+        match_number = match_team["number"]
+        if not match_team["found"]:
+            continue
+
+        match_info = {
+            "number": match_number,
+            "division": match_team["division"],
+            "round": match_team["round"],
+        }
+        compact_info = dict(match_info)
+        match_valid = True
+        for color in ("blue_team", "red_team"):
+            team_info = match_team[color]
+            if not team_info["valid"]:
+                match_valid = False
+                match_info[color] = {
+                    "valid": False,
+                    "name": team_info["name"],
+                }
+                continue
+            error_msg, team = team_infos[team_info["school_code"]]
+            if error_msg is not None:
+                match_valid = False
+                match_info[color] = {
+                    "valid": False,
+                    "name": team_info["name"],
+                    "error": error_msg,
+                }
+                continue
+            match_info[color] = {
+                "valid": True,
+                "name": team.school_code,
+                "team": team,
+            }
+            compact_info[color] = {
+                "school": team.school.name,
+                "code": team.code,
+            }
+        match_info["valid"] = match_valid
+        if match_valid:
+            match_info["compact"] = json_dump_compact(compact_info)
+        else:
+            match_info["compact"] = ""
+        matches.append(match_info)
+
+    # at this point, `matches` should not be empty (but may contain only
+    # invalid matches)
+
+    matches_html = render_template(
+        "notifications/matches_info.jinja",
+        matches_query=matches_query,
+        clean_matches_query=_clean_matches_query(match_numbers),
+        matches=matches,
+        warnings=warnings,
+    )
+    return {
+        "success": True,
+        "match_numbers": match_numbers,
+        "matches_html": matches_html,
+    }

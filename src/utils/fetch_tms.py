@@ -45,6 +45,25 @@ TEAM_CODE_PATTERN = re.compile(r"(P|((Men|Women)'s ))[ABC]\d+")
 
 # =============================================================================
 
+# using communications view to get the status and teams of matches
+MATCHES_WORKSHEET_NAME = "Communications"
+
+# Note: If any of these values are changed, they must also be changed in
+# `fetch_match_teams()`.
+HEADER_COLUMNS = [
+    "match #",
+    "division",
+    "round",
+    "blue team",
+    "red team",
+]
+
+SCHOOL_TEAM_CODE_PATTERN = re.compile(
+    rf"(?P<school>[A-Za-z ]+) (?P<code>{TEAM_CODE_PATTERN.pattern})"
+)
+
+# =============================================================================
+
 
 def _list_of_items(items, sep="and"):
     if len(items) == 0:
@@ -627,3 +646,168 @@ def process_roster(row_generator):
         "teams": valid_teams,
     }
     return logs, roster
+
+
+# =============================================================================
+
+
+def split_school_team_code(school_team_code):
+    match = SCHOOL_TEAM_CODE_PATTERN.fullmatch(school_team_code)
+    if match is None:
+        return None, None
+    return match.group("school", "code")
+
+
+def _extract_school_team_code(team_name):
+    stripped_team_name = team_name
+    for search_text in ("(LMH)", "(LM)", "(LH)", "(MH)", "(L)", "(M)", "(H)"):
+        if team_name.endswith(search_text):
+            stripped_team_name = team_name[: -len(search_text)].rstrip()
+            break
+    school, code = split_school_team_code(stripped_team_name)
+    if school is None or code is None:
+        return {"name": team_name, "valid": False}
+    return {
+        "name": stripped_team_name,
+        "valid": True,
+        "school_code": (school, code),
+    }
+
+
+def fetch_match_teams(match_numbers):
+    """Fetches the team names for the given match numbers.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, List[Dict]]]:
+            A tuple of an error message, or a list of matches in the
+            format:
+                'number': match number (int)
+                'found': True or False
+                    If False, the rest of the keys will not be present.
+                'division': the division
+                'round': the round of XX
+                'blue_team':
+                    'name': the team name
+                    'valid': True or False
+                        If False, 'school_code' will not be present.
+                    'school_code': tuple of the school and team code
+                'red_team': same as 'blue_team'
+    """
+
+    def _fetch_error(msg):
+        return msg, None
+
+    remaining = set(match_numbers)
+    if len(remaining) == 0:
+        # no matches to fetch
+        return None, []
+
+    error_msg, spreadsheet = get_tms_spreadsheet()
+    if error_msg is not None:
+        return _fetch_error(error_msg)
+
+    error_msg, worksheet = get_worksheet(
+        spreadsheet, MATCHES_WORKSHEET_NAME, description="Matches spreadsheet"
+    )
+    if error_msg is not None:
+        return _fetch_error(error_msg)
+
+    worksheet_values = worksheet.get_values()
+    if len(worksheet_values) == 0:
+        return _fetch_error(
+            f"Empty matches worksheet {MATCHES_WORKSHEET_NAME!r}"
+        )
+
+    worksheet_rows_iter = iter(worksheet_values)
+
+    # look for the header row
+    header_indices = None
+    possible_header_rows = []
+    for i, row in enumerate(worksheet_rows_iter):
+        # get the first index of each value in this row
+        row_indices = {}
+        repeated_indices = set()
+        for j, value in enumerate(row):
+            value = value.strip().lower()
+            if value not in row_indices:
+                row_indices[value] = j
+            else:
+                repeated_indices.add(value)
+        filtered_indices = {}
+        invalid_row = False
+        has_repeated = set()
+        for header in HEADER_COLUMNS:
+            if header not in row_indices:
+                invalid_row = True
+                break
+            if header in repeated_indices:
+                has_repeated.add(header)
+            filtered_indices[header] = row_indices[header]
+        if invalid_row:
+            continue
+        if len(has_repeated) > 0:
+            possible_header_rows.append(i + 1)
+            continue
+        header_indices = filtered_indices
+        break
+
+    if header_indices is None:
+        # could not find the header row
+        if len(possible_header_rows) == 0:
+            required_headers = ", ".join(
+                f'"{header}"' for header in HEADER_COLUMNS
+            )
+            return _fetch_error(
+                "No rows were found with all required headers: "
+                f"{required_headers}"
+            )
+        if len(possible_header_rows) == 1:
+            row_str = f"Row {possible_header_rows[0]}"
+        else:
+            row_str = f"Rows {_list_of_items(possible_header_rows)}"
+        return _fetch_error(
+            f"{row_str} had all required headers, but some were repeated "
+            "(ambiguous choices)"
+        )
+
+    # look at the remaining rows for the match numbers
+    matches_info = []
+    for row in worksheet_rows_iter:
+        match_number, division, round_of, blue_team_name, red_team_name = (
+            row[header_indices[header]].strip() for header in HEADER_COLUMNS
+        )
+
+        if not match_number.isdigit():
+            continue
+        match_number = int(match_number)
+        if match_number not in remaining:
+            continue
+
+        matches_info.append(
+            {
+                "number": match_number,
+                "found": True,
+                "division": division,
+                "round": round_of,
+                "blue_team": _extract_school_team_code(blue_team_name),
+                "red_team": _extract_school_team_code(red_team_name),
+            }
+        )
+        remaining.remove(match_number)
+
+        if len(remaining) == 0:
+            break
+
+    if len(matches_info) == 0:
+        # no matches were found
+        return _fetch_error("No matches were found")
+
+    for match_number in remaining:
+        matches_info.append(
+            {
+                "number": match_number,
+                "found": False,
+            }
+        )
+
+    return None, matches_info

@@ -18,9 +18,20 @@ code {
   word-wrap: break-word;
 }
 
-.table-sm-col {
-  width: 0;
-  white-space: nowrap;
+/* Use Bootstrap's LG breakpoint */
+@media (max-width: 991.98px) {
+  /* Less than 992px. */
+  /* Allow wrapping when the screen gets too small. */
+  .table-sm-col {
+    width: 0;
+  }
+}
+@media (min-width: 992px) {
+  /* More than 992px. */
+  .table-sm-col {
+    width: 0;
+    white-space: nowrap;
+  }
 }
 
 .alert-sm {

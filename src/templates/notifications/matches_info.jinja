@@ -1,0 +1,125 @@
+{% import "shared/macros.jinja" as macros %}
+
+{% macro team_member(user) %}
+{% if user is none %}
+<em class="text-muted">None</em>
+{% else %}
+{{ (user.name ~ " <" ~ user.email ~ ">")|e }}
+{% endif %}
+{% endmacro %}
+
+{% macro team_members(team) %}
+<div><strong>Light:</strong> {{ team_member(team.light) }}</div>
+<div><strong>Middle:</strong> {{ team_member(team.middle) }}</div>
+<div><strong>Heavy:</strong> {{ team_member(team.heavy) }}</div>
+{% if team.alternates|length > 0 %}
+<div><strong>Alternates</strong></div>
+{% for alternate in team.alternates %}
+<div>{{ team_member(alternate) }}</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro team_column(team_info, match_team_id) %}
+{% if not team_info["valid"] %}
+<td class="table-warning">
+  {% if 'error' not in team_info %}
+  {{ team_info["name"] }}
+  {% else %}
+  <div>{{ team_info["name"] }}</div>
+  <div>{{ team_info["error"] }}</div>
+  {% endif %}
+</td>
+{% else %}
+<td>
+  <div class="row align-items-center">
+    <div class="col-auto">
+      <div>{{ team_info["name"] }}</div>
+      <div>
+        <button
+          type="button"
+          class="btn btn-sm btn-secondary"
+          onclick="toggleMatchTeamMembers('{{ match_team_id }}');"
+        >
+          Show Members
+        </button>
+      </div>
+    </div>
+    <div id="{{ match_team_id }}" class="col-xs col-lg-auto d-none">
+      {{ team_members(team_info["team"]) }}
+    </div>
+  </div>
+</td>
+{% endif %}
+{% endmacro %}
+
+{% if matches|length == 0 %}
+{# should never happen? #}
+No matches
+{% else %}
+<div class="mb-2">
+  <button
+    type="button"
+    class="btn btn-sm btn-outline-success"
+    onclick="refreshMatches('{{ clean_matches_query }}');"
+  >
+    Refresh
+  </button>
+  <span id="refresh-matches-status" class="ms-1">
+    Matches query: {{ clean_matches_query }}
+  </span>
+</div>
+{% if warnings|length > 0 %}
+<div id="fetch-matches-warnings">
+{% call macros.bs_alert("warning", dismissible=true) %}
+<div><strong>Warnings:</strong></div>
+{% for warning in warnings %}
+<div>{{ warning }}</div>
+{% endfor %}
+{% endcall %}
+</div>
+{% endif %}
+{# wasn't able to make the table responsive with ".table-responsive" on an outer
+   wrapping div. not sure what was wrong.
+ #}
+<table class="table table-striped table-hover align-middle">
+  <thead>
+    <tr>
+      <th class="table-sm-col">Match</th>
+      <th class="table-sm-col">Division</th>
+      <th class="table-sm-col">Round</th>
+      <th class="table-primary">Blue Team</th>
+      <th class="table-danger">Red Team</th>
+      <th class="table-sm-col"></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for match in matches %}
+    {% set match_number = match["number"] %}
+    {% set match_id = "match-" ~ match_number %}
+    {% set match_team_blue_id = match_id ~ "-blue" %}
+    {% set match_team_red_id = match_id ~ "-red" %}
+    <tr
+      id="{{ match_id }}"
+      class="match-row"
+      matchdata="{{ match['compact']|e }}"
+    >
+      <th class="table-sm-col">{{ match_number }}</th>
+      <td class="table-sm-col">{{ match["division"] }}</td>
+      <td class="table-sm-col">{{ match["round"] }}</td>
+      {{ team_column(match["blue_team"], match_team_blue_id) }}
+      {{ team_column(match["red_team"], match_team_red_id) }}
+      <td class="table-sm-col">
+        <button
+          type="button"
+          class="btn btn-sm btn-danger"
+          onclick="removeMatchRow({{ match_number }});"
+        >
+          Delete
+        </button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}

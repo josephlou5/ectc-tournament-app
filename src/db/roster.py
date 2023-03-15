@@ -156,3 +156,76 @@ def set_roster(roster):
 
     db.session.commit()
     return True
+
+
+# =============================================================================
+
+
+def get_team(school, team_code):
+    """Gets the team object for the given args.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, TeamJoined]]:
+            An error message or the team object.
+    """
+    if isinstance(school, str):
+        # find school id
+        school_name = school
+        school = query(School, {"name": school_name}).first()
+        if school is None:
+            return f"School {school_name!r} not found", None
+    team = query(Team, {"school_id": school.id, "code": team_code}).first()
+    if team is None:
+        return f'Team "{school.name} {team_code}" not found', None
+    return None, TeamJoined(team)
+
+
+def get_teams(team_infos):
+    """Gets the team objects for the given teams.
+
+    Args:
+        team_infos (List[Tuple[str, str]]): A list of the school names
+            and team codes.
+
+    Returns:
+        Dict[
+            Tuple[str, str],
+            Union[Tuple[str, None], Tuple[None, TeamJoined]]
+        ]:
+            A mapping from school names and team codes to either an
+            error message or a team object.
+    """
+    if len(team_infos) == 0:
+        return {}
+    if len(team_infos) == 1:
+        team_info = team_infos[0]
+        return {team_info: get_team(*team_info)}
+
+    # get all the teams to reduce the number of database queries
+    schools = {school.name: school.id for school in query(School).all()}
+    teams = {(team.school_id, team.code): team for team in query(Team).all()}
+
+    results = {}
+    for school_team_code in team_infos:
+        if school_team_code in results:
+            continue
+        school_name, team_code = school_team_code
+        if school_name not in schools:
+            results[school_team_code] = (
+                f"School {school_name!r} not found",
+                None,
+            )
+            continue
+        school_id = schools[school_name]
+        school_id_team_code = (school_id, team_code)
+        if school_id_team_code not in teams:
+            results[school_team_code] = (
+                f'Team "{school_name} {team_code}" not found',
+                None,
+            )
+            continue
+        results[school_team_code] = (
+            None,
+            TeamJoined(teams[school_id_team_code]),
+        )
+    return results

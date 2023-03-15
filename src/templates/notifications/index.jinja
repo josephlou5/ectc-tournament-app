@@ -97,6 +97,9 @@ Notifications
       <div class="row mb-2">
         <div class="col">
           Enter the match numbers below that you want to send notifications for.
+          The TMS spreadsheet should have a worksheet called
+          <code>{{ matches_worksheet_name }}</code> will be queried to find the
+          competing teams for each match.
         </div>
       </div>
       <div class="row mb-2">
@@ -229,10 +232,12 @@ Notifications
         if (response.success) {
           // clear the input
           $('#{{ match_numbers_input_id }}').val('');
-          // display the match numbers for now
-          $('#{{ matches_info_id }}').html(
+          console.log(
+            'Parsed match numbers:',
             response['match_numbers'].join(', ')
           );
+          // populate the matches data
+          $('#{{ matches_info_id }}').html(response['matches_html']);
         } else {
           // some failure
           setInvalid(
@@ -248,6 +253,65 @@ Notifications
       },
     });
   }
+
+  function refreshMatches(matchesQuery) {
+    const REFRESHING = 'Refreshing...';
+    const refreshStatusId = '#refresh-matches-status';
+
+    if (matchesQuery === '') {
+      // do nothing
+      return;
+    }
+
+    if ($(refreshStatusId).html().trim() === REFRESHING) {
+      // currently refreshing; ignore click
+      return;
+    }
+
+    $('#refresh-matches-status').html('Refreshing...');
+    ajaxRequest('GET', '{{ url_for("fetch_matches_info") }}', {
+      data: { matches: matchesQuery },
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          // repopulate the matches data (replaces the status element)
+          $('#{{ matches_info_id }}').html(response['matches_html']);
+        } else {
+          // some failure
+          $('#{{ fetch_matches_status_id }}').html(
+            response.reason ?? 'Unknown error: please try again'
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        $('#{{ fetch_matches_status_id }}').html(jqXHR.statusText);
+      },
+    });
+  }
+
+  function toggleMatchTeamMembers(elementId) {
+    const $membersDiv = $('#' + elementId);
+    const $toggleButton = $('#toggle-' + elementId);
+    if ($membersDiv.hasClass('d-none')) {
+      // show
+      $membersDiv.removeClass('d-none');
+      $toggleButton.html('Hide Members');
+    } else {
+      // hide
+      $membersDiv.addClass('d-none');
+      $toggleButton.html('Show Members');
+    }
+  }
+
+  function removeMatchRow(matchNumber) {
+    const $row = $('#match-' + matchNumber);
+    if ($row.length === 0) return;
+    $row.remove();
+    if ($('.match-row').length === 0) {
+      // no more matches
+      $('#{{ matches_info_id }}').html('No matches');
+    }
+  }
+
   $(document).ready(() => {
     // Fetch roster
     $('#{{ fetch_roster_btn_id }}').click((event) => {
