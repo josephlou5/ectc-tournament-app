@@ -9,6 +9,13 @@ Notifications
 {# messages and status are combined for fetch roster #}
 {% set fetch_roster_status_id = "fetch-roster-status" %}
 
+{% set match_numbers_input_id = "match-numbers-input" %}
+{% set fetch_matches_btn_id = "fetch-matches-btn" %}
+{% set fetch_matches_status_id = "fetch-matches-status" %}
+{% set matches_info_id = "matches-info" %}
+
+{% set send_notif_btn_id = "send-notification-btn" %}
+
 {% set flashed = get_flashed_by_categories() %}
 
 {% block body %}
@@ -83,6 +90,75 @@ Notifications
       </div>
     </div>
   </div>
+
+  <div class="row mb-2">
+    <div class="col">
+      <h4>Send Match Notifications</h4>
+      <div class="row mb-2">
+        <div class="col">
+          Enter the match numbers below that you want to send notifications for.
+        </div>
+      </div>
+      <div class="row mb-2">
+        {# want the switch back to auto somewhere between xs and sm, but not
+           possible without customizing the breakpoints
+         #}
+        <div class="col-xs-auto col-sm col-xl-auto">
+          <div class="row">
+            <label
+              for="{{ match_numbers_input_id }}"
+              class="col-auto col-form-label"
+            >
+              Matches
+            </label>
+            <div class="col">
+              <input
+                type="text"
+                id="{{ match_numbers_input_id }}"
+                class="form-control"
+              />
+              <div
+                id="{{ match_numbers_input_id }}-invalid"
+                class="invalid-feedback"
+              ></div>
+              <div class="form-text">
+                The match numbers should be separated by spaces or commas. You
+                may use dashes for match number ranges.
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-auto">
+          <button
+            type="button"
+            id="{{ fetch_matches_btn_id }}"
+            class="btn btn-success"
+          >
+            Fetch Matches Info
+          </button>
+        </div>
+        {# can't align center because of the input description and validation,
+           but "pt-2" seems to look good and centered wrt the fetch button
+         #}
+        <div id="{{ fetch_matches_status_id }}" class="col-auto pt-2"></div>
+      </div>
+      <div class="row">
+        <h4>Matches Info</h4>
+        <div id="{{ matches_info_id }}">
+          <!-- filled out by AJAX calls -->
+          No matches
+        </div>
+      </div>
+      <div class="row mt-2">
+        <div class="col">
+          {# button currently does nothing #}
+          <button id="{{ send_notif_btn_id }}" class="btn btn-primary">
+            Send Notification
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -122,6 +198,56 @@ Notifications
     });
   }
 
+  function handleFetchMatchInfoClicked() {
+    const FETCHING = 'Fetching...';
+
+    if ($('#{{ fetch_matches_status_id }}').html().trim() === FETCHING) {
+      // currently fetching; ignore the click
+      return;
+    }
+
+    // clear status
+    $('#{{ fetch_matches_status_id }}').html('');
+    clearInvalid('{{ match_numbers_input_id }}');
+
+    const matchesQuery = getInputValue('{{ match_numbers_input_id }}');
+    if (matchesQuery === '') {
+      // Error: no match numbers given
+      setInvalid(
+        '{{ match_numbers_input_id }}',
+        'Please enter a match number.'
+      );
+      return;
+    }
+
+    $('#{{ fetch_matches_status_id }}').html(FETCHING);
+    ajaxRequest('GET', '{{ url_for("fetch_matches_info") }}', {
+      data: { matches: matchesQuery },
+      success: (response, status, jqXHR) => {
+        // clear the status
+        $('#{{ fetch_matches_status_id }}').html('');
+        if (response.success) {
+          // clear the input
+          $('#{{ match_numbers_input_id }}').val('');
+          // display the match numbers for now
+          $('#{{ matches_info_id }}').html(
+            response['match_numbers'].join(', ')
+          );
+        } else {
+          // some failure
+          setInvalid(
+            '{{ match_numbers_input_id }}',
+            response.reason ?? 'Unknown error: please try again'
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        // clear the status
+        $('#{{ fetch_matches_status_id }}').html('');
+        setInvalid('{{ match_numbers_input_id }}', jqXHR.statusText);
+      },
+    });
+  }
   $(document).ready(() => {
     // Fetch roster
     $('#{{ fetch_roster_btn_id }}').click((event) => {
@@ -129,6 +255,14 @@ Notifications
     });
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ fetch_roster_status_id }}', 60);
+
+    // Fetch match info
+    $('#{{ match_numbers_input_id }}').onEnterKeyPress((event) => {
+      $('#{{ fetch_matches_btn_id }}').click();
+    });
+    $('#{{ fetch_matches_btn_id }}').click((event) => {
+      handleFetchMatchInfoClicked();
+    });
   });
 </script>
 {% endblock %}
