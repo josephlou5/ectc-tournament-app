@@ -34,7 +34,7 @@ Admin Settings
       <div class="mb-2">
         Current service account:
         {% if service_account_email is none %}
-        <em>None</em>
+        <em class="text-muted">None</em>
         {% else %}
         <strong id="{{ service_account_email_id }}">
           {{ service_account_email }}

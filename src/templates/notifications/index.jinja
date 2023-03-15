@@ -71,7 +71,7 @@ Notifications
           <div class="col">
             Last fetched:
             {% if roster_last_fetched_time is none %}
-            <em>never</em>
+            <em class="text-muted">never</em>
             {% else %}
             {{ roster_last_fetched_time }}
             {% if has_fetch_logs %}

@@ -17,6 +17,8 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 
+import utils
+
 # =============================================================================
 
 __all__ = (
@@ -60,8 +62,7 @@ class GlobalState(db.Model):
 
     @service_account_info.setter
     def service_account_info(self, value):
-        # use the most compact representation
-        self.service_account = json.dumps(value, separators=(",", ":"))
+        self.service_account = utils.json_dump_compact(value)
 
     @property
     def service_account_email(self):

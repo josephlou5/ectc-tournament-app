@@ -6,7 +6,7 @@ Full Roster
 
 {% macro team_member(user) %}
 {% if user is none %}
-<em>None</em>
+<em class="text-muted">None</em>
 {% else %}
 {{ user.name }}
 {% endif %}
@@ -124,7 +124,7 @@ Full Roster
       <td>{{ team_member(team.heavy) }}</td>
       <td>
         {% if team.alternates|length == 0 %}
-        <em>None</em>
+        <em class="text-muted">None</em>
         {% else %}
         {% for alternate in team.alternates %}
         <div>{{ alternate.name }}</div>
