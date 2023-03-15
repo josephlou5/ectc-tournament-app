@@ -63,17 +63,19 @@ Admin Settings
         credentials JSON file here.
       </div>
 
-      <div class="row mb-2">
-        <div class="col-6">
-          <input
-            type="file"
-            id="{{ service_account_creds_input_id }}"
-            class="form-control"
-          />
-          <div
-            id="{{ service_account_creds_input_id }}-invalid"
-            class="invalid-feedback"
-          ></div>
+      <div class="row">
+        <div class="col-auto mb-2">
+          <div id="service-account-file-input-wrapper">
+            <input
+              type="file"
+              id="{{ service_account_creds_input_id }}"
+              class="form-control"
+            />
+            <div
+              id="{{ service_account_creds_input_id }}-invalid"
+              class="invalid-feedback"
+            ></div>
+          </div>
         </div>
         <div class="col-auto">
           <button
@@ -121,7 +123,10 @@ Admin Settings
               Open
             </a>
           </div>
-          <div class="col-6 ms-0">
+          {# with these breakpoints, the input usually is long enough to contain
+             an entire spreadsheet url
+           #}
+          <div class="col col-lg-8 col-xl-7 col-xxl-6 pe-0">
             <input
               type="text"
               id="{{ tms_url_input_id }}"

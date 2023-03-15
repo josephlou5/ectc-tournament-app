@@ -34,3 +34,7 @@ code {
 .alert-sm .btn-close {
   padding: 0.5rem 0.75rem !important;
 }
+
+#service-account-file-input-wrapper {
+  min-width: 500px;
+}
