@@ -138,3 +138,35 @@ def fetch_roster_logs():
         time_fetched=time_fetched,
         logs=logs,
     )
+
+
+@app.route("/notifications/full_roster", methods=["GET"])
+def view_full_roster():
+    full_roster = db.roster.get_full_roster()
+
+    # split the users into coaches, athletes, and spectators
+    coaches = []
+    athletes = []
+    spectators = []
+    users = full_roster.pop("users")
+    for user in users:
+        if user.role == "COACH":
+            coaches.append(user)
+        elif user.role == "ATHLETE":
+            athletes.append(user)
+        elif user.role == "SPECTATOR":
+            spectators.append(user)
+
+    def sort_by_school(users):
+        return sorted(users, key=lambda user: user.school_id)
+
+    full_roster["coaches"] = sort_by_school(coaches)
+    full_roster["athletes"] = sort_by_school(athletes)
+    full_roster["spectators"] = sort_by_school(spectators)
+
+    return _render("notifications/full_roster.jinja", **full_roster)
+
+
+@app.route("/notifications/full_roster/raw", methods=["GET"])
+def view_full_roster_raw():
+    return db.roster.get_full_roster(as_json=True)
