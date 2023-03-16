@@ -37,7 +37,6 @@ Notifications
       </div>
       {% endif %}
       <div class="mb-2">
-        {# no "mb-2" so the error messages are close to the button #}
         <div class="row">
           <div class="col-auto">
             {{ macros.loading_btn(
@@ -46,8 +45,10 @@ Notifications
             }}
           </div>
           {% if roster_last_fetched_time is not none %}
-          {# alerts have weird spacings, so need to also have "mt-2" #}
-          <div class="col-auto mt-2">
+          {# alerts have weird spacings, so need to also have "mt-2". add "mb-2"
+             for additional spacing when this div wraps.
+           #}
+          <div class="col-auto my-2">
             {% call macros.bs_alert_sm("warning", dismissible=false) %}
             <strong>Warning:</strong> Fetching again will override the current
             roster.
@@ -55,11 +56,7 @@ Notifications
           </div>
           {% endif %}
         </div>
-        {# no "mb-2" because the next two rows are mutually exclusive, so don't
-           need to worry about the spacing between them. also, "mb-2" on both
-           rows will create too much space below the fetch button.
-         #}
-        <div class="row">
+        <div class="row mb-2">
           <div class="col">
             <input type="hidden" id="{{ fetch_roster_dummy_input_id }}" />
             <div
@@ -68,10 +65,10 @@ Notifications
             ></div>
           </div>
         </div>
-        <div class="row mb-2">
+        <div class="row">
           <div id="{{ fetch_roster_messages_id }}" class="col-auto">
             {% for message in flashed["fetch-roster"] %}
-            {% call macros.bs_alert_sm("success", tag="div", classes="mb-2") %}
+            {% call macros.bs_alert("success") %}
             {{ message }}
             {% endcall %}
             {% endfor %}
@@ -95,17 +92,15 @@ Notifications
   </div>
   <div id="send-notifications-section" class="row mb-2">
     <div class="col">
-      <div class="row">
-        <div class="col">
-          <h4>Send Match Notifications</h4>
-        </div>
-      </div>
       <div class="row mb-2">
         <div class="col">
-          Enter the match numbers below that you want to send notifications for.
-          The TMS spreadsheet should have a worksheet called
-          <code>{{ matches_worksheet_name }}</code> which will be queried to
-          find the competing teams for each match.
+          <h4>Send Match Notifications</h4>
+          <div>
+            Enter the match numbers below that you want to send notifications
+            for. The TMS spreadsheet should have a worksheet called
+            <code>{{ matches_worksheet_name }}</code> which will be queried to
+            find the competing teams for each match.
+          </div>
         </div>
       </div>
       <div class="row mb-2">
@@ -116,15 +111,16 @@ Notifications
           <div class="row">
             <label
               for="{{ match_numbers_input_id }}"
-              class="col-auto col-form-label"
+              class="col-auto col-form-label pe-0"
             >
               Matches
             </label>
-            <div class="col">
+            <div class="col pe-0">
               <input
                 type="text"
                 id="{{ match_numbers_input_id }}"
                 class="form-control"
+                placeholder="e.g., 101-104"
               />
               <div
                 id="{{ match_numbers_input_id }}-invalid"

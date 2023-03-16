@@ -46,11 +46,11 @@ code {
   padding: 0.5rem 0.75rem !important;
 }
 
-@media (min-width: 500px) {
-  /* When greater than 500px, use fixed width. Otherwise, change with screen
+@media (min-width: 525px) {
+  /* When greater than 525px, use fixed width. Otherwise, change with screen
      size.
    */
   #service-account-file-input-wrapper {
-    min-width: 500px;
+    width: 500px;
   }
 }
