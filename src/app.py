@@ -31,7 +31,7 @@ db.init_app(app)
 @app.context_processor
 def inject_template_variables():
     return {
-        "APP_NAME": "ECTC Tournament App",
+        "APP_NAME": "ECTC Notification App",
         "navbar_tabs": views.NAVBAR_TABS,
         "get_flashed_by_categories": flask_utils.get_flashed_by_categories,
     }
