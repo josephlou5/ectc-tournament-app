@@ -21,133 +21,143 @@ Admin Settings
 
 {% block body %}
 <div id="admin-config-body" class="container-fluid">
-  <div class="row mb-2">
+  <div id="tms-spreadsheet-section" class="row">
     <div class="col">
-      <h2>Service Account</h2>
-      <div class="mb-2">
-        The service account is used to access Google Spreadsheets. Either make
-        your spreadsheet publicly accessible or share the spreadsheet with the
-        service account email with at least view permissions.
-      </div>
-      <div class="mb-2">
-        Current service account:
-        {% if service_account_email is none %}
-        <em class="text-muted">None</em>
-        {% else %}
-        <strong id="{{ service_account_email_id }}">
-          {{ service_account_email }}
-        </strong>
-        <button
-          type="button"
-          class="btn btn-sm btn-outline-success ms-2"
-          id="{{ copy_email_btn_id }}"
-        >
-          Copy
-        </button>
-        <span id="{{ copy_email_status_id }}" class="ms-2"></span>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-  <div class="row mb-2">
-    <div class="col-7">
-      <h4>Change Service Account</h4>
-      <div class="mb-2">
-        Please see
-        <a
-          href="https://docs.gspread.org/en/latest/oauth2.html#for-bots-using-service-account"
-          target="_blank"
-        >this page</a> for how to create a service account. Upload the
-        credentials JSON file here.
-      </div>
-
       <div class="row">
-        <div class="col-auto mb-2">
-          <div id="service-account-file-input-wrapper">
-            <input
-              type="file"
-              id="{{ service_account_creds_input_id }}"
-              class="form-control"
-            />
-            <div
-              id="{{ service_account_creds_input_id }}-invalid"
-              class="invalid-feedback"
-            ></div>
+        <div class="col">
+          <h2>TMS Spreadsheet</h2>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <h4>Service Account</h4>
+          <div class="mb-2">
+            The service account is used to access Google Spreadsheets. Either make
+            your spreadsheet publicly accessible or share the spreadsheet with the
+            service account email with at least view permissions.
           </div>
-        </div>
-        <div class="col-auto">
-          {{ macros.loading_btn(
-               set_service_account_btn_id,
-               "success",
-               "Set Service Account",
-               "Setting...",
-             )
-          }}
-        </div>
-      </div>
-      <div class="row mb-2">
-        <div id="{{ service_account_messages_id }}" class="col-auto">
-          {% for accent, messages in flashed["service-account"].items() %}
-          {% for message in messages %}
-          {% call macros.bs_alert(accent) %}
-          {{ message }}
-          {% endcall %}
-          {% endfor %}
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="row mb-2">
-    <div class="col">
-      <h2>TMS Spreadsheet</h2>
-      <div class="mb-2">
-        Please provide the URL of the TMS spreadsheet, which will be used to
-        fetch the full roster and the teams for each match.
-      </div>
-      <div class="mb-2">
-        <div class="row mb-2 align-items-center">
-          <div class="col-auto pe-0">
-            <a
-              id="{{ open_tms_btn_id }}"
-              class="btn btn-sm btn-outline-success"
-              target="_blank"
+          <div class="mb-2">
+            Current service account:
+            {% if service_account_email is none %}
+            <em class="text-muted">None</em>
+            {% else %}
+            <strong id="{{ service_account_email_id }}">
+              {{ service_account_email }}
+            </strong>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-success ms-2"
+              id="{{ copy_email_btn_id }}"
             >
-              Open
-            </a>
-          </div>
-          {# with these breakpoints, the input usually is long enough to contain
-             an entire spreadsheet url
-           #}
-          <div class="col col-lg-8 col-xl-7 col-xxl-6 pe-0">
-            <input
-              type="text"
-              id="{{ tms_url_input_id }}"
-              class="form-control"
-              value="{{ tms_spreadsheet_url or '' }}"
-            />
-            <div
-              id="{{ tms_url_input_id }}-invalid"
-              class="invalid-feedback"
-            ></div>
-          </div>
-          <div class="col-auto">
-            {{ macros.loading_btn(
-                 save_tms_url_btn_id, "success", "Save", "Saving..."
-               )
-            }}
+              Copy
+            </button>
+            <span id="{{ copy_email_status_id }}" class="ms-2"></span>
+            {% endif %}
           </div>
         </div>
-        <div class="row mb-2">
-          <div id="{{ tms_url_messages_id }}" class="col-auto">
-            {% for accent, messages in flashed["tms-spreadsheet"].items() %}
-            {% for message in messages %}
-            {% call macros.bs_alert(accent) %}
-            {{ message }}
-            {% endcall %}
-            {% endfor %}
-            {% endfor %}
+      </div>
+      <div class="row">
+        <div class="col">
+          <h5>Change Service Account</h5>
+          <div class="row mb-2">
+            <div class="col">
+              Please see
+              <a
+                href="https://docs.gspread.org/en/latest/oauth2.html#for-bots-using-service-account"
+                target="_blank"
+              >this page</a> for how to create a service account. Upload the
+              credentials JSON file here.
+            </div>
+          </div>
+          {# don't include "mb-2" because then the messages are too far away #}
+          <div class="row">
+            <div class="col-auto mb-2">
+              <div id="service-account-file-input-wrapper">
+                <input
+                  type="file"
+                  id="{{ service_account_creds_input_id }}"
+                  class="form-control"
+                />
+                <div
+                  id="{{ service_account_creds_input_id }}-invalid"
+                  class="invalid-feedback"
+                ></div>
+              </div>
+            </div>
+            <div class="col-auto">
+              {{ macros.loading_btn(
+                  set_service_account_btn_id,
+                  "success",
+                  "Set Service Account",
+                  "Setting...",
+                )
+              }}
+            </div>
+          </div>
+          <div class="row">
+            <div id="{{ service_account_messages_id }}" class="col-auto">
+              {% for accent, messages in flashed["service-account"].items() %}
+              {% for message in messages %}
+              {% call macros.bs_alert(accent) %}
+              {{ message }}
+              {% endcall %}
+              {% endfor %}
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <h4>Spreadsheet URL</h4>
+          <div class="mb-2">
+            Please provide the URL of the TMS spreadsheet, which will be used to
+            fetch the full roster and the teams for each match.
+          </div>
+          <div class="mb-2">
+            <div class="row mb-2 align-items-center">
+              <div class="col-auto pe-0">
+                <a
+                  id="{{ open_tms_btn_id }}"
+                  class="btn btn-sm btn-outline-success"
+                  target="_blank"
+                >
+                  Open
+                </a>
+              </div>
+              {# with these breakpoints, the input is usually long enough to
+                 contain an entire spreadsheet url
+               #}
+              <div class="col col-lg-8 col-xl-7 col-xxl-6 pe-0">
+                <input
+                  type="text"
+                  id="{{ tms_url_input_id }}"
+                  class="form-control"
+                  value="{{ tms_spreadsheet_url or '' }}"
+                />
+                <div
+                  id="{{ tms_url_input_id }}-invalid"
+                  class="invalid-feedback"
+                ></div>
+              </div>
+              <div class="col-auto">
+                {{ macros.loading_btn(
+                    save_tms_url_btn_id, "success", "Save", "Saving..."
+                  )
+                }}
+              </div>
+            </div>
+            <div class="row mb-2">
+              <div id="{{ tms_url_messages_id }}" class="col-auto">
+                {% for accent, messages in flashed["tms-spreadsheet"].items() %}
+                {% for message in messages %}
+                {% call macros.bs_alert(accent) %}
+                {{ message }}
+                {% endcall %}
+                {% endfor %}
+                {% endfor %}
+              </div>
+            </div>
           </div>
         </div>
       </div>

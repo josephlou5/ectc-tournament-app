@@ -10,7 +10,6 @@ Notifications
 
 {% set match_numbers_input_id = "match-numbers-input" %}
 {% set fetch_matches_btn_id = "fetch-matches-btn" %}
-{% set fetch_matches_status_id = "fetch-matches-status" %}
 {% set matches_info_id = "matches-info" %}
 
 {% set send_notif_btn_id = "send-notification-btn" %}
@@ -20,8 +19,7 @@ Notifications
 {% block body %}
 <div id="notifications-body" class="container-fluid">
   <h2>Notifications</h2>
-
-  <div class="row mb-2">
+  <div id="teams-roster-section" class="row mb-2">
     <div class="col">
       <h4>Teams Roster</h4>
       <div class="mb-2">
@@ -59,7 +57,8 @@ Notifications
         </div>
         {# no "mb-2" because the next two rows are mutually exclusive, so don't
            need to worry about the spacing between them. also, "mb-2" on both
-           rows will create too much space below the fetch button. #}
+           rows will create too much space below the fetch button.
+         #}
         <div class="row">
           <div class="col">
             <input type="hidden" id="{{ fetch_roster_dummy_input_id }}" />
@@ -94,10 +93,13 @@ Notifications
       </div>
     </div>
   </div>
-
-  <div class="row mb-2">
+  <div id="send-notifications-section" class="row mb-2">
     <div class="col">
-      <h4>Send Match Notifications</h4>
+      <div class="row">
+        <div class="col">
+          <h4>Send Match Notifications</h4>
+        </div>
+      </div>
       <div class="row mb-2">
         <div class="col">
           Enter the match numbers below that you want to send notifications for.
@@ -144,19 +146,17 @@ Notifications
              )
           }}
         </div>
-        {# can't align center because of the input description and validation,
-           but "pt-2" seems to look good and centered wrt the fetch button
-         #}
-        <div id="{{ fetch_matches_status_id }}" class="col-auto pt-2"></div>
       </div>
-      <div class="row">
-        <h4>Matches Info</h4>
-        <div id="{{ matches_info_id }}">
-          <!-- filled out by AJAX calls -->
-          No matches
+      <div class="row mb-2">
+        <div class="col">
+          <h4>Matches Info</h4>
+          <div id="{{ matches_info_id }}">
+            <!-- filled out by AJAX calls -->
+            No matches
+          </div>
         </div>
       </div>
-      <div class="row mt-2">
+      <div class="row">
         <div class="col">
           {# button currently does nothing #}
           {{ macros.loading_btn(
@@ -230,10 +230,6 @@ Notifications
         if (response.success) {
           // clear the input
           $('#{{ match_numbers_input_id }}').val('');
-          console.log(
-            'Parsed match numbers:',
-            response['match_numbers'].join(', ')
-          );
           // populate the matches data
           $('#{{ matches_info_id }}').html(response['matches_html']);
         } else {
@@ -282,7 +278,7 @@ Notifications
       },
       error: (jqXHR, status, errorThrown) => {
         stopButtonLoading(refreshBtnId);
-        $('#{{ fetch_matches_status_id }}').html(jqXHR.statusText);
+        $(refreshStatusId).html(jqXHR.statusText);
       },
     });
   }
