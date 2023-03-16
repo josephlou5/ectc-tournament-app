@@ -11,13 +11,11 @@ Admin Settings
 {% set service_account_creds_input_id = "service-account-credentials" %}
 {% set service_account_messages_id = "service-account-messages" %}
 {% set set_service_account_btn_id = "set-service-account-btn" %}
-{% set set_service_account_status_id = "set-service-account-status" %}
 
 {% set tms_url_input_id = "tms-url-input" %}
 {% set tms_url_messages_id = "tms-url-messages" %}
 {% set open_tms_btn_id = "open-tms-btn" %}
 {% set save_tms_url_btn_id = "save-tms-url-btn" %}
-{% set save_tms_url_status_id = "save-tms-url-status" %}
 
 {% set flashed = get_flashed_by_categories(subcategories=True) %}
 
@@ -78,17 +76,13 @@ Admin Settings
           </div>
         </div>
         <div class="col-auto">
-          <button
-            type="button"
-            id="{{ set_service_account_btn_id }}"
-            class="btn btn-success"
-          >
-            Set Service Account
-          </button>
-          <span
-            id="{{ set_service_account_status_id }}"
-            class="col-auto ms-2 align-self-center"
-          ></span>
+          {{ macros.loading_btn(
+               set_service_account_btn_id,
+               "success",
+               "Set Service Account",
+               "Setting...",
+             )
+          }}
         </div>
       </div>
       <div class="row mb-2">
@@ -139,13 +133,10 @@ Admin Settings
             ></div>
           </div>
           <div class="col-auto">
-            <button id="{{ save_tms_url_btn_id }}" class="btn btn-success">
-              Save
-            </button>
-            <span
-              id="{{ save_tms_url_status_id }}"
-              class="col-auto ms-2 align-self-center"
-            ></span>
+            {{ macros.loading_btn(
+                 save_tms_url_btn_id, "success", "Save", "Saving..."
+               )
+            }}
           </div>
         </div>
         <div class="row mb-2">
@@ -168,16 +159,13 @@ Admin Settings
 {% block script %}
 <script>
   function handleSetServiceAccountClicked() {
-    const SETTING = 'Setting...';
-
-    if ($('#{{ set_service_account_status_id }}').html().trim() == SETTING) {
+    if (isButtonLoading('{{ set_service_account_btn_id }}')) {
       // currently setting; ignore click
       return;
     }
 
-    // clear messages and status
+    // clear messages
     $('#{{ service_account_messages_id }}').html('');
-    $('#{{ set_service_account_status_id }}').html('');
     clearInvalid('{{ service_account_creds_input_id }}');
 
     const fileList = $('#{{ service_account_creds_input_id }}').prop('files');
@@ -191,7 +179,7 @@ Admin Settings
     const file = fileList[0];
     file.text().then((fileText) => {
       // set service account with file contents
-      $('#{{ set_service_account_status_id }}').html(SETTING);
+      setButtonLoading('{{ set_service_account_btn_id }}');
       ajaxRequest('POST', '{{ url_for("set_service_account") }}', {
         contentType: 'application/json',
         data: fileText,
@@ -200,9 +188,8 @@ Admin Settings
             // reload the page
             location.reload();
           } else {
-            // clear status
-            $('#{{ set_service_account_status_id }}').html('');
             // some failure
+            stopButtonLoading('{{ set_service_account_btn_id }}');
             setInvalid(
               '{{ service_account_creds_input_id }}',
               response.reason ?? 'Unknown error: please try again'
@@ -210,8 +197,7 @@ Admin Settings
           }
         },
         error: (jqXHR, status, errorThrown) => {
-          // clear status
-          $('#{{ set_service_account_status_id }}').html('');
+          stopButtonLoading('{{ set_service_account_btn_id }}');
           setInvalid('{{ service_account_creds_input_id }}', jqXHR.statusText);
         },
       })
@@ -235,16 +221,13 @@ Admin Settings
   }
 
   function handleSaveTMSSpreadsheetClicked() {
-    const SAVING = 'Saving...';
-
-    if ($('#{{ save_tms_url_status_id }}').html().trim() === SAVING) {
+    if (isButtonLoading('{{ save_tms_url_btn_id }}')) {
       // currently saving; ignore click
       return;
     }
 
-    // clear messages and status
+    // clear messages
     $('#{{ tms_url_messages_id }}').html('');
-    $('#{{ save_tms_url_status_id }}').html('');
     clearInvalid('{{ tms_url_input_id }}');
 
     const url = getUrl();
@@ -254,7 +237,7 @@ Admin Settings
       return;
     }
 
-    $('#{{ save_tms_url_status_id }}').html(SAVING);
+    setButtonLoading('{{ save_tms_url_btn_id }}');
     ajaxRequest('POST', '{{ url_for("set_tms_spreadsheet") }}', {
       contentType: 'application/json',
       data: JSON.stringify({ url }),
@@ -263,9 +246,8 @@ Admin Settings
           // reload the page
           location.reload();
         } else {
-          // clear status
-          $('#{{ save_tms_url_status_id }}').html('');
           // some failure
+          stopButtonLoading('{{ save_tms_url_btn_id }}');
           setInvalid(
             '{{ tms_url_input_id }}',
             response.reason ?? 'Unknown error: please try again'
@@ -273,8 +255,7 @@ Admin Settings
         }
       },
       error: (jqXHR, status, errorThrown) => {
-        // clear status
-        $('#{{ save_tms_url_status_id }}').html('');
+        stopButtonLoading('{{ save_tms_url_btn_id }}');
         setInvalid('{{ tms_url_input_id }}', jqXHR.statusText);
       },
     });

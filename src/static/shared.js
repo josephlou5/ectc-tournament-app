@@ -90,6 +90,37 @@ function setInvalid(elementId, message = null) {
   $('#' + elementId).addClass('is-invalid');
 }
 
+/** LOADING BUTTONS **/
+
+function isButtonLoading(elementId) {
+  // if the spinner is not hidden, it is loading
+  return !$('#' + elementId + '-spinner').hasClass('d-none');
+}
+
+function setButtonLoading(elementId) {
+  // disable the button
+  $('#' + elementId).prop('disabled', true);
+  // set the button text, if possible
+  const $buttonText = $('#' + elementId + '-text');
+  if ($buttonText.length > 0) {
+    $buttonText.html($buttonText.attr('loading'));
+  }
+  // show the spinner
+  $('#' + elementId + '-spinner').removeClass('d-none');
+}
+
+function stopButtonLoading(elementId) {
+  // hide the spinner
+  $('#' + elementId + '-spinner').addClass('d-none');
+  // set the button text, if possible
+  const $buttonText = $('#' + elementId + '-text');
+  if ($buttonText.length > 0) {
+    $buttonText.html($buttonText.attr('waiting'));
+  }
+  // enable the button
+  $('#' + elementId).prop('disabled', false);
+}
+
 /** MISC **/
 
 function copyElementContent(elementId, callback = null) {

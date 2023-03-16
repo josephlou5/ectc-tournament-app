@@ -6,8 +6,7 @@ Notifications
 
 {% set fetch_roster_btn_id = "fetch-roster-btn" %}
 {% set fetch_roster_dummy_input_id = "fetch-roster-dummy-input" %}
-{# messages and status are combined for fetch roster #}
-{% set fetch_roster_status_id = "fetch-roster-status" %}
+{% set fetch_roster_messages_id = "fetch-roster-messages" %}
 
 {% set match_numbers_input_id = "match-numbers-input" %}
 {% set fetch_matches_btn_id = "fetch-matches-btn" %}
@@ -41,21 +40,27 @@ Notifications
       {% endif %}
       <div class="mb-2">
         {# no "mb-2" so the error messages are close to the button #}
-        <div class="row align-items-center">
+        <div class="row">
           <div class="col-auto">
-            <button id="{{ fetch_roster_btn_id }}" class="btn btn-success">
-              Fetch Roster
-            </button>
+            {{ macros.loading_btn(
+                 fetch_roster_btn_id, "success", "Fetch Roster", "Fetching..."
+               )
+            }}
           </div>
-          <div id="{{ fetch_roster_status_id }}" class="col-auto">
-            {% for message in flashed["fetch-roster"] %}
-            {% call macros.bs_alert_sm("success", classes="me-2") %}
-            {{ message }}
+          {% if roster_last_fetched_time is not none %}
+          {# alerts have weird spacings, so need to also have "mt-2" #}
+          <div class="col-auto mt-2">
+            {% call macros.bs_alert_sm("warning", dismissible=false) %}
+            <strong>Warning:</strong> Fetching again will override the current
+            roster.
             {% endcall %}
-            {% endfor %}
           </div>
+          {% endif %}
         </div>
-        <div class="row mb-2">
+        {# no "mb-2" because the next two rows are mutually exclusive, so don't
+           need to worry about the spacing between them. also, "mb-2" on both
+           rows will create too much space below the fetch button. #}
+        <div class="row">
           <div class="col">
             <input type="hidden" id="{{ fetch_roster_dummy_input_id }}" />
             <div
@@ -64,16 +69,15 @@ Notifications
             ></div>
           </div>
         </div>
-        {% if roster_last_fetched_time is not none %}
-        <div class="row mt-3 mb-2">
-          {# alerts have weird spacings, so need to also have "mt-3" #}
-          <div class="col-auto">
-            {% call macros.bs_alert_sm("warning", dismissible=false) %}
-            Warning: Fetching again will override the current roster.
+        <div class="row mb-2">
+          <div id="{{ fetch_roster_messages_id }}" class="col-auto">
+            {% for message in flashed["fetch-roster"] %}
+            {% call macros.bs_alert_sm("success", tag="div", classes="mb-2") %}
+            {{ message }}
             {% endcall %}
+            {% endfor %}
           </div>
         </div>
-        {% endif %}
         <div class="row mb-2">
           <div class="col">
             Last fetched:
@@ -132,13 +136,13 @@ Notifications
           </div>
         </div>
         <div class="col-auto">
-          <button
-            type="button"
-            id="{{ fetch_matches_btn_id }}"
-            class="btn btn-success"
-          >
-            Fetch Matches Info
-          </button>
+          {{ macros.loading_btn(
+               fetch_matches_btn_id,
+               "success",
+               "Fetch Matches Info",
+               "Fetching..."
+             )
+          }}
         </div>
         {# can't align center because of the input description and validation,
            but "pt-2" seems to look good and centered wrt the fetch button
@@ -155,9 +159,10 @@ Notifications
       <div class="row mt-2">
         <div class="col">
           {# button currently does nothing #}
-          <button id="{{ send_notif_btn_id }}" class="btn btn-primary">
-            Send Notification
-          </button>
+          {{ macros.loading_btn(
+               send_notif_btn_id, "primary", "Send Notification", "Sending..."
+             )
+          }}
         </div>
       </div>
     </div>
@@ -168,25 +173,24 @@ Notifications
 {% block script %}
 <script>
   function handleFetchRosterClicked() {
-    const FETCHING = 'Fetching...';
-
-    if ($('#{{ fetch_roster_status_id }}').html().trim() === FETCHING) {
+    if (isButtonLoading('{{ fetch_roster_btn_id }}')) {
       // currently fetching; ignore click
       return;
     }
 
+    // clear messages
+    $('#{{ fetch_roster_messages_id }}').html('');
     clearInvalid('{{ fetch_roster_dummy_input_id }}');
 
-    $('#{{ fetch_roster_status_id }}').html(FETCHING);
+    setButtonLoading('{{ fetch_roster_btn_id }}');
     ajaxRequest('POST', '{{ url_for("fetch_roster") }}', {
       success: (response, status, jqXHR) => {
         if (response.success) {
           // reload the page
           location.reload();
         } else {
-          // clear the status
-          $('#{{ fetch_roster_status_id }}').html('');
           // some failure
+          stopButtonLoading('{{ fetch_roster_btn_id }}');
           setInvalid(
             '{{ fetch_roster_dummy_input_id }}',
             response.reason ?? 'Unknown error: please try again'
@@ -194,23 +198,18 @@ Notifications
         }
       },
       error: (jqXHR, status, errorThrown) => {
-        // clear the status
-        $('#{{ fetch_roster_status_id }}').html('');
+        stopButtonLoading('{{ fetch_roster_btn_id }}');
         setInvalid('{{ fetch_roster_dummy_input_id }}', jqXHR.statusText);
       },
     });
   }
 
   function handleFetchMatchInfoClicked() {
-    const FETCHING = 'Fetching...';
-
-    if ($('#{{ fetch_matches_status_id }}').html().trim() === FETCHING) {
+    if (isButtonLoading('{{ fetch_matches_btn_id }}')) {
       // currently fetching; ignore the click
       return;
     }
 
-    // clear status
-    $('#{{ fetch_matches_status_id }}').html('');
     clearInvalid('{{ match_numbers_input_id }}');
 
     const matchesQuery = getInputValue('{{ match_numbers_input_id }}');
@@ -223,12 +222,11 @@ Notifications
       return;
     }
 
-    $('#{{ fetch_matches_status_id }}').html(FETCHING);
+    setButtonLoading('{{ fetch_matches_btn_id }}');
     ajaxRequest('GET', '{{ url_for("fetch_matches_info") }}', {
       data: { matches: matchesQuery },
       success: (response, status, jqXHR) => {
-        // clear the status
-        $('#{{ fetch_matches_status_id }}').html('');
+        stopButtonLoading('{{ fetch_matches_btn_id }}');
         if (response.success) {
           // clear the input
           $('#{{ match_numbers_input_id }}').val('');
@@ -247,42 +245,43 @@ Notifications
         }
       },
       error: (jqXHR, status, errorThrown) => {
-        // clear the status
-        $('#{{ fetch_matches_status_id }}').html('');
+        stopButtonLoading('{{ fetch_matches_btn_id }}');
         setInvalid('{{ match_numbers_input_id }}', jqXHR.statusText);
       },
     });
   }
 
   function refreshMatches(matchesQuery) {
-    const REFRESHING = 'Refreshing...';
+    const refreshBtnId = 'refresh-matches-btn';
     const refreshStatusId = '#refresh-matches-status';
+
+    if (isButtonLoading(refreshBtnId)) {
+      // currently refreshing; ignore click
+      return;
+    }
 
     if (matchesQuery === '') {
       // do nothing
       return;
     }
 
-    if ($(refreshStatusId).html().trim() === REFRESHING) {
-      // currently refreshing; ignore click
-      return;
-    }
-
-    $('#refresh-matches-status').html('Refreshing...');
+    setButtonLoading(refreshBtnId);
     ajaxRequest('GET', '{{ url_for("fetch_matches_info") }}', {
       data: { matches: matchesQuery },
       success: (response, status, jqXHR) => {
+        stopButtonLoading(refreshBtnId);
         if (response.success) {
-          // repopulate the matches data (replaces the status element)
+          // repopulate the matches data (replaces the button and status)
           $('#{{ matches_info_id }}').html(response['matches_html']);
         } else {
           // some failure
-          $('#{{ fetch_matches_status_id }}').html(
+          $(refreshStatusId).html(
             response.reason ?? 'Unknown error: please try again'
           );
         }
       },
       error: (jqXHR, status, errorThrown) => {
+        stopButtonLoading(refreshBtnId);
         $('#{{ fetch_matches_status_id }}').html(jqXHR.statusText);
       },
     });
@@ -318,7 +317,7 @@ Notifications
       handleFetchRosterClicked();
     });
     // clear the flashed text after 60 seconds
-    clearElementAfter('{{ fetch_roster_status_id }}', 60);
+    clearElementAfter('{{ fetch_roster_messages_id }}', 60);
 
     // Fetch match info
     $('#{{ match_numbers_input_id }}').onEnterKeyPress((event) => {

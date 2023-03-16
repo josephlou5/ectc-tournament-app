@@ -54,17 +54,19 @@
 {% endmacro %}
 
 {% if matches|length == 0 %}
-{# should never happen? #}
+{# should never happen #}
 No matches
 {% else %}
 <div class="mb-2">
-  <button
-    type="button"
-    class="btn btn-sm btn-outline-success"
-    onclick="refreshMatches('{{ clean_matches_query }}');"
-  >
-    Refresh
-  </button>
+  {{ macros.loading_btn(
+       "refresh-matches-btn",
+       "outline-success",
+       "Refresh",
+       "Refreshing...",
+       classes="btn-sm",
+       attrs="onclick=\"refreshMatches('" ~ clean_matches_query ~ "');\""
+     )
+  }}
   <span id="refresh-matches-status" class="ms-1">
     Matches query: {{ clean_matches_query }}
   </span>

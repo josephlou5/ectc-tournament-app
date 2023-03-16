@@ -1,6 +1,6 @@
-{% macro _bs_alert(tag, accent, classes='', small=false, dismissible=true) %}
-{% set sm_cls = 'alert-sm' if small else 'd-flex mb-2' %}
-{% set dismissible_cls = 'alert-dismissible fade show' if dismissible else '' %}
+{% macro _bs_alert(tag, accent, classes="", small=false, dismissible=true) %}
+{% set sm_cls = "alert-sm" if small else "d-flex mb-2" %}
+{% set dismissible_cls = "alert-dismissible fade show" if dismissible else "" %}
 <{{ tag }}
   class="alert {{ sm_cls }} alert-{{ accent }} {{ dismissible_cls }} {{ classes }}"
   role="alert"
@@ -23,22 +23,53 @@
 </{{ tag }}>
 {% endmacro %}
 
-{% macro bs_alert(accent, classes='', dismissible=true) %}
+{% macro bs_alert(accent, tag="div", classes="", dismissible=true) %}
 {% with contents = caller() %}
 {% call _bs_alert(
-     'div', accent, classes=classes, dismissible=dismissible
+     tag, accent, classes=classes, dismissible=dismissible
    ) %}
 {{ contents }}
 {% endcall %}
 {% endwith %}
 {% endmacro %}
 
-{% macro bs_alert_sm(accent, classes='', dismissible=true) %}
+{% macro bs_alert_sm(accent, tag="span", classes="", dismissible=true) %}
 {% with contents = caller() %}
 {% call _bs_alert(
-     'span', accent, classes=classes, small=true, dismissible=dismissible
+     tag, accent, classes=classes, small=true, dismissible=dismissible
    ) %}
 {{ contents }}
 {% endcall %}
 {% endwith %}
+{% endmacro %}
+
+{% macro loading_btn(
+     element_id, accent, text, loading_text=none, classes="", attrs=""
+   )
+ %}
+<button
+  type="button"
+  id="{{ element_id }}"
+  class="btn btn-{{ accent }} {{ classes }}"
+  {{ attrs }}
+>
+  <span
+    id="{{ element_id }}-spinner"
+    class="spinner-border spinner-border-sm me-1 d-none"
+    role="status"
+    aria-hidden="true"
+  ></span>
+  {% if loading_text is none %}
+  {{ text }}
+  {% else %}
+  {# enable switching between regular and loading text #}
+  <span
+    id="{{ element_id }}-text"
+    waiting="{{ text }}"
+    loading="{{ loading_text }}"
+  >
+    {{ text }}
+  </span>
+  {% endif %}
+</button>
 {% endmacro %}
