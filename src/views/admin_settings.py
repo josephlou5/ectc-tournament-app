@@ -7,7 +7,7 @@ The "admin settings" view.
 from flask import flash, request
 
 import db
-from utils import fetch_tms
+from utils import fetch_tms, mailchimp_utils
 from utils.routes import AppRoutes, _render
 
 # =============================================================================
@@ -144,4 +144,48 @@ def set_tms_spreadsheet():
             "tms-spreadsheet.warning",
         )
 
+    return {"success": True}
+
+
+@app.route("/admin/mailchimp/api_key", methods=["POST"])
+def set_mailchimp_api_key():
+    request_args = request.get_json(silent=True)
+    if request_args is None:
+        return {"success": False, "reason": "Invalid JSON data"}
+    if not isinstance(request_args, dict):
+        return {
+            "success": False,
+            "reason": "Invalid JSON data: expected mapping",
+        }
+    if "apiKey" not in request_args:
+        return {
+            "success": False,
+            "reason": 'Invalid JSON data: missing "apiKey" key',
+        }
+    api_key = request_args["apiKey"]
+    if not isinstance(api_key, str):
+        return {
+            "success": False,
+            "reason": 'Invalid JSON data: expected string for "apiKey" key',
+        }
+    if api_key == "":
+        return {"success": False, "reason": "API key is empty"}
+
+    print(" ", "Setting Mailchimp API key (not printed for security)")
+
+    # validate the client
+    error_msg, _ = mailchimp_utils.get_client(api_key)
+    if error_msg is not None:
+        print(" ", "Validation failed:", error_msg)
+        # the error message returned by the API is a bit too detailed
+        # and clunky, so just keep it simple for the user
+        return {"success": False, "reason": "Invalid API key"}
+
+    # save in database
+    success = db.global_state.set_mailchimp_api_key(api_key)
+    if not success:
+        print(" ", "Database error")
+        return {"success": False, "reason": "Database error"}
+
+    flash("Success", "mailchimp-api-key.success")
     return {"success": True}

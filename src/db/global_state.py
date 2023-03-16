@@ -31,6 +31,25 @@ def get():
     return global_state
 
 
+def _set(global_state=None, *, commit=True, **values):
+    """Sets the given kwargs values on the global state.
+
+    Returns:
+        bool: If the global state changed.
+    """
+    if global_state is None:
+        global_state = get()
+    changed = False
+    for key, value in values.items():
+        if getattr(global_state, key) == value:
+            continue
+        setattr(global_state, key, value)
+        changed = True
+    if commit and changed:
+        db.session.commit()
+    return changed
+
+
 def get_service_account_info():
     """Returns the global service account info as a dict, or None if
     there is no current service account.
@@ -53,9 +72,7 @@ def set_service_account_info(data):
     Returns:
         bool: Whether the operation was successful.
     """
-    global_state = get()
-    global_state.service_account_info = data
-    db.session.commit()
+    _set(service_account_info=data)
     return True
 
 
@@ -65,10 +82,7 @@ def clear_service_account_info():
     Returns:
         bool: Whether the operation was successful.
     """
-    global_state = get()
-    global_state.service_account = None
-    db.session.commit()
-    return True
+    return set_service_account_info(None)
 
 
 def get_tms_spreadsheet_id():
@@ -85,9 +99,7 @@ def set_tms_spreadsheet_id(spreadsheet_id):
     Returns:
         bool: Whether the operation was successful.
     """
-    global_state = get()
-    global_state.tms_spreadsheet_id = spreadsheet_id
-    db.session.commit()
+    _set(tms_spreadsheet_id=spreadsheet_id)
     return True
 
 
@@ -97,10 +109,7 @@ def clear_tms_spreadsheet_id():
     Returns:
         bool: Whether the operation was successful.
     """
-    global_state = get()
-    global_state.tms_spreadsheet_id = None
-    db.session.commit()
-    return True
+    return set_tms_spreadsheet_id(None)
 
 
 def get_roster_last_fetched_time(tz=EASTERN_TZ):
@@ -118,7 +127,30 @@ def set_roster_last_fetched_time():
     Returns:
         bool: Whether the operation was successful.
     """
-    global_state = get()
-    global_state.roster_last_fetched_time = datetime.utcnow()
-    db.session.commit()
+    _set(roster_last_fetched_time=datetime.utcnow())
     return True
+
+
+def get_mailchimp_api_key():
+    """Returns the Mailchimp API key, or None if it does not exist."""
+    global_state = get()
+    return global_state.mailchimp_api_key
+
+
+def set_mailchimp_api_key(api_key):
+    """Sets the Mailchimp API key.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    _set(mailchimp_api_key=api_key)
+    return True
+
+
+def clear_mailchimp_api_key():
+    """Clears the Mailchimp API key.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    return set_mailchimp_api_key(None)

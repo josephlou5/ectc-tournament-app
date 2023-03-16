@@ -17,6 +17,11 @@ Admin Settings
 {% set open_tms_btn_id = "open-tms-btn" %}
 {% set save_tms_url_btn_id = "save-tms-url-btn" %}
 
+{# Mailchimp #}
+{% set mc_api_key_input_id = "mc-api-key-input" %}
+{% set mc_api_key_messages_id = "mc-api-key-messages" %}
+{% set mc_set_api_key_btn_id = "mc-set-api-key-btn" %}
+
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
 {% block body %}
@@ -166,6 +171,75 @@ Admin Settings
       </div>
     </div>
   </div>
+  <div id="mailchimp-section" class="row mb-2">
+    <div class="col">
+      <div class="row">
+        <div class="col">
+          <h2>Mailchimp</h2>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <h4>API Key</h4>
+          <div class="row">
+            <div class="col">
+              <div class="mb-2">
+                We use Mailchimp to send email notifications. To allow the
+                system to access your Mailchimp account, we will need an API
+                key. Please see
+                <a
+                  href="https://mailchimp.com/help/about-api-keys/"
+                  target="_blank"
+                >this article</a> for information about them.
+              </div>
+              <div class="mb-2">
+                API keys must secure. Because of this, once you provide your API
+                key, you won't be able to see it on this site again (similar to
+                when you generated the API key), so be sure to store it
+                somewhere else. You can always clear or set another API key in
+                case the one you provided is no longer working.
+              </div>
+            </div>
+          </div>
+          <div class="row mb-2">
+            <div class="col-xs col-sm-8 col-md-7 col-lg-4">
+              <div class="row">
+                <div class="col pe-0">
+                  <input
+                    type="text"
+                    id="{{ mc_api_key_input_id }}"
+                    class="form-control"
+                    placeholder="Mailchimp API Key"
+                  />
+                  <div
+                    id="{{ mc_api_key_input_id }}-invalid"
+                    class="invalid-feedback"
+                  ></div>
+                </div>
+                <div class="col-auto">
+                  {{ macros.loading_btn(
+                      mc_set_api_key_btn_id, "success", "Set", "Setting..."
+                    )
+                  }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div id="{{ mc_api_key_messages_id }}" class="col-auto">
+              {% for accent, messages in flashed["mailchimp-api-key"].items() %}
+              {% for message in messages %}
+              {% call macros.bs_alert(accent) %}
+              {{ message }}
+              {% endcall %}
+              {% endfor %}
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -274,6 +348,49 @@ Admin Settings
     });
   }
 
+  function handleMailchimpSetApiKeyClicked() {
+    if (isButtonLoading('{{ mc_set_api_key_btn_id }}')) {
+      // currently setting; ignore click
+      return;
+    }
+
+    // clear messages
+    $('#{{ mc_api_key_messages_id }}').html('');
+    clearInvalid('{{ mc_api_key_input_id }}');
+
+    const apiKey = getInputValue('{{ mc_api_key_input_id }}');
+    if (apiKey === '') {
+      setInvalid(
+        '{{ mc_api_key_input_id }}',
+        'Please provide your API key.'
+      );
+      return;
+    }
+
+    setButtonLoading('{{ mc_set_api_key_btn_id }}');
+    ajaxRequest('POST', '{{ url_for("set_mailchimp_api_key") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({ apiKey }),
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          // reload the page
+          location.reload();
+        } else {
+          // some failure
+          stopButtonLoading('{{ mc_set_api_key_btn_id }}');
+          setInvalid(
+            '{{ mc_api_key_input_id }}',
+            response.reason ?? 'Unknown error: please try again'
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        stopButtonLoading('{{ mc_set_api_key_btn_id }}');
+        setInvalid('{{ mc_api_key_input_id }}', jqXHR.statusText);
+      },
+    });
+  }
+
   $(document).ready(() => {
     // Service account
     $('#{{ copy_email_btn_id }}').click((event) => {
@@ -305,6 +422,16 @@ Admin Settings
     });
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ tms_url_messages_id }}', 60);
+
+    // Mailchimp
+    $('#{{ mc_api_key_input_id }}').onEnterKeyPress((event) => {
+      $('#{{ mc_set_api_key_btn_id }}').click();
+    });
+    $('#{{ mc_set_api_key_btn_id }}').click((event) => {
+      handleMailchimpSetApiKeyClicked();
+    });
+    // clear the flashed text after 60 seconds
+    clearElementAfter('{{ mc_api_key_messages_id }}', 60);
   });
 </script>
 {% endblock %}

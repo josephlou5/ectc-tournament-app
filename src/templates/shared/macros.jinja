@@ -5,17 +5,13 @@
   class="alert {{ sm_cls }} alert-{{ accent }} {{ dismissible_cls }} {{ classes }}"
   role="alert"
 >
-  <span
-    {% if not small %}
-    class="me-auto"
-    {% endif %}
-  >
+  <span {% if not small %} class="me-auto" {% endif %}>
     {{ caller() }}
   </span>
   {% if dismissible %}
   <button
     type="button"
-    class="btn-close {{ 'ms-2' if small else '' }}"
+    class="btn-close {{ 'ms-2' if small }}"
     data-bs-dismiss="alert"
     aria-label="Close"
   ></button>
