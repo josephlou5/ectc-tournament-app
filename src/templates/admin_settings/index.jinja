@@ -62,6 +62,17 @@ Admin Settings
             <span id="{{ copy_email_status_id }}" class="ms-2"></span>
             {% endif %}
           </div>
+          {% if service_account_email is not none %}
+          <div class="mb-2">
+            {{ macros.confirm_btn(
+                 clear_service_account_btn_id,
+                 "Clear Service Account",
+                 "clear the service account",
+                 loading_text="Clearing...",
+               )
+            }}
+          </div>
+          {% endif %}
         </div>
       </div>
       <div class="row">
@@ -81,7 +92,7 @@ Admin Settings
              so still want good spacing between the input and the button.
            #}
           <div class="row gy-2 mb-2">
-            <div class="col-auto pe-0">
+            <div class="col col-sm-auto pe-0">
               <div id="service-account-file-input-wrapper">
                 <input
                   type="file"
@@ -95,28 +106,10 @@ Admin Settings
               </div>
             </div>
             <div class="col-auto">
-              <div class="row">
-                <div class="col-auto pe-0">
-                  {{ macros.loading_btn(
-                       set_service_account_btn_id,
-                       "success",
-                       "Set",
-                       "Setting...",
-                     )
-                  }}
-                </div>
-                {% if service_account_email is not none %}
-                <div class="col-auto">
-                  {{ macros.confirm_btn(
-                       clear_service_account_btn_id,
-                       "Clear Service Account",
-                       "clear the service account",
-                       loading_text="Clearing...",
-                     )
-                  }}
-                </div>
-                {% endif %}
-              </div>
+              {{ macros.loading_btn(
+                   set_service_account_btn_id, "success", "Set", "Setting..."
+                 )
+              }}
             </div>
           </div>
           <div class="row">

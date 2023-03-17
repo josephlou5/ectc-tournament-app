@@ -46,11 +46,16 @@ code {
   padding: 0.5rem 0.75rem !important;
 }
 
-@media (min-width: 525px) {
-  /* When greater than 525px, use fixed width. Otherwise, change with screen
-     size.
+/* Use Bootstrap's SM breakpoint */
+@media (min-width: 575.98px) {
+  /* When greater than small breakpoint, use fixed width. Otherwise, change with
+     screen size.
    */
   #service-account-file-input-wrapper {
-    width: 500px;
+    /* This is a reverse-engineered hard-coded value so that the transition from
+       larger than SM to SM is smooth (i.e., the file input stays the same
+       size). It will require adjusting if anything in that row changes.
+     */
+    width: 457px;
   }
 }
