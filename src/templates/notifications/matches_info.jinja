@@ -1,5 +1,13 @@
 {% import "shared/macros.jinja" as macros %}
 
+{% macro sheet_raw_value(value) %}
+{% if value != "" %}
+{{ value }}
+{% else %}
+<em class="text-muted">N/A</em>
+{% endif %}
+{% endmacro %}
+
 {% macro team_member(user) %}
 {% if user is none %}
 <em class="text-muted">None</em>
@@ -24,9 +32,9 @@
 {% if not team_info["valid"] %}
 <td class="table-warning">
   {% if 'error' not in team_info %}
-  {{ team_info["name"] }}
+  {{ sheet_raw_value(team_info["name"]) }}
   {% else %}
-  <div>{{ team_info["name"] }}</div>
+  <div>{{ sheet_raw_value(team_info["name"]) }}</div>
   <div>{{ team_info["error"] }}</div>
   {% endif %}
 </td>
@@ -34,7 +42,7 @@
 <td>
   <div class="row align-items-center">
     <div class="col-auto">
-      <div>{{ team_info["name"] }}</div>
+      <div>{{ sheet_raw_value(team_info["name"]) }}</div>
       <div>
         <button
           type="button"
@@ -115,8 +123,8 @@ No matches
       matchdata="{{ match['compact']|e }}"
     >
       <th class="table-sm-col">{{ match_number }}</th>
-      <td class="table-sm-col">{{ match["division"] }}</td>
-      <td class="table-sm-col">{{ match["round"] }}</td>
+      <td class="table-sm-col">{{ sheet_raw_value(match["division"]) }}</td>
+      <td class="table-sm-col">{{ sheet_raw_value(match["round"]) }}</td>
       {{ team_column(match["blue_team"], match_team_blue_id) }}
       {{ team_column(match["red_team"], match_team_red_id) }}
       <td class="table-sm-col">

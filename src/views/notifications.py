@@ -396,7 +396,7 @@ def fetch_matches_info():
             continue
         matches_list_str = ", ".join(map(str, team_matches))
         warnings.append(
-            f'Matches {matches_list_str} have team "{school} {team_code}"'
+            f'Matches {matches_list_str} all have team "{school} {team_code}"'
         )
 
     # get the actual team infos from the database
