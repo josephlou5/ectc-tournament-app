@@ -123,6 +123,14 @@ function stopButtonLoading(elementId) {
 
 /** MISC **/
 
+function getAttr(elementId, attrName) {
+  return (
+    $('#' + elementId)
+      .attr(attrName)
+      ?.trim() ?? ''
+  );
+}
+
 function copyElementContent(elementId, callback = null) {
   const text = $('#' + elementId)
     .text()

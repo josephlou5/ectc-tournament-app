@@ -50,6 +50,8 @@ class GlobalState(db.Model):
     tms_spreadsheet_id = Column(String(), nullable=True)
     # The last time the roster was fetched from the TMS spreadsheet
     roster_last_fetched_time = Column(DateTime(timezone=False), nullable=True)
+    # The last successful matches query
+    last_matches_query = Column(String(), nullable=True)
     # The Mailchimp API key
     mailchimp_api_key = Column(String(), nullable=True)
 

@@ -11,6 +11,7 @@ Notifications
 
 {% set match_numbers_input_id = "match-numbers-input" %}
 {% set fetch_matches_btn_id = "fetch-matches-btn" %}
+{% set set_last_matches_query_btn_id = "set-last-matches-query-btn" %}
 {% set matches_info_id = "matches-info" %}
 
 {% set send_notif_btn_id = "send-notification-btn" %}
@@ -123,7 +124,7 @@ Notifications
         {# want the switch back to auto somewhere between xs and sm, but not
            possible without customizing the breakpoints
          #}
-        <div class="col-xs-auto col-sm col-xl-auto">
+        <div class="col-xs-auto col-md col-xl-auto">
           <div class="row">
             <label
               for="{{ match_numbers_input_id }}"
@@ -149,7 +150,7 @@ Notifications
             </div>
           </div>
         </div>
-        <div class="col-auto">
+        <div class="col-auto pe-0">
           {{ macros.loading_btn(
                fetch_matches_btn_id,
                "success",
@@ -157,6 +158,18 @@ Notifications
                "Fetching...",
              )
           }}
+        </div>
+        <div class="col-auto">
+          <button
+            type="button"
+            id="{{ set_last_matches_query_btn_id }}"
+            {% with hidden = "d-none" if last_matches_query is none else "" %}
+            class="btn btn btn-secondary {{ hidden }}"
+            {% endwith %}
+            lastquery="{{ last_matches_query or '' }}"
+          >
+            Last Query
+          </button>
         </div>
       </div>
       <div class="row mb-2">
@@ -252,6 +265,10 @@ Notifications
         if (response.success) {
           // clear the input
           $('#{{ match_numbers_input_id }}').val('');
+          // allow the user to use the last query button
+          const $setLastQueryButton = $('#{{ set_last_matches_query_btn_id }}');
+          $setLastQueryButton.removeClass('d-none');
+          $setLastQueryButton.attr('lastquery', response['last_matches_query']);
           // populate the matches data
           $('#{{ matches_info_id }}').html(response['matches_html']);
         } else {
@@ -269,6 +286,18 @@ Notifications
     });
   }
 
+  function handleSetLastMatchesQueryClicked() {
+    const lastMatchesQuery = getAttr(
+      '{{ set_last_matches_query_btn_id }}',
+      'lastquery'
+    );
+    if (lastMatchesQuery === '') {
+      return;
+    }
+    // set match numbers input value
+    $('#{{ match_numbers_input_id }}').val(lastMatchesQuery);
+  }
+
   function clearMatchesInfo() {
     $('#{{ matches_info_id }}').html('No matches');
   }
@@ -281,6 +310,10 @@ Notifications
       // currently refreshing; ignore click
       return;
     }
+
+    // clear the input
+    $('#{{ match_numbers_input_id }}').val('');
+    clearInvalid('{{ match_numbers_input_id }}');
 
     if (matchesQuery === '') {
       // do nothing
@@ -350,6 +383,9 @@ Notifications
     });
     $('#{{ fetch_matches_btn_id }}').click((event) => {
       handleFetchMatchInfoClicked();
+    });
+    $('#{{ set_last_matches_query_btn_id }}').click((event) => {
+      handleSetLastMatchesQueryClicked();
     });
     clearMatchesInfo();
   });

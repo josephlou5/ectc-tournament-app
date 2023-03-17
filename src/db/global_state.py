@@ -131,13 +131,32 @@ def set_roster_last_fetched_time():
     return True
 
 
-def clear_roster_last_fetched_time():
-    """Clears the global last fetched time of the roster.
+def get_last_matches_query():
+    """Returns the global last matches query, or None if no query was
+    made yet.
+    """
+    global_state = get()
+    return global_state.last_matches_query
+
+
+def set_last_matches_query(matches_query):
+    """Sets the global last matches query.
 
     Returns:
         bool: Whether the operation was successful.
     """
-    _set(roster_last_fetched_time=None)
+    _set(last_matches_query=matches_query)
+    return True
+
+
+def clear_roster_related_fields():
+    """Clears the global last fetched time of the roster and the last
+    matches query.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    _set(roster_last_fetched_time=None, last_matches_query=None)
     return True
 
 

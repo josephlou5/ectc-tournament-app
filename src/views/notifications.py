@@ -35,12 +35,14 @@ def get_roster_last_fetched_time_str():
 def notifications():
     roster_last_fetched_time = get_roster_last_fetched_time_str()
     has_fetch_logs = FETCH_ROSTER_LOGS_FILE.exists()
+    last_matches_query = db.global_state.get_last_matches_query()
     return _render(
         "notifications/index.jinja",
         roster_worksheet_name=fetch_tms.ROSTER_WORKSHEET_NAME,
         roster_last_fetched_time=roster_last_fetched_time,
         has_fetch_logs=has_fetch_logs,
         matches_worksheet_name=fetch_tms.MATCHES_WORKSHEET_NAME,
+        last_matches_query=last_matches_query,
     )
 
 
@@ -53,10 +55,16 @@ def fetch_roster():
         if not success:
             all_success = False
             print(" ", "Database error while clearing roster")
-        success = db.global_state.clear_roster_last_fetched_time()
+        success = db.global_state.clear_roster_related_fields()
         if not success:
             all_success = False
-            print(" ", "Database error while clearing last fetched time")
+            print(
+                " ",
+                (
+                    "Database error while clearing roster related fields in "
+                    "the global state"
+                ),
+            )
         if not all_success:
             flash("Database error", "fetch-roster.danger")
         else:
@@ -446,15 +454,19 @@ def fetch_matches_info():
     # at this point, `matches` should not be empty (but may contain only
     # invalid matches)
 
+    clean_matches_query = _clean_matches_query(match_numbers)
+    # save the last matches query; don't care if it's successful
+    _ = db.global_state.set_last_matches_query(clean_matches_query)
+
     matches_html = render_template(
         "notifications/matches_info.jinja",
-        matches_query=matches_query,
-        clean_matches_query=_clean_matches_query(match_numbers),
+        clean_matches_query=clean_matches_query,
         matches=matches,
         warnings=warnings,
     )
     return {
         "success": True,
         "match_numbers": match_numbers,
+        "last_matches_query": clean_matches_query,
         "matches_html": matches_html,
     }
