@@ -33,6 +33,7 @@ def inject_template_variables():
     return {
         "APP_NAME": "ECTC Notification App",
         "navbar_tabs": views.NAVBAR_TABS,
+        "navbar_tabs_right": views.NAVBAR_TABS_RIGHT,
         "get_flashed_by_categories": flask_utils.get_flashed_by_categories,
     }
 
