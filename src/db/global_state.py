@@ -131,6 +131,16 @@ def set_roster_last_fetched_time():
     return True
 
 
+def clear_roster_last_fetched_time():
+    """Clears the global last fetched time of the roster.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    _set(roster_last_fetched_time=None)
+    return True
+
+
 def get_mailchimp_api_key():
     """Returns the Mailchimp API key, or None if it does not exist."""
     global_state = get()

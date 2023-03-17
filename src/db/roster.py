@@ -61,6 +61,21 @@ def get_full_roster(as_json=False):
     }
 
 
+def clear_roster():
+    """Clears the current roster.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    # delete all the tables and add them again (resets id counters)
+    # https://stackoverflow.com/a/49644099
+    # in this particular order due to foreign key constraints
+    tables = [table.__table__ for table in (Team, User, School)]
+    db.metadata.drop_all(bind=db.engine, tables=tables, checkfirst=True)
+    db.metadata.create_all(bind=db.engine, tables=tables)
+    return True
+
+
 def set_roster(roster):
     """Clears and sets the current roster.
 
@@ -74,12 +89,9 @@ def set_roster(roster):
         bool: Whether the operation was successful.
     """
 
-    # delete all the tables and add them again (resets id counters)
-    # https://stackoverflow.com/a/49644099
-    # in this particular order due to foreign key constraints
-    tables = [table.__table__ for table in (Team, User, School)]
-    db.metadata.drop_all(bind=db.engine, tables=tables, checkfirst=True)
-    db.metadata.create_all(bind=db.engine, tables=tables)
+    success = clear_roster()
+    if not success:
+        return False
 
     def school_sort_key(school):
         # alphabetical

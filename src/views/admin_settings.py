@@ -21,16 +21,34 @@ app = AppRoutes()
 def admin_settings():
     global_state = db.global_state.get()
     service_account_email = global_state.service_account_email
-    tms_spreadsheet_url = fetch_tms.id_to_url(global_state.tms_spreadsheet_id)
+    tms_spreadsheet_url = None
+    spreadsheet_id = global_state.tms_spreadsheet_id
+    if spreadsheet_id is not None:
+        tms_spreadsheet_url = fetch_tms.id_to_url(spreadsheet_id)
+    has_mc_api_key = global_state.mailchimp_api_key is not None
     return _render(
         "admin_settings/index.jinja",
         service_account_email=service_account_email,
         tms_spreadsheet_url=tms_spreadsheet_url,
+        has_mc_api_key=has_mc_api_key,
     )
 
 
-@app.route("/admin/service_account", methods=["POST"])
+@app.route("/admin/service_account", methods=["POST", "DELETE"])
 def set_service_account():
+    if request.method == "DELETE":
+        print(" ", "Clearing service account info")
+        success = db.global_state.clear_service_account_info()
+        if not success:
+            error_msg = "Database error"
+            print(" ", error_msg)
+            flash(error_msg, "service-account.danger")
+        else:
+            success_msg = "Successfully cleared service account"
+            print(" ", success_msg)
+            flash(success_msg, "service-account.success")
+        return {"success": success}
+
     service_account_info = request.get_json(silent=True)
     if service_account_info is None:
         print(" ", "Invalid JSON data given")
@@ -78,8 +96,21 @@ def set_service_account():
     return {"success": True}
 
 
-@app.route("/admin/tms_spreadsheet", methods=["POST"])
+@app.route("/admin/tms_spreadsheet", methods=["POST", "DELETE"])
 def set_tms_spreadsheet():
+    if request.method == "DELETE":
+        print(" ", "Clearing TMS spreadsheet url")
+        success = db.global_state.clear_tms_spreadsheet_id()
+        if not success:
+            error_msg = "Database error"
+            print(" ", error_msg)
+            flash(error_msg, "tms-spreadsheet.danger")
+        else:
+            success_msg = "Successfully cleared TMS spreadsheet"
+            print(" ", success_msg)
+            flash(success_msg, "tms-spreadsheet.success")
+        return {"success": success}
+
     request_args = request.get_json(silent=True)
     if request_args is None:
         return {"success": False, "reason": "Invalid JSON data"}
@@ -99,6 +130,8 @@ def set_tms_spreadsheet():
             "success": False,
             "reason": 'Invalid JSON data: expected string for "url" key',
         }
+    if url == "":
+        return {"success": False, "reason": "TMS spreadsheet url is empty"}
 
     print(" ", "Got TMS spreadsheet to set:", url)
 
@@ -147,8 +180,21 @@ def set_tms_spreadsheet():
     return {"success": True}
 
 
-@app.route("/admin/mailchimp/api_key", methods=["POST"])
+@app.route("/admin/mailchimp/api_key", methods=["POST", "DELETE"])
 def set_mailchimp_api_key():
+    if request.method == "DELETE":
+        print(" ", "Clearing Mailchimp API key")
+        success = db.global_state.clear_mailchimp_api_key()
+        if not success:
+            error_msg = "Database error"
+            print(" ", error_msg)
+            flash(error_msg, "mailchimp-api-key.danger")
+        else:
+            success_msg = "Successfully cleared API key"
+            print(" ", success_msg)
+            flash(success_msg, "mailchimp-api-key.success")
+        return {"success": success}
+
     request_args = request.get_json(silent=True)
     if request_args is None:
         return {"success": False, "reason": "Invalid JSON data"}
@@ -187,5 +233,7 @@ def set_mailchimp_api_key():
         print(" ", "Database error")
         return {"success": False, "reason": "Database error"}
 
-    flash("Success", "mailchimp-api-key.success")
+    success_msg = "Successfully set API key"
+    print(" ", success_msg)
+    flash(success_msg, "mailchimp-api-key.success")
     return {"success": True}

@@ -44,8 +44,27 @@ def notifications():
     )
 
 
-@app.route("/notifications/fetch_roster", methods=["POST"])
+@app.route("/notifications/fetch_roster", methods=["POST", "DELETE"])
 def fetch_roster():
+    if request.method == "DELETE":
+        print(" ", "Clearing full roster")
+        all_success = True
+        success = db.roster.clear_roster()
+        if not success:
+            all_success = False
+            print(" ", "Database error while clearing roster")
+        success = db.global_state.clear_roster_last_fetched_time()
+        if not success:
+            all_success = False
+            print(" ", "Database error while clearing last fetched time")
+        if not all_success:
+            flash("Database error", "fetch-roster.danger")
+        else:
+            success_msg = "Successfully cleared roster"
+            print(" ", success_msg)
+            flash(success_msg, "fetch-roster.success")
+        return {"success": success}
+
     print(" ", "Fetching teams roster from TMS spreadsheet")
     error_msg, logs, roster = fetch_tms.fetch_roster()
     if error_msg is not None:
@@ -116,7 +135,9 @@ def fetch_roster():
         return {"success": False, "reason": "Database error"}
 
     # use flash so the last fetched time is updated
-    flash("Success", "fetch-roster")
+    success_msg = "Successfully fetched roster"
+    print(" ", success_msg)
+    flash(success_msg, "fetch-roster.success")
     return {"success": True, "roster": roster}
 
 

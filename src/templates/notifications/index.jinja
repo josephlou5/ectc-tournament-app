@@ -7,6 +7,7 @@ Notifications
 {% set fetch_roster_btn_id = "fetch-roster-btn" %}
 {% set fetch_roster_dummy_input_id = "fetch-roster-dummy-input" %}
 {% set fetch_roster_messages_id = "fetch-roster-messages" %}
+{% set clear_roster_btn_id = "clear-roster-btn" %}
 
 {% set match_numbers_input_id = "match-numbers-input" %}
 {% set fetch_matches_btn_id = "fetch-matches-btn" %}
@@ -14,7 +15,7 @@ Notifications
 
 {% set send_notif_btn_id = "send-notification-btn" %}
 
-{% set flashed = get_flashed_by_categories() %}
+{% set flashed = get_flashed_by_categories(subcategories=true) %}
 
 {% block body %}
 <div id="notifications-body" class="container-fluid">
@@ -67,13 +68,28 @@ Notifications
         </div>
         <div class="row">
           <div id="{{ fetch_roster_messages_id }}" class="col-auto">
-            {% for message in flashed["fetch-roster"] %}
-            {% call macros.bs_alert("success") %}
+            {% for accent, messages in flashed["fetch-roster"].items() %}
+            {% for message in messages %}
+            {% call macros.bs_alert(accent) %}
             {{ message }}
             {% endcall %}
             {% endfor %}
+            {% endfor %}
           </div>
         </div>
+        {% if roster_last_fetched_time is not none %}
+        <div class="row mb-2">
+          <div class="col-auto">
+            {{ macros.confirm_btn(
+                 clear_roster_btn_id,
+                 "Clear Roster",
+                 "clear the full roster",
+                 loading_text="Clearing...",
+               )
+            }}
+          </div>
+        </div>
+        {% endif %}
         <div class="row mb-2">
           <div class="col">
             Last fetched:
@@ -138,7 +154,7 @@ Notifications
                fetch_matches_btn_id,
                "success",
                "Fetch Matches Info",
-               "Fetching..."
+               "Fetching...",
              )
           }}
         </div>
@@ -147,8 +163,7 @@ Notifications
         <div class="col">
           <h4>Matches Info</h4>
           <div id="{{ matches_info_id }}">
-            <!-- filled out by AJAX calls -->
-            No matches
+            {# filled out by AJAX calls #}
           </div>
         </div>
       </div>
@@ -200,6 +215,17 @@ Notifications
     });
   }
 
+  function handleClearRosterClicked() {
+    if (isButtonLoading('{{ clear_roster_btn_id }}')) {
+      // currently clearing; ignore click
+      return;
+    }
+
+    setButtonLoading('{{ clear_roster_btn_id }}');
+    // just reload once the clearing is done
+    ajaxRequest('DELETE', '{{ url_for("fetch_roster") }}');
+  }
+
   function handleFetchMatchInfoClicked() {
     if (isButtonLoading('{{ fetch_matches_btn_id }}')) {
       // currently fetching; ignore the click
@@ -241,6 +267,10 @@ Notifications
         setInvalid('{{ match_numbers_input_id }}', jqXHR.statusText);
       },
     });
+  }
+
+  function clearMatchesInfo() {
+    $('#{{ matches_info_id }}').html('No matches');
   }
 
   function refreshMatches(matchesQuery) {
@@ -299,7 +329,7 @@ Notifications
     $row.remove();
     if ($('.match-row').length === 0) {
       // no more matches
-      $('#{{ matches_info_id }}').html('No matches');
+      clearMatchesInfo();
     }
   }
 
@@ -307,6 +337,9 @@ Notifications
     // Fetch roster
     $('#{{ fetch_roster_btn_id }}').click((event) => {
       handleFetchRosterClicked();
+    });
+    $('#{{ clear_roster_btn_id }}').click((event) => {
+      handleClearRosterClicked();
     });
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ fetch_roster_messages_id }}', 60);
@@ -318,6 +351,7 @@ Notifications
     $('#{{ fetch_matches_btn_id }}').click((event) => {
       handleFetchMatchInfoClicked();
     });
+    clearMatchesInfo();
   });
 </script>
 {% endblock %}

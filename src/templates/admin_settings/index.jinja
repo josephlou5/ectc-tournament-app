@@ -11,16 +11,19 @@ Admin Settings
 {% set service_account_creds_input_id = "service-account-credentials" %}
 {% set service_account_messages_id = "service-account-messages" %}
 {% set set_service_account_btn_id = "set-service-account-btn" %}
+{% set clear_service_account_btn_id = "clear-service-account-btn" %}
 
 {% set tms_url_input_id = "tms-url-input" %}
 {% set tms_url_messages_id = "tms-url-messages" %}
 {% set open_tms_btn_id = "open-tms-btn" %}
-{% set save_tms_url_btn_id = "save-tms-url-btn" %}
+{% set set_tms_url_btn_id = "set-tms-url-btn" %}
+{% set clear_tms_url_btn_id = "clear-tms-url-btn" %}
 
 {# Mailchimp #}
 {% set mc_api_key_input_id = "mc-api-key-input" %}
 {% set mc_api_key_messages_id = "mc-api-key-messages" %}
 {% set mc_set_api_key_btn_id = "mc-set-api-key-btn" %}
+{% set mc_clear_api_key_btn_id = "mc-clear-api-key-btn" %}
 
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
@@ -92,13 +95,28 @@ Admin Settings
               </div>
             </div>
             <div class="col-auto">
-              {{ macros.loading_btn(
-                  set_service_account_btn_id,
-                  "success",
-                  "Set Service Account",
-                  "Setting...",
-                )
-              }}
+              <div class="row">
+                <div class="col-auto pe-0">
+                  {{ macros.loading_btn(
+                       set_service_account_btn_id,
+                       "success",
+                       "Set",
+                       "Setting...",
+                     )
+                  }}
+                </div>
+                {% if service_account_email is not none %}
+                <div class="col-auto">
+                  {{ macros.confirm_btn(
+                       clear_service_account_btn_id,
+                       "Clear Service Account",
+                       "clear the service account",
+                       loading_text="Clearing...",
+                     )
+                  }}
+                </div>
+                {% endif %}
+              </div>
             </div>
           </div>
           <div class="row">
@@ -148,12 +166,23 @@ Admin Settings
                   class="invalid-feedback"
                 ></div>
               </div>
-              <div class="col-auto">
+              <div class="col-auto pe-0">
                 {{ macros.loading_btn(
-                    save_tms_url_btn_id, "success", "Save", "Saving..."
-                  )
+                     set_tms_url_btn_id, "success", "Set", "Setting..."
+                   )
                 }}
               </div>
+              {% if tms_spreadsheet_url is not none %}
+              <div class="col-auto">
+                {{ macros.confirm_btn(
+                     clear_tms_url_btn_id,
+                     "Clear URL",
+                     "clear the TMS spreadsheet url",
+                     loading_text="Clearing...",
+                   )
+                }}
+              </div>
+              {% endif %}
             </div>
             <div class="row mb-2">
               <div id="{{ tms_url_messages_id }}" class="col-auto">
@@ -199,6 +228,21 @@ Admin Settings
                 somewhere else. You can always clear or set another API key in
                 case the one you provided is no longer working.
               </div>
+              <div class="mb-2">
+                {% if has_mc_api_key %}
+                <span class="me-2">You currently have an API key set.</span>
+                {{ macros.confirm_btn(
+                     mc_clear_api_key_btn_id,
+                     "Clear API key",
+                     "clear the Mailchimp API key",
+                     loading_text="Clearing...",
+                     classes="btn-sm",
+                   )
+                }}
+                {% else %}
+                You currently do not have an API key set.
+                {% endif %}
+              </div>
             </div>
           </div>
           <div class="row mb-2">
@@ -209,7 +253,9 @@ Admin Settings
                     type="text"
                     id="{{ mc_api_key_input_id }}"
                     class="form-control"
-                    placeholder="Mailchimp API Key"
+                    {% with action = "Edit" if has_mc_api_key else "Set" %}
+                    placeholder="{{ action }} Mailchimp API Key"
+                    {% endwith %}
                   />
                   <div
                     id="{{ mc_api_key_input_id }}-invalid"
@@ -218,8 +264,8 @@ Admin Settings
                 </div>
                 <div class="col-auto">
                   {{ macros.loading_btn(
-                      mc_set_api_key_btn_id, "success", "Set", "Setting..."
-                    )
+                       mc_set_api_key_btn_id, "success", "Set", "Setting..."
+                     )
                   }}
                 </div>
               </div>
@@ -258,7 +304,10 @@ Admin Settings
     const fileList = $('#{{ service_account_creds_input_id }}').prop('files');
     if (fileList.length === 0) {
       // Error: no file chosen
-      setInvalid('{{ service_account_creds_input_id }}', 'Please choose a file.');
+      setInvalid(
+        '{{ service_account_creds_input_id }}',
+        'Please choose a file.'
+      );
       return;
     }
 
@@ -291,6 +340,17 @@ Admin Settings
     });
   }
 
+  function handleClearServiceAccountClicked() {
+    if (isButtonLoading('{{ clear_service_account_btn_id }}')) {
+      // currently clearing; ignore click
+      return;
+    }
+
+    setButtonLoading('{{ clear_service_account_btn_id }}');
+    // just reload once the clearing is done
+    ajaxRequest('DELETE', '{{ url_for("set_service_account") }}');
+  }
+
   function getUrl() {
     return getInputValue('{{ tms_url_input_id }}');
   }
@@ -307,9 +367,9 @@ Admin Settings
     }
   }
 
-  function handleSaveTMSSpreadsheetClicked() {
-    if (isButtonLoading('{{ save_tms_url_btn_id }}')) {
-      // currently saving; ignore click
+  function handleSetTMSSpreadsheetClicked() {
+    if (isButtonLoading('{{ set_tms_url_btn_id }}')) {
+      // currently setting; ignore click
       return;
     }
 
@@ -324,7 +384,7 @@ Admin Settings
       return;
     }
 
-    setButtonLoading('{{ save_tms_url_btn_id }}');
+    setButtonLoading('{{ set_tms_url_btn_id }}');
     ajaxRequest('POST', '{{ url_for("set_tms_spreadsheet") }}', {
       contentType: 'application/json',
       data: JSON.stringify({ url }),
@@ -334,7 +394,7 @@ Admin Settings
           location.reload();
         } else {
           // some failure
-          stopButtonLoading('{{ save_tms_url_btn_id }}');
+          stopButtonLoading('{{ set_tms_url_btn_id }}');
           setInvalid(
             '{{ tms_url_input_id }}',
             response.reason ?? 'Unknown error: please try again'
@@ -342,10 +402,21 @@ Admin Settings
         }
       },
       error: (jqXHR, status, errorThrown) => {
-        stopButtonLoading('{{ save_tms_url_btn_id }}');
+        stopButtonLoading('{{ set_tms_url_btn_id }}');
         setInvalid('{{ tms_url_input_id }}', jqXHR.statusText);
       },
     });
+  }
+
+  function handleClearTMSSpreadsheetClicked() {
+    if (isButtonLoading('{{ clear_tms_url_btn_id }}')) {
+      // currently clearing; ignore click
+      return;
+    }
+
+    setButtonLoading('{{ clear_tms_url_btn_id }}');
+    // just reload once the clearing is done
+    ajaxRequest('DELETE', '{{ url_for("set_tms_spreadsheet") }}');
   }
 
   function handleMailchimpSetApiKeyClicked() {
@@ -391,6 +462,17 @@ Admin Settings
     });
   }
 
+  function handleMailchimpClearApiKeyClicked() {
+    if (isButtonLoading('{{ mc_clear_api_key_btn_id }}')) {
+      // currently clearing; ignore click
+      return;
+    }
+
+    setButtonLoading('{{ mc_clear_api_key_btn_id }}');
+    // just reload once the clearing is done
+    ajaxRequest('DELETE', '{{ url_for("set_mailchimp_api_key") }}');
+  }
+
   $(document).ready(() => {
     // Service account
     $('#{{ copy_email_btn_id }}').click((event) => {
@@ -406,6 +488,9 @@ Admin Settings
     $('#{{ set_service_account_btn_id }}').click((event) => {
       handleSetServiceAccountClicked();
     });
+    $('#{{ clear_service_account_btn_id }}').click((event) => {
+      handleClearServiceAccountClicked();
+    });
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ service_account_messages_id }}', 60);
 
@@ -415,10 +500,13 @@ Admin Settings
       handleTMSSpreadsheetUrlChanged();
     });
     $('#{{ tms_url_input_id }}').onEnterKeyPress((event) => {
-      $('#{{ save_tms_url_btn_id }}').click();
+      $('#{{ set_tms_url_btn_id }}').click();
     });
-    $('#{{ save_tms_url_btn_id }}').click((event) => {
-      handleSaveTMSSpreadsheetClicked();
+    $('#{{ set_tms_url_btn_id }}').click((event) => {
+      handleSetTMSSpreadsheetClicked();
+    });
+    $('#{{ clear_tms_url_btn_id }}').click((event) => {
+      handleClearTMSSpreadsheetClicked();
     });
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ tms_url_messages_id }}', 60);
@@ -429,6 +517,9 @@ Admin Settings
     });
     $('#{{ mc_set_api_key_btn_id }}').click((event) => {
       handleMailchimpSetApiKeyClicked();
+    });
+    $('#{{ mc_clear_api_key_btn_id }}').click((event) => {
+      handleMailchimpClearApiKeyClicked();
     });
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ mc_api_key_messages_id }}', 60);

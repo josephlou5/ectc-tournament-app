@@ -1,3 +1,12 @@
+{% macro _bs_close_btn(classes="") %}
+<button
+  type="button"
+  class="btn-close {{ classes }}"
+  aria-label="Close"
+  {{ caller() }}
+></button>
+{% endmacro %}
+
 {% macro _bs_alert(tag, accent, classes="", small=false, dismissible=true) %}
 {% set sm_cls = "alert-sm" if small else "d-flex mb-2" %}
 {% set dismissible_cls = "alert-dismissible fade show" if dismissible else "" %}
@@ -9,12 +18,9 @@
     {{ caller() }}
   </span>
   {% if dismissible %}
-  <button
-    type="button"
-    class="btn-close {{ 'ms-2' if small }}"
-    data-bs-dismiss="alert"
-    aria-label="Close"
-  ></button>
+  {% call _bs_close_btn(classes="ms-2" if small else "") %}
+  data-bs-dismiss="alert"
+  {% endcall %}
   {% endif %}
 </{{ tag }}>
 {% endmacro %}
@@ -39,18 +45,28 @@
 {% endwith %}
 {% endmacro %}
 
-{% macro loading_btn(
-     element_id, accent, text, loading_text=none, classes="", attrs=""
-   )
- %}
+{# Creates a button with a loading spinner.
+
+   The button will have the id "{btn_id}" and the class "btn-{accent}". It will
+     also receive additional classes from `classes`.
+   The spinner will have the id "{btn_id}-spinner".
+   If `loading_text` is given, an additional span with the id "{btn_id}-text"
+     will be created with the attributes `waiting` and `loading`, so that they
+     can be toggled when the button is in the "loading" state.
+
+   This macro can be called to define additional attributes on the button.
+ #}
+{% macro loading_btn(btn_id, accent, text, loading_text=none, classes="") %}
 <button
   type="button"
-  id="{{ element_id }}"
+  id="{{ btn_id }}"
   class="btn btn-{{ accent }} {{ classes }}"
-  {{ attrs }}
+  {% if caller %}
+  {{ caller() }}
+  {% endif %}
 >
   <span
-    id="{{ element_id }}-spinner"
+    id="{{ btn_id }}-spinner"
     class="spinner-border spinner-border-sm me-1 d-none"
     role="status"
     aria-hidden="true"
@@ -60,7 +76,7 @@
   {% else %}
   {# enable switching between regular and loading text #}
   <span
-    id="{{ element_id }}-text"
+    id="{{ btn_id }}-text"
     waiting="{{ text }}"
     loading="{{ loading_text }}"
   >
@@ -68,4 +84,72 @@
   </span>
   {% endif %}
 </button>
+{% endmacro %}
+
+{# Creates a button that prompts a confirmation modal.
+
+   The button will have the id "{btn_id}", the class "btn-{accent}", and the
+     text "{title}". It will also receive additional classes from `classes`.
+   The modal will have the id "{btn_id}-modal", the title "{title}?", and a body
+     text with the `action`.
+   The modal will have a close button and a "Yes" confirmation button.
+   If `loading_text` is given, the confirmation button will be made into a
+     loading button. It can receive additional classes from `loading_classes`.
+  
+   The caller should handle closing the modal after any button presses.
+ #}
+{% macro confirm_btn(
+     btn_id,
+     title,
+     action,
+     loading_text=none,
+     accent="danger",
+     classes="",
+     loading_classes=""
+   )
+ %}
+<button
+  type="button"
+  class="btn btn-{{ accent }} {{ classes }}"
+  data-bs-toggle="modal"
+  data-bs-target="#{{ btn_id }}-modal">
+  {{ title }}
+</button>
+<div
+  id="{{ btn_id }}-modal"
+  class="modal fade"
+  tabindex="-1"
+  aria-labelledby="{{ btn_id }}-confirmation-modal"
+  aria-hidden="true"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="exampleModalLabel" class="modal-title">{{ title }}?</h5>
+        {% call _bs_close_btn(classes="ms-2" if small else "") %}
+        data-bs-dismiss="modal"
+        {% endcall %}
+      </div>
+      <div class="modal-body">
+        Are you sure you want to {{ action }}?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+        {% if loading_text is none %}
+        {# regular button #}
+        <button type="button" id="{{ btn_id }}" class="btn btn-success">
+          Yes
+        </button>
+        {% else %}
+        {{ loading_btn(
+             btn_id, "success", "Yes", loading_text, classes=loading_classes
+           )
+        }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endmacro %}

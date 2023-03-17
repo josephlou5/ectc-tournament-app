@@ -58,15 +58,23 @@
 No matches
 {% else %}
 <div class="mb-2">
-  {{ macros.loading_btn(
+  <button
+    type="button"
+    class="btn btn-sm btn-danger me-2"
+    onclick="clearMatchesInfo();"
+  >
+    Clear Matches
+  </button>
+  {% call macros.loading_btn(
        "refresh-matches-btn",
        "outline-success",
        "Refresh",
        "Refreshing...",
        classes="btn-sm",
-       attrs="onclick=\"refreshMatches('" ~ clean_matches_query ~ "');\""
      )
-  }}
+   %}
+  onclick="refreshMatches('{{ clean_matches_query }}');"
+  {% endcall %}
   <span id="refresh-matches-status" class="ms-1">
     Matches query: {{ clean_matches_query }}
   </span>
