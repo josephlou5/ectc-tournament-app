@@ -73,10 +73,17 @@ def fetch_roster():
             flash(success_msg, "fetch-roster.success")
         return {"success": success}
 
+    # If the query arg is given, flash all error messages as well. Note
+    # that the value doesn't matter, so it could be "?flash_all=false"
+    # and it would still work.
+    flash_all = "flash_all" in request.args
+
     print(" ", "Fetching teams roster from TMS spreadsheet")
     error_msg, logs, roster = fetch_tms.fetch_roster()
     if error_msg is not None:
         print(" ", "Failed:", error_msg)
+        if flash_all:
+            flash(error_msg, "fetch-roster.danger")
         return {"success": False, "reason": error_msg}
 
     # save in database
@@ -140,7 +147,10 @@ def fetch_roster():
         print_row(row)
 
     if not success:
-        return {"success": False, "reason": "Database error"}
+        error_msg = "Database error"
+        if flash_all:
+            flash(error_msg, "fetch-roster.danger")
+        return {"success": False, "reason": error_msg}
 
     # use flash so the last fetched time is updated
     success_msg = "Successfully fetched roster"
@@ -193,6 +203,9 @@ def view_full_roster():
     full_roster["coaches"] = sort_by_school(coaches)
     full_roster["athletes"] = sort_by_school(athletes)
     full_roster["spectators"] = sort_by_school(spectators)
+    full_roster["is_roster_empty"] = all(
+        len(objs) == 0 for objs in full_roster.values()
+    )
 
     return _render("notifications/full_roster.jinja", **full_roster)
 

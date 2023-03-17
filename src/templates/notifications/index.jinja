@@ -234,6 +234,9 @@ Notifications
       return;
     }
 
+    // clear messages
+    $('#{{ fetch_roster_messages_id }}').html('');
+
     setButtonLoading('{{ clear_roster_btn_id }}');
     // just reload once the clearing is done
     ajaxRequest('DELETE', '{{ url_for("fetch_roster") }}');
