@@ -48,6 +48,8 @@ class GlobalState(db.Model):
     last_matches_query = Column(String(), nullable=True)
     # The Mailchimp API key
     mailchimp_api_key = Column(String(), nullable=True)
+    # The id of the currently selected Mailchimp audience
+    mailchimp_audience_id = Column(String(), nullable=True)
 
     @property
     def service_account_info(self):

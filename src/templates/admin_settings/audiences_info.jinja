@@ -1,0 +1,75 @@
+{% set mc_audience_select_input_id = "mc-audience-select" %}
+
+{% macro _value_or_none(value) %}
+{% if value is none %}
+<em class="text-muted">None</em>
+{% else %}
+{{ value|e }}
+{% endif %}
+{% endmacro %}
+
+{% if audiences|length == 0 %}
+<div class="row">
+  <div class="col-auto pe-0">
+    Audience Name
+  </div>
+  <div class="col-auto">
+    <select class="form-select" disabled>
+      <option value="" selected>No audiences</option>
+    </select>
+  </div>
+</div>
+{% else %}
+<table class="table table-sm align-middle">
+  <tr>
+    <th>Audience Name</th>
+    <td>
+      <select
+        id="{{ mc_audience_select_input_id }}"
+        class="form-select"
+        oninput="handleMailchimpAudienceSelected(this);"
+      >
+        {% for audience_info in audiences %}
+        {% set audience_id = audience_info["id"] %}
+        <option
+          value="{{ audience_id }}"
+          {% if audience_id == selected_audience_id %} selected {% endif %}
+        >
+          {{ audience_info["name"]|e }}
+        </option>
+        {% endfor %}
+      </select>
+      <div
+        id="{{ mc_audience_select_input_id }}-invalid"
+        class="invalid-feedback"
+      ></div>
+    </td>
+  </tr>
+  {% for audience_info in audiences %}
+  {% set row_classes =
+       "mc-audience mc-audience-" ~ audience_info["id"]
+       ~ (" d-none" if audience_info["id"] != selected_audience_id)
+   %}
+  <tr class="{{ row_classes }}">
+    <th>From Name</th>
+    <td>{{ _value_or_none(audience_info["from_name"]) }}</td>
+  </tr>
+  <tr class="{{ row_classes }}">
+    <th>From Email</th>
+    <td>{{ _value_or_none(audience_info["from_email"]) }}</td>
+  </tr>
+  <tr class="{{ row_classes }}">
+    <th>Default Subject</th>
+    <td>{{ _value_or_none(audience_info["subject"]) }}</td>
+  </tr>
+  <tr class="{{ row_classes }}">
+    <th>Members</th>
+    <td>{{ _value_or_none(audience_info["num_members"]) }}</td>
+  </tr>
+  <tr class="{{ row_classes }}">
+    <th>Last email sent</th>
+    <td>{{ _value_or_none(audience_info["last_sent"]) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}

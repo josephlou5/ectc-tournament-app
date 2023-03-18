@@ -4,11 +4,17 @@ The "admin settings" view.
 
 # =============================================================================
 
-from flask import flash, request
+from flask import flash, render_template, request
 
 import db
 from utils import fetch_tms, mailchimp_utils
-from utils.server import AppRoutes, _render, get_request_json, unsuccessful
+from utils.server import (
+    AppRoutes,
+    _render,
+    get_request_json,
+    print_records,
+    unsuccessful,
+)
 
 # =============================================================================
 
@@ -198,5 +204,91 @@ def set_mailchimp_api_key():
     success_msg = "Successfully set API key"
     print(" ", success_msg)
     flash(success_msg, "mailchimp-api-key.success")
+
+    return {"success": True}
+
+
+@app.route("/admin/mailchimp/audiences", methods=["GET"])
+def get_mailchimp_audiences():
+    if not db.global_state.has_mailchimp_api_key():
+        return unsuccessful("No Mailchimp API key")
+
+    # fetch audiences
+    error_msg, audiences = mailchimp_utils.get_audiences()
+    if error_msg is not None:
+        return unsuccessful(
+            error_msg, "Error while fetching Mailchimp audiences"
+        )
+
+    if len(audiences) == 0:
+        print(" ", "Fetched 0 audiences")
+        selected_audience_id = None
+    else:
+        print(" ", "Fetched audiences:")
+        print_records(audiences[0].keys(), audiences, indent=4, padding=2)
+
+        # determine which audience to select as default
+        selected_audience_id = db.global_state.get_mailchimp_audience_id()
+        if selected_audience_id is None:
+            selected_audience_id = audiences[0]["id"]
+            print(
+                " ",
+                "No selected audience in database; using first audience:",
+                selected_audience_id,
+            )
+            # save in database (don't care if failed)
+            _ = db.global_state.set_mailchimp_audience_id(selected_audience_id)
+        else:
+            print(
+                " ",
+                "Selected audience id from database:",
+                selected_audience_id,
+            )
+            if all(selected_audience_id != info["id"] for info in audiences):
+                # invalid audience id
+                # clear from database (don't care if failed)
+                _ = db.global_state.clear_mailchimp_audience_id()
+                selected_audience_id = audiences[0]["id"]
+                print(
+                    " ",
+                    " ",
+                    (
+                        "Invalid selected audience id (not in fetched); using "
+                        "first audience:"
+                    ),
+                    selected_audience_id,
+                )
+
+    audiences_html = render_template(
+        "admin_settings/audiences_info.jinja",
+        audiences=audiences,
+        selected_audience_id=selected_audience_id,
+    )
+    return {"success": True, "audiences_html": audiences_html}
+
+
+@app.route("/admin/mailchimp/audiences/current", methods=["POST"])
+def set_mailchimp_audience():
+    error_msg, request_args = get_request_json("audienceId")
+    if error_msg is not None:
+        return unsuccessful(error_msg)
+    audience_id = request_args["audienceId"]
+    if audience_id == "":
+        return unsuccessful("Audience id is empty")
+
+    print(" ", "Setting Mailchimp audience id:", audience_id)
+
+    # verify audience id
+    error_msg, _ = mailchimp_utils.get_audience(audience_id)
+    if error_msg is not None:
+        print(" ", "Audience id verification failed:", error_msg)
+        # the error message returned by the API is a bit too detailed
+        # and clunky, so just keep it simple for the user
+        return {"success": False, "reason": "Invalid audience id"}
+
+    # save in database
+    success = db.global_state.set_mailchimp_audience_id(audience_id)
+    if not success:
+        return unsuccessful("Database error", "Saving audience id")
 
     return {"success": True}

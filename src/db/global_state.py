@@ -189,3 +189,30 @@ def clear_mailchimp_api_key():
         bool: Whether the operation was successful.
     """
     return set_mailchimp_api_key(None)
+
+
+def get_mailchimp_audience_id():
+    """Returns the global selected Mailchimp audience, or None if it
+    does not exist.
+    """
+    global_state = get()
+    return global_state.mailchimp_audience_id
+
+
+def set_mailchimp_audience_id(audience_id):
+    """Sets the Mailchimp audience id.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    _set(mailchimp_audience_id=audience_id)
+    return True
+
+
+def clear_mailchimp_audience_id():
+    """Clears the Mailchimp audience id.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    return set_mailchimp_audience_id(None)

@@ -25,6 +25,9 @@ Admin Settings
 {% set mc_set_api_key_btn_id = "mc-set-api-key-btn" %}
 {% set mc_clear_api_key_btn_id = "mc-clear-api-key-btn" %}
 
+{% set mc_audiences_info_section_id = "mc-audiences-info" %}
+{% set mc_fetch_audiences_id = "mc-fetch-audiences" %}
+
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
 {% block body %}
@@ -133,11 +136,11 @@ Admin Settings
             fetch the full roster and the teams for each match.
           </div>
           <div class="mb-2">
-            <div class="row mb-2 align-items-center">
+            <div class="row mb-2">
               <div class="col-auto pe-0">
                 <a
                   id="{{ open_tms_btn_id }}"
-                  class="btn btn-sm btn-outline-success"
+                  class="btn btn-sm btn-outline-success mt-1"
                   target="_blank"
                 >
                   Open
@@ -273,6 +276,38 @@ Admin Settings
               {% endcall %}
               {% endfor %}
               {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <h4>Audience</h4>
+          <div class="mb-2">
+            Mailchimp's contacts are split into <em>audiences/lists</em>. When
+            you create your Mailchimp account, an audience is automatically
+            created for you, but if you're an advanced user, here is where you
+            can choose which audience the tournament contacts will be imported
+            into. Whenever the "Fetch Roster" button is clicked on the
+            <a href="{{ url_for('notifications') }}">Notifications</a> page, all
+            the new contacts will be added to this audience.
+          </div>
+          <div class="row">
+            <div id="{{ mc_audiences_info_section_id }}" class="col-auto">
+              {% if not has_mc_api_key %}
+              {% call macros.bs_alert("danger", dismissible=false) %}
+              No Mailchimp API key
+              {% endcall %}
+              {% else %}
+              <div id="{{ mc_fetch_audiences_id }}">
+                {# will be replaced when audiences are fetched #}
+                <div
+                  class="spinner-border spinner-border-sm"
+                  role="status"
+                ></div>
+                Fetching Audiences...
+              </div>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -466,6 +501,74 @@ Admin Settings
     ajaxRequest('DELETE', '{{ url_for("set_mailchimp_api_key") }}');
   }
 
+  function populateMailchimpAudienceDropdown() {
+    const $loadingDiv = $('#{{ mc_fetch_audiences_id }}');
+    if ($loadingDiv.length === 0) return;
+
+    ajaxRequest('GET', '{{ url_for("get_mailchimp_audiences") }}', {
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          // populate the audience infos
+          $('#{{ mc_audiences_info_section_id }}').html(
+            response['audiences_html']
+          );
+        } else {
+          // some failure
+          $('#{{ mc_audiences_info_section_id }}').html(
+            bsAlert(
+              response.reason ?? 'Unknown error: please try again',
+              'danger',
+              { dismissible: false }
+            )
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        $('#{{ mc_audiences_info_section_id }}').html(
+          bsAlert(jqXHR.statusText, 'danger', { dismissible: false })
+        );
+      },
+    });
+  }
+
+  function handleMailchimpAudienceSelected(element) {
+    const elementId = element.id;
+
+    clearInvalid(elementId);
+
+    const selectedAudienceId = getInputValue(elementId);
+    if (selectedAudienceId === '') {
+      return;
+    }
+
+    // show the proper rows
+    $('.mc-audience').addClass('d-none');
+    $('.mc-audience-' + selectedAudienceId).removeClass('d-none');
+
+    // send ajax request to save audience id
+    ajaxRequest('POST', '{{ url_for("set_mailchimp_audience") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({ audienceId: selectedAudienceId }),
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          // good! do nothing
+        } else {
+          // some failure
+          setInvalid(
+            elementId,
+            response.reason ?? 'Unknown error: please try again'
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        setInvalid(
+          elementId,
+          `Error while saving selection: ${jqXHR.statusText}`
+        );
+      },
+    });
+  }
+
   $(document).ready(() => {
     // Service account
     $('#{{ copy_email_btn_id }}').click((event) => {
@@ -505,6 +608,7 @@ Admin Settings
     clearElementAfter('{{ tms_url_messages_id }}', 60);
 
     // Mailchimp
+    // API key
     $('#{{ mc_api_key_input_id }}').onEnterKeyPress((event) => {
       $('#{{ mc_set_api_key_btn_id }}').click();
     });
@@ -516,6 +620,8 @@ Admin Settings
     });
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ mc_api_key_messages_id }}', 60);
+    // Audience
+    populateMailchimpAudienceDropdown();
   });
 </script>
 {% endblock %}

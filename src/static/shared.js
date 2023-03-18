@@ -140,18 +140,32 @@ function copyElementContent(elementId, callback = null) {
   });
 }
 
-function bsAlertSm(text, accent, tag = 'span') {
-  return `
-  <${tag}
-    class="alert alert-sm alert-${accent} alert-dismissible fade show"
-    role="alert"
-  >
-    ${text}
+function _bsAlert(text, accent, tag, small, dismissible) {
+  const dismissibleClass = dismissible ? 'alert-dismissible fade show' : '';
+  const sizingClass = small ? 'alert-sm' : 'd-flex mb-2';
+  const closeButton = `
     <button
       type="button"
       class="btn-close"
       data-bs-dismiss="alert"
       aria-label="Close"
-    ></button>
+    ></button>`;
+  return `
+  <${tag}
+    class="alert alert-${accent} ${dismissibleClass} ${sizingClass}"
+    role="alert"
+  >
+    <span ${!small ? 'class="me-auto"' : ''}>
+      ${text}
+    </span>
+    ${dismissible ? closeButton : ''}
   </${tag}>`;
+}
+
+function bsAlert(text, accent, { tag = 'div', dismissible = true } = {}) {
+  return _bsAlert(text, accent, tag, false, dismissible);
+}
+
+function bsAlertSm(text, accent, { tag = 'span', dismissible = true } = {}) {
+  return _bsAlert(text, accent, tag, true, dismissible);
 }
