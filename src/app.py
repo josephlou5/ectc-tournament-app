@@ -12,7 +12,7 @@ import db
 import views
 from config import get_config
 from utils import flask_utils
-from utils.routes import _render
+from utils.server import _render
 
 # =============================================================================
 

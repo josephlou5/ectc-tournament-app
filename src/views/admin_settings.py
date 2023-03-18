@@ -8,7 +8,7 @@ from flask import flash, request
 
 import db
 from utils import fetch_tms, mailchimp_utils
-from utils.routes import AppRoutes, _render
+from utils.server import AppRoutes, _render, get_request_json, unsuccessful
 
 # =============================================================================
 
@@ -25,7 +25,7 @@ def admin_settings():
     spreadsheet_id = global_state.tms_spreadsheet_id
     if spreadsheet_id is not None:
         tms_spreadsheet_url = fetch_tms.id_to_url(spreadsheet_id)
-    has_mc_api_key = global_state.mailchimp_api_key is not None
+    has_mc_api_key = db.global_state.has_mailchimp_api_key()
     return _render(
         "admin_settings/index.jinja",
         service_account_email=service_account_email,
@@ -41,7 +41,7 @@ def set_service_account():
         success = db.global_state.clear_service_account_info()
         if not success:
             error_msg = "Database error"
-            print(" ", error_msg)
+            print(" ", "Error:", error_msg)
             flash(error_msg, "service-account.danger")
         else:
             success_msg = "Successfully cleared service account"
@@ -49,24 +49,21 @@ def set_service_account():
             flash(success_msg, "service-account.success")
         return {"success": success}
 
-    service_account_info = request.get_json(silent=True)
-    if service_account_info is None:
-        print(" ", "Invalid JSON data given")
-        return {"success": False, "reason": "Invalid JSON data"}
+    error_msg, service_account_info = get_request_json(top_level=dict)
+    if error_msg is not None:
+        return unsuccessful(error_msg)
 
     print(" ", "Got service account info to set:", service_account_info)
 
     # validate the credentials
     error_msg, _ = fetch_tms.get_service_account_client(service_account_info)
     if error_msg is not None:
-        print(" ", "Validation failed:", error_msg)
-        return {"success": False, "reason": error_msg}
+        return unsuccessful(error_msg, "Invalid service account info")
 
     # save in database
     success = db.global_state.set_service_account_info(service_account_info)
     if not success:
-        print(" ", "Database error")
-        return {"success": False, "reason": "Database error"}
+        return unsuccessful("Database error", "Saving service account")
 
     success_msg = "Successfully set service account"
     print(" ", success_msg)
@@ -103,7 +100,7 @@ def set_tms_spreadsheet():
         success = db.global_state.clear_tms_spreadsheet_id()
         if not success:
             error_msg = "Database error"
-            print(" ", error_msg)
+            print(" ", "Error:", error_msg)
             flash(error_msg, "tms-spreadsheet.danger")
         else:
             success_msg = "Successfully cleared TMS spreadsheet"
@@ -111,36 +108,19 @@ def set_tms_spreadsheet():
             flash(success_msg, "tms-spreadsheet.success")
         return {"success": success}
 
-    request_args = request.get_json(silent=True)
-    if request_args is None:
-        return {"success": False, "reason": "Invalid JSON data"}
-    if not isinstance(request_args, dict):
-        return {
-            "success": False,
-            "reason": "Invalid JSON data: expected mapping",
-        }
-    if "url" not in request_args:
-        return {
-            "success": False,
-            "reason": 'Invalid JSON data: missing "url" key',
-        }
+    error_msg, request_args = get_request_json("url")
+    if error_msg is not None:
+        return unsuccessful(error_msg)
     url = request_args["url"]
-    if not isinstance(url, str):
-        return {
-            "success": False,
-            "reason": 'Invalid JSON data: expected string for "url" key',
-        }
     if url == "":
-        return {"success": False, "reason": "TMS spreadsheet url is empty"}
+        return unsuccessful("TMS spreadsheet url is empty")
 
     print(" ", "Got TMS spreadsheet to set:", url)
 
     # validate the url
     spreadsheet_id = fetch_tms.url_to_id(url)
     if spreadsheet_id is None:
-        error_msg = "Invalid spreadsheet link"
-        print(" ", "Error:", error_msg)
-        return {"success": False, "reason": error_msg}
+        return unsuccessful("Invalid spreadsheet link")
 
     # use service account to verify access to spreadsheet
     service_account_info = db.global_state.get_service_account_info()
@@ -151,15 +131,13 @@ def set_tms_spreadsheet():
         )
         error_msg, _ = fetch_tms.get_tms_spreadsheet(spreadsheet_id)
         if error_msg is not None:
-            print(" ", "Error:", error_msg)
-            return {"success": False, "reason": error_msg}
+            return unsuccessful(error_msg)
         print(" ", "Verified: Service account can access url")
 
     # save in database
     success = db.global_state.set_tms_spreadsheet_id(spreadsheet_id)
     if not success:
-        print(" ", "Database error")
-        return {"success": False, "reason": "Database error"}
+        return unsuccessful("Database error", "Saving url")
 
     success_msg = "Successfully saved TMS spreadsheet"
     print(" ", success_msg)
@@ -187,7 +165,7 @@ def set_mailchimp_api_key():
         success = db.global_state.clear_mailchimp_api_key()
         if not success:
             error_msg = "Database error"
-            print(" ", error_msg)
+            print(" ", "Error:", error_msg)
             flash(error_msg, "mailchimp-api-key.danger")
         else:
             success_msg = "Successfully cleared API key"
@@ -195,34 +173,19 @@ def set_mailchimp_api_key():
             flash(success_msg, "mailchimp-api-key.success")
         return {"success": success}
 
-    request_args = request.get_json(silent=True)
-    if request_args is None:
-        return {"success": False, "reason": "Invalid JSON data"}
-    if not isinstance(request_args, dict):
-        return {
-            "success": False,
-            "reason": "Invalid JSON data: expected mapping",
-        }
-    if "apiKey" not in request_args:
-        return {
-            "success": False,
-            "reason": 'Invalid JSON data: missing "apiKey" key',
-        }
+    error_msg, request_args = get_request_json("apiKey")
+    if error_msg is not None:
+        return unsuccessful(error_msg)
     api_key = request_args["apiKey"]
-    if not isinstance(api_key, str):
-        return {
-            "success": False,
-            "reason": 'Invalid JSON data: expected string for "apiKey" key',
-        }
     if api_key == "":
-        return {"success": False, "reason": "API key is empty"}
+        return unsuccessful("API key is empty")
 
     print(" ", "Setting Mailchimp API key (not printed for security)")
 
     # validate the client
     error_msg, _ = mailchimp_utils.get_client(api_key)
     if error_msg is not None:
-        print(" ", "Validation failed:", error_msg)
+        print(" ", "Invalid API key:", error_msg)
         # the error message returned by the API is a bit too detailed
         # and clunky, so just keep it simple for the user
         return {"success": False, "reason": "Invalid API key"}
@@ -230,10 +193,10 @@ def set_mailchimp_api_key():
     # save in database
     success = db.global_state.set_mailchimp_api_key(api_key)
     if not success:
-        print(" ", "Database error")
-        return {"success": False, "reason": "Database error"}
+        return unsuccessful("Database error", "Saving Mailchimp API key")
 
     success_msg = "Successfully set API key"
     print(" ", success_msg)
     flash(success_msg, "mailchimp-api-key.success")
+
     return {"success": True}

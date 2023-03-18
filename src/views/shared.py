@@ -4,7 +4,7 @@ Shared global views.
 
 # =============================================================================
 
-from utils.routes import AppRoutes, _render
+from utils.server import AppRoutes, _render
 
 # =============================================================================
 

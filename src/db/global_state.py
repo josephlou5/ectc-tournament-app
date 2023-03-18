@@ -11,6 +11,7 @@ from datetime import datetime
 
 import pytz
 
+import utils
 from db._utils import query
 from db.models import GlobalState, db
 
@@ -117,7 +118,7 @@ def get_roster_last_fetched_time(tz=EASTERN_TZ):
     spreadsheet, or None if the spreadsheet was not fetched yet.
     """
     global_state = get()
-    return global_state.roster_last_fetched_tz(tz=tz)
+    return utils.dt_to_timezone(global_state.roster_last_fetched_time, tz)
 
 
 def set_roster_last_fetched_time():
@@ -158,6 +159,11 @@ def clear_roster_related_fields():
     """
     _set(roster_last_fetched_time=None, last_matches_query=None)
     return True
+
+
+def has_mailchimp_api_key():
+    """Returns whether the Mailchimp API key is set."""
+    return get_mailchimp_api_key() is not None
 
 
 def get_mailchimp_api_key():

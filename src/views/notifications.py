@@ -11,8 +11,9 @@ from pathlib import Path
 from flask import flash, render_template, request
 
 import db
-from utils import fetch_tms, json_dump_compact
-from utils.routes import AppRoutes, _render
+import utils
+from utils import fetch_tms
+from utils.server import AppRoutes, _render, print_records, unsuccessful
 
 # =============================================================================
 
@@ -26,9 +27,7 @@ FETCH_ROSTER_LOGS_FILE = STATIC_FOLDER / "fetch_roster_logs.json"
 
 def get_roster_last_fetched_time_str():
     last_fetched_dt = db.global_state.get_roster_last_fetched_time()
-    if last_fetched_dt is None:
-        return None
-    return last_fetched_dt.strftime("%Y-%m-%d %H:%M:%S")
+    return utils.dt_str(last_fetched_dt)
 
 
 @app.route("/notifications", methods=["GET"])
@@ -54,7 +53,7 @@ def fetch_roster():
         success = db.roster.clear_roster()
         if not success:
             all_success = False
-            print(" ", "Database error while clearing roster")
+            print(" ", "Database error while clearing roster tables")
         success = db.global_state.clear_roster_related_fields()
         if not success:
             all_success = False
@@ -81,10 +80,9 @@ def fetch_roster():
     print(" ", "Fetching teams roster from TMS spreadsheet")
     error_msg, logs, roster = fetch_tms.fetch_roster()
     if error_msg is not None:
-        print(" ", "Failed:", error_msg)
         if flash_all:
             flash(error_msg, "fetch-roster.danger")
-        return {"success": False, "reason": error_msg}
+        return unsuccessful(error_msg)
 
     # save in database
     print(" ", "Saving the roster to the database")
@@ -115,38 +113,15 @@ def fetch_roster():
 
     # print for server logs
     print(" ", "Time finished fetching:", full_logs["time_fetched"])
-    headers = {"level": "Level", "row_num": "Row Num", "message": "Message"}
-    col_widths = [len(h) for h in headers.values()]
-    rows = []
-    for log in logs:
-        row = [str(log[key]) for key in headers]
-        rows.append(row)
-        for i in range(len(headers)):
-            col_widths[i] = max(col_widths[i], len(row[i]))
-
-    def print_row(values, spaces=2):
-        if isinstance(values, list):
-            segments = []
-            for value, width in zip(values, col_widths):
-                if value == "":
-                    segments.append(" " * width)
-                    continue
-                segments.append(value.ljust(width))
-        elif values == "":
-            segments = [" " * width for width in col_widths]
-        else:
-            segments = [
-                (values * int(width / len(values)))[:width]
-                for width in col_widths
-            ]
-        print(" ", (" " * spaces).join(segments))
-
-    print_row(list(headers.values()))
-    print_row("-")
-    for row in rows:
-        print_row(row)
+    print_records(
+        {"level": "Level", "row_num": "Row Num", "message": "Message"},
+        logs,
+        indent=2,
+        padding=2,
+    )
 
     if not success:
+        # no need to print here because it was printed with the logs
         error_msg = "Database error"
         if flash_all:
             flash(error_msg, "fetch-roster.danger")
@@ -156,6 +131,7 @@ def fetch_roster():
     success_msg = "Successfully fetched roster"
     print(" ", success_msg)
     flash(success_msg, "fetch-roster.success")
+
     return {"success": True, "roster": roster}
 
 
@@ -352,23 +328,18 @@ def _clean_matches_query(match_numbers):
 
 @app.route("/notifications/matches_info", methods=["GET"])
 def fetch_matches_info():
-    def _error(msg):
-        return {"success": False, "reason": msg}
-
     matches_query = request.args.get("matches", None)
     if matches_query is None:
-        return _error("No matches given.")
+        return unsuccessful("No matches query given")
     matches_query = matches_query.strip()
 
     print(" ", "Fetching matches for query:", matches_query)
 
     error_msg, match_numbers = _parse_matches_query(matches_query)
     if error_msg is not None:
-        print(" ", "Error parsing match query:", error_msg)
-        return _error(error_msg)
+        return unsuccessful(error_msg, "Error parsing match query")
     if len(match_numbers) == 0:
-        print(" ", "Error: No match numbers given")
-        return _error("No match numbers given.")
+        return unsuccessful("No match numbers given")
     match_numbers.sort()
     print(" ", "Parsed match numbers:", match_numbers)
 
@@ -379,8 +350,7 @@ def fetch_matches_info():
     # if no matches found in TMS, returns error
     error_msg, match_teams = fetch_tms.fetch_match_teams(match_numbers)
     if error_msg is not None:
-        print(" ", "Error while fetching:", error_msg)
-        return _error(error_msg)
+        return unsuccessful(error_msg)
 
     # get the team info for all the match teams
     print(" ", "Fetching info for all match teams")
@@ -401,8 +371,7 @@ def fetch_matches_info():
             all_team_infos[school_team_code].append(match_number)
     if len(all_team_infos) == 0:
         # no valid teams found
-        print(" ", "No valid matches found")
-        return _error("No valid matches were found")
+        return unsuccessful("No valid matches found")
     # check if some teams have multiple matches
     for (school, team_code), team_matches in all_team_infos.items():
         if len(team_matches) <= 1:
@@ -459,7 +428,7 @@ def fetch_matches_info():
             }
         match_info["valid"] = match_valid
         if match_valid:
-            match_info["compact"] = json_dump_compact(compact_info)
+            match_info["compact"] = utils.json_dump_compact(compact_info)
         else:
             match_info["compact"] = ""
         matches.append(match_info)
