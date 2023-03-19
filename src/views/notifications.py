@@ -328,20 +328,42 @@ def _clean_matches_query(match_numbers):
 
 @app.route("/notifications/matches_info", methods=["GET"])
 def fetch_matches_info():
+    """Fetches the info for the given matches query from the "matches"
+    query arg.
+
+    Also accepts the "previous" query arg, which is another matches
+    query with the current matches. Both queries will be combined and
+    all combined matches will be fetched and returned.
+    """
+
     matches_query = request.args.get("matches", None)
     if matches_query is None:
         return unsuccessful("No matches query given")
     matches_query = matches_query.strip()
+    if matches_query == "":
+        return unsuccessful("No matches query given")
+    previous_matches_query = request.args.get("previous", "")
 
     print(" ", "Fetching matches for query:", matches_query)
+    print(" ", "Previous matches:", previous_matches_query)
 
     error_msg, match_numbers = _parse_matches_query(matches_query)
     if error_msg is not None:
-        return unsuccessful(error_msg, "Error parsing match query")
+        return unsuccessful(error_msg, "Error parsing matches query")
     if len(match_numbers) == 0:
         return unsuccessful("No match numbers given")
     match_numbers.sort()
     print(" ", "Parsed match numbers:", match_numbers)
+
+    error_msg, previous_match_numbers = _parse_matches_query(
+        previous_matches_query
+    )
+    if error_msg is not None:
+        print(" ", "Error parsing previous matches query:", error_msg)
+    else:
+        match_numbers.extend(previous_match_numbers)
+        match_numbers.sort()
+        print(" ", " ", "With previous match numbers:", match_numbers)
 
     warnings = []
 
@@ -369,9 +391,6 @@ def fetch_matches_info():
             if school_team_code not in all_team_infos:
                 all_team_infos[school_team_code] = []
             all_team_infos[school_team_code].append(match_number)
-    if len(all_team_infos) == 0:
-        # no valid teams found
-        return unsuccessful("No valid matches found")
     # check if some teams have multiple matches
     for (school, team_code), team_matches in all_team_infos.items():
         if len(team_matches) <= 1:
@@ -385,20 +404,27 @@ def fetch_matches_info():
     team_infos = db.roster.get_teams(list(all_team_infos.keys()))
 
     # combine the team info into match info
-    print(" ", "Compiling match infos")
+    if len(all_team_infos) == 0:
+        print(" ", "No valid teams found")
+    else:
+        print(" ", "Compiling match infos")
     matches = []
     for match_team in match_teams:
         match_number = match_team["number"]
         if not match_team["found"]:
             continue
 
-        match_info = {
-            "number": match_number,
-            "division": match_team["division"],
-            "round": match_team["round"],
-        }
-        compact_info = dict(match_info)
         match_valid = True
+
+        match_info = {"number": match_number}
+        for key in ("division", "round"):
+            value = match_team[key]
+            if value == "":
+                match_valid = False
+            match_info[key] = value
+
+        compact_info = dict(match_info)
+
         for color in ("blue_team", "red_team"):
             team_info = match_team[color]
             if not team_info["valid"]:
@@ -426,29 +452,56 @@ def fetch_matches_info():
                 "school": team.school.name,
                 "code": team.code,
             }
+
         match_info["valid"] = match_valid
         if match_valid:
             match_info["compact"] = utils.json_dump_compact(compact_info)
         else:
-            match_info["compact"] = ""
+            match_info["compact"] = utils.json_dump_compact(
+                {"number": match_number}
+            )
+
         matches.append(match_info)
 
-    # at this point, `matches` should not be empty (but may contain only
-    # invalid matches)
-
-    clean_matches_query = _clean_matches_query(match_numbers)
-    # save the last matches query; don't care if it's successful
+    # only include the found matches
+    clean_matches_query = _clean_matches_query(
+        match_info["number"] for match_info in matches
+    )
+    # save the "clean" last matches query (don't care if failed)
     _ = db.global_state.set_last_matches_query(clean_matches_query)
 
-    matches_html = render_template(
-        "notifications/matches_info.jinja",
-        clean_matches_query=clean_matches_query,
-        matches=matches,
-        warnings=warnings,
-    )
+    if len(matches) == 0:
+        matches_rows_html = None
+    else:
+        matches_rows_html = render_template(
+            "notifications/matches_info_rows.jinja", matches=matches
+        )
     return {
         "success": True,
-        "match_numbers": match_numbers,
         "last_matches_query": clean_matches_query,
-        "matches_html": matches_html,
+        "matches_rows_html": matches_rows_html,
+        "warnings": warnings,
     }
+
+
+@app.route("/notifications/matches_info/query", methods=["GET"])
+def get_matches_query():
+    """Gets the clean matches query for the given matches."""
+
+    matches_query = request.args.get("matches", None)
+    if matches_query is None:
+        return unsuccessful("No matches query given")
+    matches_query = matches_query.strip()
+    if matches_query == "":
+        return unsuccessful("No matches query given")
+
+    error_msg, match_numbers = _parse_matches_query(matches_query)
+    if error_msg is not None:
+        return unsuccessful(error_msg, "Error parsing matches query:")
+    match_numbers.sort()
+
+    clean_matches_query = _clean_matches_query(match_numbers)
+    # save the "clean" last matches query (don't care if failed)
+    _ = db.global_state.set_last_matches_query(clean_matches_query)
+
+    return {"success": True, "matches_query": clean_matches_query}

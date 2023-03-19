@@ -140,7 +140,8 @@ function copyElementContent(elementId, callback = null) {
   });
 }
 
-function _bsAlert(text, accent, tag, small, dismissible) {
+function _bsAlert(text, accent, textId, tag, small, dismissible) {
+  const textIdAttrStr = textId == null ? '' : `id="${textId}"`;
   const dismissibleClass = dismissible ? 'alert-dismissible fade show' : '';
   const sizingClass = small ? 'alert-sm' : 'd-flex mb-2';
   const closeButton = `
@@ -155,17 +156,25 @@ function _bsAlert(text, accent, tag, small, dismissible) {
     class="alert alert-${accent} ${dismissibleClass} ${sizingClass}"
     role="alert"
   >
-    <span ${!small ? 'class="me-auto"' : ''}>
+    <span ${textIdAttrStr} ${!small ? 'class="me-auto"' : ''}>
       ${text}
     </span>
     ${dismissible ? closeButton : ''}
   </${tag}>`;
 }
 
-function bsAlert(text, accent, { tag = 'div', dismissible = true } = {}) {
-  return _bsAlert(text, accent, tag, false, dismissible);
+function bsAlert(
+  text,
+  accent,
+  { textId = null, tag = 'div', dismissible = true } = {}
+) {
+  return _bsAlert(text, accent, textId, tag, false, dismissible);
 }
 
-function bsAlertSm(text, accent, { tag = 'span', dismissible = true } = {}) {
-  return _bsAlert(text, accent, tag, true, dismissible);
+function bsAlertSm(
+  text,
+  accent,
+  { textId = null, tag = 'span', dismissible = true } = {}
+) {
+  return _bsAlert(text, accent, textId, tag, true, dismissible);
 }

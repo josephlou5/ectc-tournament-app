@@ -1,0 +1,94 @@
+{% import "shared/macros.jinja" as macros %}
+
+{% macro _sheet_raw_value(value) %}
+{% if value == "" %}
+<em class="text-muted">N/A</em>
+{% else %}
+{{ value|e }}
+{% endif %}
+{% endmacro %}
+
+{% macro _team_member(user) %}
+{% if user is none %}
+<em class="text-muted">None</em>
+{% else %}
+{{ (user.name ~ " <" ~ user.email ~ ">")|e }}
+{% endif %}
+{% endmacro %}
+
+{% macro _team_members(team) %}
+<div><strong>Light:</strong> {{ _team_member(team.light) }}</div>
+<div><strong>Middle:</strong> {{ _team_member(team.middle) }}</div>
+<div><strong>Heavy:</strong> {{ _team_member(team.heavy) }}</div>
+{% if team.alternates|length > 0 %}
+<div><strong>Alternates:</strong></div>
+{% for alternate in team.alternates %}
+<div>{{ _team_member(alternate) }}</div>
+{% endfor %}
+{% endif %}
+{% endmacro %}
+
+{% macro _team_column(team_info, match_team_id) %}
+{% if not team_info["valid"] %}
+<td class="table-warning">
+  {% if "error" not in team_info %}
+  {{ _sheet_raw_value(team_info["name"]) }}
+  {% else %}
+  <div>{{ _sheet_raw_value(team_info["name"]) }}</div>
+  <div>{{ team_info["error"] }}</div>
+  {% endif %}
+</td>
+{% else %}
+<td>
+  <div class="row align-items-center">
+    <div class="col-auto">
+      <div>{{ _sheet_raw_value(team_info["name"]) }}</div>
+      <div>
+        <button
+          type="button"
+          class="btn btn-sm btn-secondary"
+          onclick="toggleMatchTeamMembers('{{ match_team_id }}');"
+        >
+          Show Members
+        </button>
+      </div>
+    </div>
+    <div id="{{ match_team_id }}" class="col-xs col-lg-auto d-none">
+      {{ _team_members(team_info["team"]) }}
+    </div>
+  </div>
+</td>
+{% endif %}
+{% endmacro %}
+
+{% for match in matches %}
+{% set match_number = match["number"] %}
+{% set match_id = "match-" ~ match_number %}
+{% set match_team_blue_id = match_id ~ "-blue" %}
+{% set match_team_red_id = match_id ~ "-red" %}
+<tr
+  id="{{ match_id }}"
+  class="match-row"
+  matchdata="{{ match['compact']|e }}"
+>
+  <th class="table-sm-col">{{ match_number }}</th>
+  <td class="table-sm-col">{{ _sheet_raw_value(match["division"]) }}</td>
+  <td class="table-sm-col">{{ _sheet_raw_value(match["round"]) }}</td>
+  {{ _team_column(match["blue_team"], match_team_blue_id) }}
+  {{ _team_column(match["red_team"], match_team_red_id) }}
+  {% if match["valid"] %}
+  <td class="table-sm-col">Yes</td>
+  {% else %}
+  <td class="table-sm-col table-danger">No</td>
+  {% endif %}
+  <td class="table-sm-col text-center">
+    <button
+      type="button"
+      class="btn btn-sm btn-danger"
+      onclick="removeMatchRow({{ match_number }});"
+    >
+      Delete
+    </button>
+  </td>
+</tr>
+{% endfor %}
