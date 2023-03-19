@@ -61,6 +61,20 @@
 {% endif %}
 {% endmacro %}
 
+{% macro _match_status_col(status) %}
+<td class="table-sm-col {{ 'table-danger' if status == 'Canceled' }}">
+  {{ _sheet_raw_value(status) }}
+</td>
+{% endmacro %}
+
+{% macro _match_valid_col(valid) %}
+{% if valid %}
+<td class="table-sm-col">Yes</td>
+{% else %}
+<td class="table-sm-col table-danger">No</td>
+{% endif %}
+{% endmacro %}
+
 {% for match in matches %}
 {% set match_number = match["number"] %}
 {% set match_id = "match-" ~ match_number %}
@@ -74,13 +88,10 @@
   <th class="table-sm-col">{{ match_number }}</th>
   <td class="table-sm-col">{{ _sheet_raw_value(match["division"]) }}</td>
   <td class="table-sm-col">{{ _sheet_raw_value(match["round"]) }}</td>
+  {{ _match_status_col(match["status"]) }}
   {{ _team_column(match["blue_team"], match_team_blue_id) }}
   {{ _team_column(match["red_team"], match_team_red_id) }}
-  {% if match["valid"] %}
-  <td class="table-sm-col">Yes</td>
-  {% else %}
-  <td class="table-sm-col table-danger">No</td>
-  {% endif %}
+  {{ _match_valid_col(match["valid"]) }}
   <td class="table-sm-col text-center">
     <button
       type="button"

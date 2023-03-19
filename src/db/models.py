@@ -162,3 +162,48 @@ class Team(db.Model):
         if self.alternate_ids == "":
             return []
         return list(map(int, self.alternate_ids.split(",")))
+
+
+# =============================================================================
+
+# Match status table
+
+
+class TMSMatchStatus(db.Model):
+    """Model for the last known status of a match from the TMS
+    spreadsheet.
+    """
+
+    __tablename__ = "TMSMatchStatuses"
+
+    match_number = Column(Integer, primary_key=True, autoincrement=False)
+    status = Column(String(), nullable=True)
+    last_updated = Column(DateTime(timezone=False), nullable=True)
+    # TODO: should this also include the team names?
+
+    def __init__(self, match_number):
+        self.match_number = match_number
+
+
+class EmailSent(db.Model):
+    """Model for when an email was sent."""
+
+    __tablename__ = "EmailsSent"
+
+    id = Column(Integer, primary_key=True)
+    time_sent = Column(DateTime(timezone=False), nullable=False)
+    # A comma-separated list of match numbers
+    matches = Column(String(), nullable=False)
+
+    def __init__(self, time_sent, match_numbers):
+        self.time_sent = time_sent
+        for match_number in match_numbers:
+            if not isinstance(match_number, int):
+                raise TypeError("non-int value in match numbers")
+        self.matches = ",".join(map(str, match_numbers))
+
+    def iter_match_numbers(self):
+        return map(int, self.matches.split(","))
+
+    def get_match_numbers(self):
+        return list(self.iter_match_numbers())

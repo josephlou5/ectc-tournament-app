@@ -28,6 +28,7 @@ class NavbarTab:
 NAVBAR_TABS = [
     NavbarTab("Admin Settings", "admin_settings"),
     NavbarTab("Notifications", "notifications"),
+    NavbarTab("Matches Status", "view_matches_status"),
 ]
 # FUTURE: log in, log out, profile, etc
 NAVBAR_TABS_RIGHT = []

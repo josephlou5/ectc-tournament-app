@@ -1,0 +1,165 @@
+{% extends "shared/layout.jinja" %}
+
+{% block title %}
+Matches Status
+{% endblock %}
+
+{% set refresh_statuses_btn_id = "refresh-statuses-btn" %}
+
+{# Pagination #}
+{% set hundred_page_btn_class = "hundred-page-btn" %}
+{% set hundred_page_wrapper_class = hundred_page_btn_class ~ "-wrapper" %}
+{% set all_matches_btn_id = "all-matches-btn" %}
+
+{% set match_status_row_class = "status-row" %}
+
+{% macro _match_status_col(status, last_updated) %}
+<td class="{{ 'table-danger' if status == 'Canceled' }}">
+  {% if status == "" %}
+  <em class="text-muted">None</em>
+  {% else %}
+  <span
+    data-bs-toggle="tooltip"
+    data-bs-placement="right"
+    data-bs-html="true"
+    title="Last updated:<br/>{{ last_updated }}"
+  >
+    {{ status|e }}
+  </span>
+  {% endif %}
+</td>
+{% endmacro %}
+
+{% block body %}
+<div id="matches-status-body" class="container-fluid">
+  <div class="row mb-2">
+    <div class="col">
+      <h2>Matches Status</h2>
+    </div>
+    <div class="col-auto">
+      {# just refresh the page #}
+      <button
+        type="button"
+        class="btn btn-outline-success"
+        onclick="location.reload();"
+      >
+        Refresh
+      </button>
+    </div>
+  </div>
+  {% if statuses|length > 0 %}
+  <div class="row mb-2">
+    <div class="col">
+      {# use a pagination component to filter each hundred of match numbers #}
+      <nav>
+        <ul class="pagination">
+          <li
+            id="{{ all_matches_btn_id }}"
+            class="page-item {{ hundred_page_wrapper_class }}"
+          >
+            <a class="page-link {{ hundred_page_btn_class }}" role="button">
+              All
+            </a>
+          </li>
+          {% for hundred in hundreds %}
+          <li
+            id="hundred-{{ hundred }}-page-wrapper"
+            class="page-item {{ hundred_page_wrapper_class }}"
+          >
+            <a class="page-link {{ hundred_page_btn_class }}" role="button">
+              {{ hundred }}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+    </div>
+  </div>
+  {% endif %}
+  <div class="row">
+    <div class="col">
+      {% if statuses|length == 0 %}
+      <div>No match statuses</div>
+      {% else %}
+      <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+          <thead>
+            <tr>
+              <th class="table-sm-col">Match</th>
+              <th>TMS Status</th>
+              <th>Emails Sent</th>
+              <th class="table-sm-col">Any Email Sent</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for status_info in statuses %}
+            {% set hundred_cls = "hundred-" ~ status_info["hundred_str"] %}
+            <tr class="{{ match_status_row_class }} {{ hundred_cls }}">
+              <th class="table-sm-col">{{ status_info["number"] }}</th>
+              {{ _match_status_col(
+                   status_info["tms_status"],
+                   status_info["tms_status_last_updated"],
+                 )
+              }}
+              {% with emails = status_info["emails"] %}
+              <td>
+                {% if emails|length == 0 %}
+                <em class="text-muted">None</em>
+                {% else %}
+                {% for email in emails %}
+                <div>{{ email["time_sent"] }}</div>
+                {% endfor %}
+                {% endif %}
+              </td>
+              <td
+                class="table-sm-col {{ 'table-success' if emails|length > 0 }}"
+              >
+                {% if emails|length > 0 %}
+                Yes
+                {% endif %}
+              </td>
+              {% endwith %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+  function handlePaginationChanged(hundredStr) {
+    hundredStr = hundredStr.trim();
+    if (hundredStr === '') return;
+    // deactivate all pagination buttons
+    $('.{{ hundred_page_wrapper_class }}').removeClass('active');
+    // show the proper matches
+    if (hundredStr.toLowerCase() === 'all') {
+      // make this pagination button active
+      $('#{{ all_matches_btn_id }}').addClass('active');
+      // show all the match rows
+      $('.{{ match_status_row_class }}').removeClass('d-none');
+    } else {
+      // make this pagination button active
+      $(`#hundred-${hundredStr}-page-wrapper`).addClass('active');
+      // show the proper match rows
+      $('.{{ match_status_row_class }}').addClass('d-none');
+      $('.hundred-' + hundredStr).removeClass('d-none');
+    }
+  }
+
+  $(document).ready(() => {
+    enableBsTooltips();
+
+    // initialize with everything showing
+    handlePaginationChanged('all');
+    $('.{{ hundred_page_btn_class }}').click((event) => {
+      handlePaginationChanged($(event.target).html());
+    });
+  });
+</script>
+{% endblock %}

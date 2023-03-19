@@ -313,9 +313,10 @@ def _clean_matches_query(match_numbers):
             groups.append(f"{group_start}-{group_end}")
 
     # find all consecutive groups
-    for num in sorted(set(match_numbers)):
+    for num in sorted(set(match_numbers), key=fetch_tms.match_number_sort_key):
         if group_start is not None:
-            if num == group_end + 1:
+            # has to be in the same hundred
+            if (num // 100 == group_end // 100) and num == group_end + 1:
                 group_end = num
                 continue
             add_group()
@@ -352,7 +353,7 @@ def fetch_matches_info():
         return unsuccessful(error_msg, "Error parsing matches query")
     if len(match_numbers) == 0:
         return unsuccessful("No match numbers given")
-    match_numbers.sort()
+    match_numbers.sort(key=fetch_tms.match_number_sort_key)
     print(" ", "Parsed match numbers:", match_numbers)
 
     error_msg, previous_match_numbers = _parse_matches_query(
@@ -362,7 +363,7 @@ def fetch_matches_info():
         print(" ", "Error parsing previous matches query:", error_msg)
     else:
         match_numbers.extend(previous_match_numbers)
-        match_numbers.sort()
+        match_numbers.sort(key=fetch_tms.match_number_sort_key)
         print(" ", " ", "With previous match numbers:", match_numbers)
 
     warnings = []
@@ -428,6 +429,12 @@ def fetch_matches_info():
             match_info[key] = value
 
         compact_info = dict(match_info)
+
+        # add match status (doesn't need to be in compact info)
+        match_status = match_team["status"]
+        if match_status == "":
+            match_valid = False
+        match_info["status"] = match_status
 
         for color in ("blue_team", "red_team"):
             team_info = match_team[color]
@@ -502,10 +509,37 @@ def get_matches_query():
     error_msg, match_numbers = _parse_matches_query(matches_query)
     if error_msg is not None:
         return unsuccessful(error_msg, "Error parsing matches query:")
-    match_numbers.sort()
+    match_numbers.sort(key=fetch_tms.match_number_sort_key)
 
     clean_matches_query = _clean_matches_query(match_numbers)
     # save the "clean" last matches query (don't care if failed)
     _ = db.global_state.set_last_matches_query(clean_matches_query)
 
     return {"success": True, "matches_query": clean_matches_query}
+
+
+@app.route("/notifications/matches_status", methods=["GET"])
+def view_matches_status():
+    matches_statuses = db.match_status.get_matches_status()
+
+    # sort by match number
+    hundreds = []
+    ordered_statuses = []
+    last_hundred = None
+    for match_number, match_status in sorted(
+        matches_statuses.items(),
+        key=lambda pair: fetch_tms.match_number_sort_key(pair[0]),
+    ):
+        match_number_hundred = match_number // 100
+        hundred_str = f"{match_number_hundred}xx"
+        if last_hundred is None or match_number_hundred != last_hundred:
+            last_hundred = match_number_hundred
+            hundreds.append(hundred_str)
+        match_status["hundred_str"] = hundred_str
+        ordered_statuses.append(match_status)
+
+    return _render(
+        "/notifications/matches_status.jinja",
+        hundreds=hundreds,
+        statuses=ordered_statuses,
+    )

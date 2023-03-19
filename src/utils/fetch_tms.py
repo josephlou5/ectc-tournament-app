@@ -54,6 +54,7 @@ HEADER_COLUMNS = [
     "match #",
     "division",
     "round",
+    "match status",
     "blue team",
     "red team",
 ]
@@ -61,6 +62,9 @@ HEADER_COLUMNS = [
 SCHOOL_TEAM_CODE_PATTERN = re.compile(
     rf"(?P<school>[A-Za-z ]+) (?P<code>{TEAM_CODE_PATTERN.pattern})"
 )
+
+# same order as the communications view (2023-03-19)
+MATCH_NUMBER_HUNDREDS_ORDER = [9, 7, 8, 1, 5, 2, 6, 4, 3]
 
 # =============================================================================
 
@@ -692,6 +696,17 @@ def process_roster(row_generator):
 # =============================================================================
 
 
+def match_number_sort_key(match_number):
+    try:
+        return (
+            MATCH_NUMBER_HUNDREDS_ORDER.index(match_number // 100),
+            match_number,
+        )
+    except ValueError:
+        # just put everything else at the end
+        return (len(MATCH_NUMBER_HUNDREDS_ORDER), match_number)
+
+
 def split_school_team_code(school_team_code):
     match = SCHOOL_TEAM_CODE_PATTERN.fullmatch(school_team_code)
     if match is None:
@@ -727,6 +742,7 @@ def fetch_match_teams(match_numbers):
                     If False, the rest of the keys will not be present.
                 'division': the division
                 'round': the round of XX
+                'status': the match status
                 'blue_team':
                     'name': the team name
                     'valid': True or False
@@ -812,15 +828,28 @@ def fetch_match_teams(match_numbers):
         )
 
     # look at the remaining rows for the match numbers
+    tms_match_statuses = {}
     matches_info = []
     for row in worksheet_rows_iter:
-        match_number, division, round_of, blue_team_name, red_team_name = (
-            row[header_indices[header]].strip() for header in HEADER_COLUMNS
-        )
+        (
+            match_number,
+            division,
+            round_of,
+            match_status,
+            blue_team_name,
+            red_team_name,
+        ) = (row[header_indices[header]].strip() for header in HEADER_COLUMNS)
 
         if not match_number.isdigit():
             continue
         match_number = int(match_number)
+
+        if match_status != "":
+            # don't override previous values, but this should maybe be a
+            # warning
+            if match_number not in tms_match_statuses:
+                tms_match_statuses[match_number] = match_status
+
         if match_number not in remaining:
             continue
 
@@ -830,14 +859,17 @@ def fetch_match_teams(match_numbers):
                 "found": True,
                 "division": division,
                 "round": round_of,
+                "status": match_status,
                 "blue_team": _extract_school_team_code(blue_team_name),
                 "red_team": _extract_school_team_code(red_team_name),
             }
         )
         remaining.remove(match_number)
 
-        if len(remaining) == 0:
-            break
+    # save the last seen TMS statuses
+    success = db.match_status.set_matches_tms_status(tms_match_statuses)
+    if not success:
+        return _fetch_error("Database error")
 
     if len(matches_info) == 0:
         # no matches were found
@@ -851,4 +883,5 @@ def fetch_match_teams(match_numbers):
             }
         )
 
+    matches_info.sort(key=lambda info: match_number_sort_key(info["number"]))
     return None, matches_info

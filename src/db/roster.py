@@ -6,7 +6,7 @@ Teams tables.
 # =============================================================================
 
 from db._utils import query
-from db.models import School, Team, User, db
+from db.models import EmailSent, School, Team, TMSMatchStatus, User, db
 
 # =============================================================================
 
@@ -70,7 +70,10 @@ def clear_roster():
     # delete all the tables and add them again (resets id counters)
     # https://stackoverflow.com/a/49644099
     # in this particular order due to foreign key constraints
-    tables = [table.__table__ for table in (Team, User, School)]
+    tables = [
+        table.__table__
+        for table in (Team, User, School, TMSMatchStatus, EmailSent)
+    ]
     db.metadata.drop_all(bind=db.engine, tables=tables, checkfirst=True)
     db.metadata.create_all(bind=db.engine, tables=tables)
     return True

@@ -140,6 +140,12 @@ function copyElementContent(elementId, callback = null) {
   });
 }
 
+function enableBsTooltips() {
+  $('[data-bs-toggle="tooltip"]').each((index, element) => {
+    const tooltip = new bootstrap.Tooltip(element);
+  });
+}
+
 function _bsAlert(text, accent, textId, tag, small, dismissible) {
   const textIdAttrStr = textId == null ? '' : `id="${textId}"`;
   const dismissibleClass = dismissible ? 'alert-dismissible fade show' : '';
