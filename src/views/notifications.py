@@ -372,7 +372,11 @@ def fetch_matches_info():
     # if no matches found in TMS, returns error
     error_msg, match_teams = fetch_tms.fetch_match_teams(match_numbers)
     if error_msg is not None:
-        return unsuccessful(error_msg)
+        print(" ", "Error:", error_msg)
+        return {
+            "success": False,
+            "reason": f"Error in spreadsheet: {error_msg}",
+        }
 
     # get the team info for all the match teams
     print(" ", "Fetching info for all match teams")

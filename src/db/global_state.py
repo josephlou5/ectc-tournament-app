@@ -9,15 +9,9 @@ used in any of the functions.
 
 from datetime import datetime
 
-import pytz
-
 import utils
-from db._utils import query
+from db._utils import _set, query
 from db.models import GlobalState, db
-
-# =============================================================================
-
-EASTERN_TZ = pytz.timezone("US/Eastern")
 
 # =============================================================================
 
@@ -32,23 +26,10 @@ def get():
     return global_state
 
 
-def _set(global_state=None, *, commit=True, **values):
-    """Sets the given kwargs values on the global state.
-
-    Returns:
-        bool: If the global state changed.
-    """
+def _set_global(global_state=None, **kwargs):
     if global_state is None:
         global_state = get()
-    changed = False
-    for key, value in values.items():
-        if getattr(global_state, key) == value:
-            continue
-        setattr(global_state, key, value)
-        changed = True
-    if commit and changed:
-        db.session.commit()
-    return changed
+    return _set(global_state, **kwargs)
 
 
 def get_service_account_info():
@@ -73,7 +54,7 @@ def set_service_account_info(data):
     Returns:
         bool: Whether the operation was successful.
     """
-    _set(service_account_info=data)
+    _set_global(service_account_info=data)
     return True
 
 
@@ -100,7 +81,7 @@ def set_tms_spreadsheet_id(spreadsheet_id):
     Returns:
         bool: Whether the operation was successful.
     """
-    _set(tms_spreadsheet_id=spreadsheet_id)
+    _set_global(tms_spreadsheet_id=spreadsheet_id)
     return True
 
 
@@ -113,7 +94,7 @@ def clear_tms_spreadsheet_id():
     return set_tms_spreadsheet_id(None)
 
 
-def get_roster_last_fetched_time(tz=EASTERN_TZ):
+def get_roster_last_fetched_time(tz=utils.EASTERN_TZ):
     """Returns the last fetched time of the roster from the TMS
     spreadsheet, or None if the spreadsheet was not fetched yet.
     """
@@ -128,7 +109,7 @@ def set_roster_last_fetched_time():
     Returns:
         bool: Whether the operation was successful.
     """
-    _set(roster_last_fetched_time=datetime.utcnow())
+    _set_global(roster_last_fetched_time=datetime.utcnow())
     return True
 
 
@@ -146,7 +127,7 @@ def set_last_matches_query(matches_query):
     Returns:
         bool: Whether the operation was successful.
     """
-    _set(last_matches_query=matches_query)
+    _set_global(last_matches_query=matches_query)
     return True
 
 
@@ -157,7 +138,7 @@ def clear_roster_related_fields():
     Returns:
         bool: Whether the operation was successful.
     """
-    _set(roster_last_fetched_time=None, last_matches_query=None)
+    _set_global(roster_last_fetched_time=None, last_matches_query=None)
     return True
 
 
@@ -178,7 +159,7 @@ def set_mailchimp_api_key(api_key):
     Returns:
         bool: Whether the operation was successful.
     """
-    _set(mailchimp_api_key=api_key)
+    _set_global(mailchimp_api_key=api_key)
     return True
 
 
@@ -205,7 +186,7 @@ def set_mailchimp_audience_id(audience_id):
     Returns:
         bool: Whether the operation was successful.
     """
-    _set(mailchimp_audience_id=audience_id)
+    _set_global(mailchimp_audience_id=audience_id)
     return True
 
 
