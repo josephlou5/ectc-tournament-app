@@ -103,7 +103,7 @@ GLOBAL_SERVICE_ACCOUNT = None
 
 
 def get_service_account_client(
-    service_account_info=None, invalid_prefix=False
+    service_account_info=None, invalid_prefix=False, force=False
 ):
     """Gets the service account client.
 
@@ -113,7 +113,7 @@ def get_service_account_client(
         Union[Tuple[str, None], Tuple[None, gspread.Client]]:
             A tuple of an error message, or the service account client.
     """
-    global GLOBAL_SERVICE_ACCOUNT  # pylint: disable=global-statement
+    global GLOBAL_SERVICE_ACCOUNT, GLOBAL_TMS_SPREADSHEET  # pylint: disable=global-statement
 
     # fetch info if not given
     from_db = False
@@ -125,14 +125,32 @@ def get_service_account_client(
         from_db = True
 
     # check cached service account client
-    if GLOBAL_SERVICE_ACCOUNT is not None:
+    if not force and GLOBAL_SERVICE_ACCOUNT is not None:
         email = service_account_info.get("client_email", None)
         if (
             email is not None
             and email == GLOBAL_SERVICE_ACCOUNT.auth.service_account_email
         ):
             # assume same service account
-            return None, GLOBAL_SERVICE_ACCOUNT
+            # check that connection is still valid
+            try:
+                _ = GLOBAL_SERVICE_ACCOUNT.list_spreadsheet_files()
+                return None, GLOBAL_SERVICE_ACCOUNT
+            except google.auth.exceptions.TransportError as ex:
+                # error is: (
+                #     "Connection aborted.",
+                #     RemoteDisconnected(
+                #         "Remote end closed connection without response"
+                #     ),
+                # )
+                print("!", "Client connection aborted:", ex)
+            # refetch the client
+            print("!", "Refetching...")
+            return get_service_account_client(
+                service_account_info=service_account_info,
+                invalid_prefix=invalid_prefix,
+                force=True,
+            )
 
     # get client
     try:
@@ -140,7 +158,10 @@ def get_service_account_client(
             service_account_info, scopes=gspread.auth.READONLY_SCOPES
         )
     except google.auth.exceptions.MalformedError as ex:
+        # if the service account is invalid, reset the spreadsheet
+        # object too
         GLOBAL_SERVICE_ACCOUNT = None
+        GLOBAL_TMS_SPREADSHEET = None
         if from_db:
             # remove the credentials from the database
             _ = db.global_state.clear_service_account_info()
@@ -149,7 +170,10 @@ def get_service_account_client(
             error_msg = f"Invalid service account credentials: {error_msg}"
         return error_msg, None
 
+    # if the service account was fetched, reset the spreadsheet object
+    # (new service account may not have access to cached spreadsheet)
     GLOBAL_SERVICE_ACCOUNT = client
+    GLOBAL_TMS_SPREADSHEET = None
     return None, client
 
 
@@ -158,7 +182,7 @@ def get_service_account_client(
 GLOBAL_TMS_SPREADSHEET = None
 
 
-def get_tms_spreadsheet(spreadsheet_id=None):
+def get_tms_spreadsheet(spreadsheet_id=None, force=False):
     """Gets the TMS spreadsheet.
 
     If the id is not given, uses the one saved in the database.
@@ -169,7 +193,8 @@ def get_tms_spreadsheet(spreadsheet_id=None):
     """
     global GLOBAL_TMS_SPREADSHEET  # pylint: disable=global-statement
 
-    error_msg, client = get_service_account_client()
+    # get client
+    error_msg, client = get_service_account_client(force=force)
     if error_msg is not None:
         return error_msg, None
 
@@ -182,9 +207,25 @@ def get_tms_spreadsheet(spreadsheet_id=None):
         from_db = True
 
     # check cached spreadsheet
-    if GLOBAL_TMS_SPREADSHEET is not None:
+    if not force and GLOBAL_TMS_SPREADSHEET is not None:
         if GLOBAL_TMS_SPREADSHEET.id == spreadsheet_id:
-            return None, GLOBAL_TMS_SPREADSHEET
+            # check that connection is still valid
+            try:
+                _ = GLOBAL_TMS_SPREADSHEET.sheet1
+                return None, GLOBAL_TMS_SPREADSHEET
+            except google.auth.exceptions.TransportError as ex:
+                # error is: (
+                #     "Connection aborted.",
+                #     RemoteDisconnected(
+                #         "Remote end closed connection without response"
+                #     ),
+                # )
+                print("!", "Spreadsheet connection aborted:", ex)
+            # refetch the client and spreadsheet
+            print("!", "Refetching...")
+            return get_tms_spreadsheet(
+                spreadsheet_id=spreadsheet_id, force=True
+            )
 
     # get spreadsheet
     try:
