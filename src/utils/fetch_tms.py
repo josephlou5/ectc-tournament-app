@@ -66,6 +66,17 @@ SCHOOL_TEAM_CODE_PATTERN = re.compile(
 # same order as the communications view (2023-03-19)
 MATCH_NUMBER_HUNDREDS_ORDER = [9, 7, 8, 1, 5, 2, 6, 4, 3]
 
+# The Bootstrap accent colors of each possible status.
+MATCH_STATUS_TABLE_ACCENTS = {
+    # "In Holding": "warning",
+    # "In Staging": "success",
+    # "On Route To Ring": "info",
+    # "Checked in at Ring": "info",
+    # "Competing": "info",
+    "Done": "primary",
+    "Canceled": "danger",  # in TMS, looks more like secondary
+}
+
 # =============================================================================
 
 

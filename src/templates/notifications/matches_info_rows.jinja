@@ -62,7 +62,9 @@
 {% endmacro %}
 
 {% macro _match_status_col(status) %}
-<td class="table-sm-col {{ 'table-danger' if status == 'Canceled' }}">
+{% set accent = status_accents.get(status, none) %}
+{% set accent_class = "" if accent is none else ("table-" ~ accent) %}
+<td class="table-sm-col {{ accent_class }}">
   {{ _sheet_raw_value(status) }}
 </td>
 {% endmacro %}

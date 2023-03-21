@@ -485,7 +485,9 @@ def fetch_matches_info():
         matches_rows_html = None
     else:
         matches_rows_html = render_template(
-            "notifications/matches_info_rows.jinja", matches=matches
+            "notifications/matches_info_rows.jinja",
+            matches=matches,
+            status_accents=fetch_tms.MATCH_STATUS_TABLE_ACCENTS,
         )
     return {
         "success": True,
@@ -531,7 +533,7 @@ def view_matches_status():
         key=lambda pair: fetch_tms.match_number_sort_key(pair[0]),
     ):
         match_number_hundred = match_number // 100
-        hundred_str = f"{match_number_hundred}xx"
+        hundred_str = f"{match_number_hundred}00"
         if last_hundred is None or match_number_hundred != last_hundred:
             last_hundred = match_number_hundred
             hundreds.append(hundred_str)
@@ -542,4 +544,5 @@ def view_matches_status():
         "/notifications/matches_status.jinja",
         hundreds=hundreds,
         statuses=ordered_statuses,
+        status_accents=fetch_tms.MATCH_STATUS_TABLE_ACCENTS,
     )

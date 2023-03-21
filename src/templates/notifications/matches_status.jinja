@@ -14,7 +14,8 @@ Matches Status
 {% set match_status_row_class = "status-row" %}
 
 {% macro _match_status_col(status, last_updated) %}
-<td class="{{ 'table-danger' if status == 'Canceled' }}">
+{% set accent = status_accents.get(status, none) %}
+<td {% if accent is not none %} class="table-{{ accent }}" {% endif %}>
   {% if status == "" %}
   <em class="text-muted">None</em>
   {% else %}
@@ -36,7 +37,12 @@ Matches Status
     <div class="col">
       <h2>Matches Status</h2>
     </div>
-    <div class="col-auto">
+    <div
+      class="col-auto"
+      data-bs-toggle="tooltip"
+      data-bs-placement="left"
+      title="Note: This button will not fetch from the TMS spreadsheet, so statuses may still be outdated."
+    >
       {# just refresh the page #}
       <button
         type="button"
