@@ -38,6 +38,10 @@ def notifications():
     return _render(
         "notifications/index.jinja",
         roster_worksheet_name=fetch_tms.ROSTER_WORKSHEET_NAME,
+        possible_roles=[role.title() for role in fetch_tms.POSSIBLE_ROLES],
+        possible_weights=[
+            weight.title() for weight in fetch_tms.POSSIBLE_WEIGHT_CLASSES
+        ],
         roster_last_fetched_time=roster_last_fetched_time,
         has_fetch_logs=has_fetch_logs,
         matches_worksheet_name=fetch_tms.MATCHES_WORKSHEET_NAME,

@@ -1,9 +1,11 @@
-{% macro _bs_close_btn(classes="") %}
+{% macro bs_close_btn(classes="", dismiss=none) %}
 <button
   type="button"
   class="btn-close {{ classes }}"
   aria-label="Close"
-  {{ caller() }}
+  {% if dismiss is not none %}
+  data-bs-dismiss="{{ dismiss }}"
+  {% endif %}
 ></button>
 {% endmacro %}
 
@@ -18,9 +20,7 @@
     {{ caller() }}
   </span>
   {% if dismissible %}
-  {% call _bs_close_btn(classes="ms-2" if small else "") %}
-  data-bs-dismiss="alert"
-  {% endcall %}
+  {{ bs_close_btn(classes="ms-2" if small else "", dismiss="alert") }}
   {% endif %}
 </{{ tag }}>
 {% endmacro %}
@@ -126,9 +126,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 id="exampleModalLabel" class="modal-title">{{ title }}?</h5>
-        {% call _bs_close_btn(classes="ms-2" if small else "") %}
-        data-bs-dismiss="modal"
-        {% endcall %}
+        {{ bs_close_btn(classes="ms-2" if small else "", dismiss="modal") }}
       </div>
       <div class="modal-body">
         Are you sure you want to {{ action }}?

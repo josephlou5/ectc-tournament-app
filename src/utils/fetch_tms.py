@@ -17,14 +17,15 @@ import db
 ROSTER_WORKSHEET_NAME = "FULL ROSTER"
 
 # Note: If any of these values are changed, they must also be changed in
-# `validate_roster()`.
-REQUIRED_COLUMNS = [
+# `validate_roster()` and the help section on the
+# `templates/notifications/index.jinja` page.
+ROSTER_REQUIRED_HEADERS = [
     "name",
     "email",
     "role",
     "school",
 ]
-OPTIONAL_COLUMNS = [
+ROSTER_OPTIONAL_HEADERS = [
     "team code",
     "fighting weight class",
 ]
@@ -50,7 +51,7 @@ MATCHES_WORKSHEET_NAME = "Communications"
 
 # Note: If any of these values are changed, they must also be changed in
 # `fetch_match_teams()`.
-HEADER_COLUMNS = [
+MATCHES_HEADERS = [
     "match #",
     "division",
     "round",
@@ -355,7 +356,7 @@ def fetch_roster():
             header_col_index[header_normalized] = i
     non_unique = []
     missing = []
-    for header in REQUIRED_COLUMNS + OPTIONAL_COLUMNS:
+    for header in ROSTER_REQUIRED_HEADERS + ROSTER_OPTIONAL_HEADERS:
         if header in repeated:
             non_unique.append(f'"{header}"')
         elif header not in header_col_index:
@@ -376,13 +377,13 @@ def fetch_roster():
     def yield_row_values():
         for i, row in enumerate(rows):
             row_values = {"row_num": i + 2, "missing_required": []}
-            for header in REQUIRED_COLUMNS:
+            for header in ROSTER_REQUIRED_HEADERS:
                 value = row[header_col_index[header]].strip()
                 if value == "":
                     row_values["missing_required"].append(f'"{header}"')
                 else:
                     row_values[header] = value
-            for header in OPTIONAL_COLUMNS:
+            for header in ROSTER_OPTIONAL_HEADERS:
                 value = row[header_col_index[header]].strip()
                 if value == "":
                     value = None
@@ -560,7 +561,7 @@ def process_roster(row_generator):
             _log_info(f"Added {role.lower()}: {name_email} ({school})")
             # shouldn't have any team data
             has_data = []
-            for key in OPTIONAL_COLUMNS:
+            for key in ROSTER_OPTIONAL_HEADERS:
                 if row_data[key] is not None:
                     has_data.append(key)
             if len(has_data) > 0:
@@ -804,7 +805,7 @@ def fetch_match_teams(match_numbers):
         filtered_indices = {}
         invalid_row = False
         has_repeated = set()
-        for header in HEADER_COLUMNS:
+        for header in MATCHES_HEADERS:
             if header not in row_indices:
                 invalid_row = True
                 break
@@ -823,7 +824,7 @@ def fetch_match_teams(match_numbers):
         # could not find the header row
         if len(possible_header_rows) == 0:
             required_headers = ", ".join(
-                f'"{header}"' for header in HEADER_COLUMNS
+                f'"{header}"' for header in MATCHES_HEADERS
             )
             return _fetch_error(
                 "No rows were found with all required headers: "
@@ -849,7 +850,7 @@ def fetch_match_teams(match_numbers):
             match_status,
             blue_team_name,
             red_team_name,
-        ) = (row[header_indices[header]].strip() for header in HEADER_COLUMNS)
+        ) = (row[header_indices[header]].strip() for header in MATCHES_HEADERS)
 
         if not match_number.isdigit():
             continue

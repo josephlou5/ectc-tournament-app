@@ -4,6 +4,7 @@
 Notifications
 {% endblock %}
 
+{% set fetch_roster_help_id = "fetch-roster-help" %}
 {% set fetch_roster_btn_id = "fetch-roster-btn" %}
 {% set fetch_roster_dummy_input_id = "fetch-roster-dummy-input" %}
 {% set fetch_roster_messages_id = "fetch-roster-messages" %}
@@ -38,9 +39,13 @@ Notifications
       <div class="mb-2">
         The roster in the TMS spreadsheet will be fetched whenever the "Fetch
         Roster" button is pressed. There should be a worksheet called
-        <code>{{ roster_worksheet_name }}</code> with the full teams roster.
-        (Note: the header columns are case insensitive and must be unique.)
-        {# TODO: add a help page with the full requirements of the worksheet #}
+        <code>{{ roster_worksheet_name }}</code> with the full teams roster. For
+        full requirements, see help
+        <a
+          href="#{{ fetch_roster_help_id }}"
+          data-bs-toggle="offcanvas"
+          aria-controls="{{ fetch_roster_help_id }}"
+        >here</a>.
       </div>
       {% if roster_last_fetched_time is not none %}
       {# assume there is a roster #}
@@ -115,6 +120,121 @@ Notifications
             {% endif %}
           </div>
         </div>
+      </div>
+    </div>
+    <div
+      id="{{ fetch_roster_help_id }}"
+      class="offcanvas offcanvas-end"
+      tabindex="-1"
+      aria-labelledby="{{ fetch_roster_help_id }}-title"
+      data-bs-scroll="true"
+    >
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="{{ fetch_roster_help_id }}-title">
+          Fetch Roster Help
+        </h5>
+        {{ macros.bs_close_btn(dismiss="offcanvas") }}
+      </div>
+      <div class="offcanvas-body">
+        <p>
+          In the given TMS spreadsheet in the
+          <a href="{{ url_for('admin_settings') }}">Admin Settings</a> page,
+          there should be a worksheet called
+          <code>{{ roster_worksheet_name }}</code> with the full teams roster.
+        </p>
+        <p>
+          The first row should be the header row with the following headers:
+        </p>
+        <div>
+          <table class="table table-bordered">
+            <tr>
+              <th scope="row">Name</th>
+              <td>The name.</td>
+            </tr>
+            <tr>
+              <th scope="row">Email</th>
+              <td>The email. Must be unique.</td>
+            </tr>
+            <tr>
+              <th scope="row">Role</th>
+              <td>
+                The possible roles are:
+                <ul>
+                  {% for role in possible_roles %}
+                  <li><code>{{ role }}</code></li>
+                  {% endfor %}
+                </ul>
+                These values are case insensitive.
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">School</th>
+              <td>The school.</td>
+            </tr>
+            <tr>
+              <th scope="row">Team Code</th>
+              <td>
+                The team code (e.g., <code>PA1</code>, <code>Women's B2</code>,
+                etc).
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Fighting Weight Class</th>
+              <td>
+                The possible weights are:
+                <ul>
+                  {% for weight in possible_weights %}
+                  <li><code>{{ weight }}</code></li>
+                  {% endfor %}
+                </ul>
+                These values are case insensitive.
+              </td>
+            </tr>
+          </table>
+        </div>
+        <p>
+          The headers themselves are case insensitive and must be unique in the
+          headers row. This means you cannot have a column called
+          <code>Name</code> and another column called <code>NAME</code>, as
+          these two would be considered the same, and it would be ambiguous
+          which column should be used. However, any values not in this list will
+          be skipped, so all the other values in the headers row do not matter.
+        </p>
+        <p>
+          The name, email, role, and school columns are required for each row.
+        </p>
+        <p>
+          Coaches and spectators (technically not required) should be specified
+          with values in the required columns. Since they aren't on any teams,
+          the <code>Team Code</code> and <code>Fighting Weight Class</code>
+          values will be ignored for those rows.
+        </p>
+        <p>
+          Athlete rows represent the athlete's role on a single team, so the
+          same athlete may have multiple rows if they are on multiple teams
+          (on poomsae and sparring teams or as an alternate on another team).
+          The <code>Team Code</code> value is required for athletes. Sparring
+          teams require a <code>Fighting Weight Class</code> value (could be
+          <code>Alternate</code>), and poomsae teams should not have a
+          <code>Fighting Weight Class</code> value (unless it is
+          <code>Alternate</code>).
+        </p>
+        <p>
+          When the "Fetch Roster" button is clicked, the
+          <code>{{ roster_worksheet_name }}</code> worksheet will be fetched as
+          specified. After a successful fetch, logs will be generated. It could
+          be helpful to check the logs for any potential warnings or errors. For
+          example, a team may have only alternates and no main team members, or
+          a school may have only coaches and spectators and no athletes or
+          teams. Invalid teams will not be saved.
+        </p>
+        <p>
+          Whenever the "Fetch Roster" button is clicked, the existing saved
+          roster will be wiped, and the data from the TMS spreadsheet will
+          replace it. This means that roster changes will be reflected (deleted
+          rows will be removed, unchanged rows will remain, and new rows will
+          be added).
+        </p>
       </div>
     </div>
   </div>

@@ -47,7 +47,7 @@ code {
 }
 
 /* Use Bootstrap's SM breakpoint */
-@media (min-width: 575.98px) {
+@media (min-width: 576px) {
   /* When greater than small breakpoint, use fixed width. Otherwise, change with
      screen size.
    */
@@ -57,5 +57,18 @@ code {
        size). It will require adjusting if anything in that row changes.
      */
     width: 457px;
+  }
+}
+
+@media (max-width: 699.98px) {
+  /* Less than 700px. */
+  #fetch-roster-help {
+    width: 100%;
+  }
+}
+@media (min-width: 700px) {
+  /* More than 700px. */
+  #fetch-roster-help {
+    min-width: 700px;
   }
 }
