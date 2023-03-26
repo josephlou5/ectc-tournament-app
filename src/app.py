@@ -37,7 +37,7 @@ db.init_app(app)
 @app.context_processor
 def inject_template_variables():
     variables = {
-        "APP_NAME": "ECTC Notification App",
+        "APP_NAME": "Notifications App",
         "get_flashed_by_categories": flask_utils.get_flashed_by_categories,
     }
     user_is_logged_in = is_logged_in()
