@@ -121,16 +121,22 @@ class User(db.Model):
     __tablename__ = "Users"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(), nullable=False)
+    first_name = Column(String(), nullable=False)
+    last_name = Column(String(), nullable=False)
     email = Column(String(), unique=True, nullable=False)
     role = Column(String(), nullable=False)
     school_id = Column(Integer, ForeignKey(School.id), nullable=False)
 
-    def __init__(self, name, email, role, school_id):
-        self.name = name
+    def __init__(self, first_name, last_name, email, role, school_id):
+        self.first_name = first_name
+        self.last_name = last_name
         self.email = email
         self.role = role
         self.school_id = school_id
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
 
 
 class Team(db.Model):

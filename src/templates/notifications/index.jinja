@@ -148,8 +148,12 @@ Notifications
         <div>
           <table class="table table-bordered">
             <tr>
-              <th scope="row">Name</th>
-              <td>The name.</td>
+              <th scope="row">First Name</th>
+              <td>The first name.</td>
+            </tr>
+            <tr>
+              <th scope="row">Last Name</th>
+              <td>The last name.</td>
             </tr>
             <tr>
               <th scope="row">Email</th>
@@ -195,13 +199,14 @@ Notifications
         <p>
           The headers themselves are case insensitive and must be unique in the
           headers row. This means you cannot have a column called
-          <code>Name</code> and another column called <code>NAME</code>, as
+          <code>Email</code> and another column called <code>EMAIL</code>, as
           these two would be considered the same, and it would be ambiguous
           which column should be used. However, any values not in this list will
           be skipped, so all the other values in the headers row do not matter.
         </p>
         <p>
-          The name, email, role, and school columns are required for each row.
+          The email, role, and school columns are required for each row, and at
+          least one of the name columns are required for each row.
         </p>
         <p>
           Coaches and spectators (technically not required) should be specified

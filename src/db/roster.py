@@ -134,7 +134,8 @@ def set_roster(roster):
         for user_info in get_from_roster("users"):
             school_id = school_ids[user_info["school"]]
             user = User(
-                user_info["name"],
+                user_info["first_name"],
+                user_info["last_name"],
                 user_info["email"],
                 user_info["role"],
                 school_id,

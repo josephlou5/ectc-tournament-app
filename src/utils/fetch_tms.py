@@ -20,7 +20,8 @@ ROSTER_WORKSHEET_NAME = "FULL ROSTER"
 # `validate_roster()` and the help section on the
 # `templates/notifications/index.jinja` page.
 ROSTER_REQUIRED_HEADERS = [
-    "name",
+    "first name",
+    "last name",
     "email",
     "role",
     "school",
@@ -377,12 +378,19 @@ def fetch_roster():
     def yield_row_values():
         for i, row in enumerate(rows):
             row_values = {"row_num": i + 2, "missing_required": []}
+            # allow the first or last name to be empty individually, but
+            # at least one must be given
+            NAME_HEADERS = ("first name", "last name")
             for header in ROSTER_REQUIRED_HEADERS:
                 value = row[header_col_index[header]].strip()
-                if value == "":
+                if value == "" and header not in NAME_HEADERS:
                     row_values["missing_required"].append(f'"{header}"')
-                else:
-                    row_values[header] = value
+                    continue
+                row_values[header] = value
+            if all(row_values[header] == "" for header in NAME_HEADERS):
+                for header in NAME_HEADERS:
+                    row_values.pop(header)
+                    row_values["missing_required"].append(f'"{header}"')
             for header in ROSTER_OPTIONAL_HEADERS:
                 value = row[header_col_index[header]].strip()
                 if value == "":
@@ -457,9 +465,11 @@ def process_roster(row_generator):
         }
         return True
 
-    def _add_user(email, name, role, school):
+    def _add_user(email, first_name, last_name, full_name, role, school):
         users[email] = {
-            "name": name,
+            "first_name": first_name,
+            "last_name": last_name,
+            "full_name": full_name,
             "email": email,
             "role": role,
             "school": school,
@@ -516,12 +526,14 @@ def process_roster(row_generator):
             _log_error(f"Missing required values: {missing_str}")
             continue
 
-        name = row_data["name"]
+        first_name = row_data["first name"]
+        last_name = row_data["last name"]
         email = row_data["email"]
         role = row_data["role"].upper()
         school = row_data["school"]
 
-        name_email = f"{name} <{email}>"
+        full_name = f"{first_name} {last_name}".strip()
+        name_email = f"{full_name} <{email}>"
 
         if role not in POSSIBLE_ROLES:
             _log_error(f'Invalid role "{role}" (skipped)')
@@ -532,8 +544,8 @@ def process_roster(row_generator):
             # validate that the user is the same
             seen_before = users[email]
             different = []
-            if name != seen_before["name"]:
-                different.append(f"name {name!r}")
+            if full_name != seen_before["full_name"]:
+                different.append(f"name {full_name!r}")
             if role != seen_before["role"]:
                 different.append(f'role "{role}"')
             if school != seen_before["school"]:
@@ -557,7 +569,7 @@ def process_roster(row_generator):
         if not is_athlete:
             if _add_school(school):
                 _log_info(f"Added school: {school}")
-            _add_user(email, name, role, school)
+            _add_user(email, first_name, last_name, full_name, role, school)
             _log_info(f"Added {role.lower()}: {name_email} ({school})")
             # shouldn't have any team data
             has_data = []
@@ -628,7 +640,7 @@ def process_roster(row_generator):
         if _add_school(school):
             _log_info(f"Added school: {school}")
         if email not in users:
-            _add_user(email, name, role, school)
+            _add_user(email, first_name, last_name, full_name, role, school)
             _log_info(f"Added athlete: {name_email} ({school})")
         if created_team:
             schools[school]["teams"] += 1
