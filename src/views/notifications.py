@@ -13,6 +13,7 @@ from flask import flash, render_template, request
 import db
 import utils
 from utils import fetch_tms
+from utils.auth import login_required, set_redirect_page
 from utils.server import AppRoutes, _render, print_records, unsuccessful
 
 # =============================================================================
@@ -31,6 +32,7 @@ def get_roster_last_fetched_time_str():
 
 
 @app.route("/notifications", methods=["GET"])
+@login_required(admin=True)
 def notifications():
     roster_last_fetched_time = get_roster_last_fetched_time_str()
     has_fetch_logs = FETCH_ROSTER_LOGS_FILE.exists()
@@ -50,6 +52,7 @@ def notifications():
 
 
 @app.route("/notifications/fetch_roster", methods=["POST", "DELETE"])
+@login_required(admin=True, save_redirect=False)
 def fetch_roster():
     if request.method == "DELETE":
         print(" ", "Clearing full roster")
@@ -140,6 +143,7 @@ def fetch_roster():
 
 
 @app.route("/notifications/fetch_roster/logs", methods=["GET"])
+@login_required(admin=True)
 def fetch_roster_logs():
     time_fetched = None
     logs = None
@@ -161,6 +165,7 @@ def fetch_roster_logs():
 
 
 @app.route("/notifications/full_roster", methods=["GET"])
+@login_required(admin=True)
 def view_full_roster():
     full_roster = db.roster.get_full_roster()
 
@@ -191,6 +196,7 @@ def view_full_roster():
 
 
 @app.route("/notifications/full_roster/raw", methods=["GET"])
+@login_required(admin=True)
 def view_full_roster_raw():
     return db.roster.get_full_roster(as_json=True)
 
@@ -332,6 +338,7 @@ def _clean_matches_query(match_numbers):
 
 
 @app.route("/notifications/matches_info", methods=["GET"])
+@login_required(admin=True, save_redirect=False)
 def fetch_matches_info():
     """Fetches the info for the given matches query from the "matches"
     query arg.
@@ -502,6 +509,7 @@ def fetch_matches_info():
 
 
 @app.route("/notifications/matches_info/query", methods=["GET"])
+@login_required(admin=True, save_redirect=False)
 def get_matches_query():
     """Gets the clean matches query for the given matches."""
 
@@ -526,6 +534,8 @@ def get_matches_query():
 
 @app.route("/notifications/matches_status", methods=["GET"])
 def view_matches_status():
+    set_redirect_page()
+
     matches_statuses = db.match_status.get_matches_status()
 
     # sort by match number

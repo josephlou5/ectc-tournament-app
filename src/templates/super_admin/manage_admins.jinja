@@ -1,0 +1,237 @@
+{% extends "shared/layout.jinja" %}
+
+{% block title %}
+Manage Admins
+{% endblock %}
+
+{% set manage_admins_messages_id = "manage-admins-messages" %}
+{% set add_admin_input_id = "add-admin-input" %}
+{% set add_admin_btn_id = "add-admin-btn" %}
+{% set delete_admin_class = "delete-admin-btn" %}
+
+{% set flashed = get_flashed_by_categories(subcategories=true) %}
+
+{% block body %}
+<div id="manage-admins-body" class="container-fluid">
+  <div class="row mb-2">
+    <div class="col">
+      <h2>Manage Admins</h2>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <div class="row mb-2">
+        <div class="col">
+          <h4>Super Admins</h4>
+          <div>
+            Super Admins are the only ones with access to this page, where you
+            can add or remove admin email addresses. You cannot edit Super
+            Admins anywhere on the frontend; you will have to access the
+            database manually and add a row with <code>is_super_admin</code> set
+            to <code>true</code>.
+          </div>
+        </div>
+      </div>
+      <div class="row mb-2">
+        <div class="col">
+          {# the person viewing this must be a super admin, so there is
+             definitely at least one
+           #}
+          <table class="table table-hover table-striped">
+            <thead>
+              <tr>
+                <th class="table-sm-col"></th>
+                <th>Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for email in super_admins %}
+              <tr
+                {% if email == logged_in_email %}
+                class="table-active"
+                {% endif %}
+              >
+                <th class="table-sm-col">{{ loop.index }}</th>
+                <td>{{ email|e }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <div class="row mb-2">
+        <div class="col">
+          <h4>Admins</h4>
+          <div>
+            Those with an Admin role will be able to access the
+            <a href="{{ url_for('admin_settings') }}">Admin Settings</a> and
+            <a href="{{ url_for('notifications') }}">Notifications</a> pages.
+            They will be able to change any of the global admin settings, fetch
+            or clear the roster, and send match notifications.
+          </div>
+        </div>
+      </div>
+      <div class="row mb-2">
+        <div id="{{ manage_admins_messages_id }}" class="col">
+          {% for accent, messages in flashed["manage-admins"].items() %}
+          {% for message in messages %}
+          {% call macros.bs_alert(accent) %}
+          {{ message|e }}
+          {% endcall %}
+          {% endfor %}
+          {% endfor %}
+        </div>
+      </div>
+      <div class="row mb-2">
+        <label
+          for="{{ add_admin_input_id }}"
+          class="col-auto col-form-label pe-0"
+        >
+          Add Admin
+        </label>
+        <div class="col-4 pe-0">
+          <input
+            type="text"
+            id="{{ add_admin_input_id }}"
+            class="form-control"
+            placeholder="Admin email"
+          />
+          <div
+            id="{{ add_admin_input_id }}-invalid"
+            class="invalid-feedback"
+          ></div>
+        </div>
+        <div class="col-auto">
+          {{ macros.loading_btn(
+               add_admin_btn_id, "success", "Add", "Adding..."
+             )
+          }}
+        </div>
+      </div>
+      {% if admins|length > 0 %}
+      <div class="row mb-2">
+        <div class="col">
+          <table class="table table-hover table-striped">
+            <thead>
+              <tr>
+                <th class="table-sm-col"></th>
+                <th>Email</th>
+                <th class="table-sm-col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for email in admins %}
+              <tr>
+                <th class="table-sm-col">{{ loop.index }}</th>
+                <td>{{ email|e }}</td>
+                <td class="table-sm-col">
+                  {% call macros.loading_btn(
+                       ("delete-admin-btn-" ~ loop.index0),
+                       "danger",
+                       "Delete",
+                       "Deleting...",
+                       classes=("btn-sm " ~ delete_admin_class),
+                     )
+                   %}
+                  email="{{ email|e }}"
+                  {% endcall %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+  function handleAddAdminClicked() {
+    if (isButtonLoading('{{ add_admin_btn_id }}')) {
+      // currently adding; ignore click
+      return;
+    }
+
+    // clear messages
+    $('#{{ manage_admins_messages_id }}').html('');
+    clearInvalid('{{ add_admin_input_id }}');
+
+    const adminEmail = getInputValue('{{ add_admin_input_id }}');
+    if (adminEmail === '') {
+      // Error: no email given
+      setInvalid('{{ add_admin_input_id }}', 'Please enter an email.');
+      return;
+    }
+
+    setButtonLoading('{{ add_admin_btn_id }}');
+    ajaxRequest('POST', '{{ url_for("manage_admins") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({ email: adminEmail }),
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          // reload the page
+          location.reload();
+        } else {
+          // some failure
+          stopButtonLoading('{{ add_admin_btn_id }}');
+          setInvalid(
+            '{{ add_admin_input_id }}',
+            response.reason ?? 'Unknown error: please try again'
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        stopButtonLoading('{{ add_admin_btn_id }}');
+        setInvalid('{{ add_admin_input_id }}', jqXHR.statusText);
+      },
+    });
+  }
+
+  function handleDeleteAdminClicked(buttonId) {
+    if (isButtonLoading(buttonId)) {
+      // currently deleting; ignore click
+      return;
+    }
+
+    // clear messages
+    $('#{{ manage_admins_messages_id }}').html('');
+
+    const adminEmail = getAttr(buttonId, 'email');
+    if (adminEmail === '') {
+      // no email given; assume invalid
+      return;
+    }
+
+    setButtonLoading(buttonId);
+    // just reload once the deleting is done
+    ajaxRequest('DELETE', '{{ url_for("manage_admins") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({ email: adminEmail }),
+    });
+  }
+
+  $(document).ready(() => {
+    $('#{{ add_admin_input_id }}').onEnterKeyPress((event) => {
+      handleAddAdminClicked();
+    });
+    $('#{{ add_admin_btn_id }}').click((event) => {
+      handleAddAdminClicked();
+    });
+    $('.{{ delete_admin_class }}').click((event) => {
+      // can't use `event.target` because that would be the span for the text
+      const buttonElement = event.currentTarget;
+      handleDeleteAdminClicked(buttonElement.id);
+    });
+    // clear the flashed text after 60 seconds
+    clearElementAfter('{{ manage_admins_messages_id }}', 60);
+  });
+</script>
+{% endblock %}

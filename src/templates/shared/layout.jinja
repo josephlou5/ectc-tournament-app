@@ -64,5 +64,36 @@
     </div>
   </body>
 
+  <script>
+    // Make navbar dropdowns work on hover instead of click
+    // https://webdesign.tutsplus.com/tutorials/how-to-make-the-bootstrap-navbar-dropdown-work-on-hover--cms-33840
+    $(window).on('load resize', () => {
+      const $dropdown = $('.nav-item.dropdown');
+      const $dropdownToggle = $('.nav-link.dropdown-toggle');
+      const $dropdownMenu = $('.dropdown-menu');
+      // when larger than bootstrap MD, allow hover
+      if (window.matchMedia('(min-width: 768px)').matches) {
+        // enable hover capability
+        $dropdown.hover(
+          function () {
+            const $this = $(this);
+            $this.addClass('show');
+            $this.find($dropdownToggle).attr('aria-expanded', 'true');
+            $this.find($dropdownMenu).addClass('show');
+          },
+          function () {
+            const $this = $(this);
+            $this.removeClass('show');
+            $this.find($dropdownToggle).attr('aria-expanded', 'false');
+            $this.find($dropdownMenu).removeClass('show');
+          },
+        );
+      } else {
+        // disable hover capability
+        $dropdown.off('mouseenter mouseleave');
+      }
+    });
+  </script>
+
   {% block script %}{% endblock %}
 </html>

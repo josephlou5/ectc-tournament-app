@@ -30,7 +30,9 @@ def dt_to_timezone(dt, tz=EASTERN_TZ):
         return None
     if isinstance(tz, str):
         tz = pytz.timezone(tz)
-    return UTC_TZ.localize(dt).astimezone(tz)
+    if dt.tzinfo is None:
+        dt = UTC_TZ.localize(dt)
+    return dt.astimezone(tz)
 
 
 def dt_str(dt, fmt=DATETIME_FMT):

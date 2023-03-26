@@ -4,7 +4,7 @@ Contains the global Flask app instance.
 
 # =============================================================================
 
-from flask import Flask
+from flask import Flask, redirect, request
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.exceptions import NotFound
 
@@ -12,6 +12,12 @@ import db
 import views
 from config import get_config
 from utils import flask_utils
+from utils.auth import (
+    get_email,
+    is_logged_in,
+    is_logged_in_admin,
+    is_logged_in_super_admin,
+)
 from utils.server import _render
 
 # =============================================================================
@@ -30,12 +36,28 @@ db.init_app(app)
 
 @app.context_processor
 def inject_template_variables():
-    return {
+    variables = {
         "APP_NAME": "ECTC Notification App",
-        "navbar_tabs": views.NAVBAR_TABS,
-        "navbar_tabs_right": views.NAVBAR_TABS_RIGHT,
         "get_flashed_by_categories": flask_utils.get_flashed_by_categories,
     }
+    user_is_logged_in = is_logged_in()
+    variables["user_is_logged_in"] = user_is_logged_in
+    if user_is_logged_in:
+        variables.update(
+            {
+                "logged_in_email": get_email(),
+                "user_is_admin": is_logged_in_admin(),
+                "user_is_super_admin": is_logged_in_super_admin(),
+            }
+        )
+    return variables
+
+
+@app.before_request
+def before_request():  # pylint: disable=inconsistent-return-statements
+    if not request.is_secure:
+        url = request.url.replace("http://", "https://", 1)
+        return redirect(url, code=301)
 
 
 # =============================================================================

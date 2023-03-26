@@ -8,6 +8,7 @@ from flask import flash, render_template, request
 
 import db
 from utils import fetch_tms, mailchimp_utils
+from utils.auth import login_required
 from utils.server import (
     AppRoutes,
     _render,
@@ -24,6 +25,7 @@ app = AppRoutes()
 
 
 @app.route("/admin", methods=["GET"])
+@login_required(admin=True)
 def admin_settings():
     global_state = db.global_state.get()
     service_account_email = global_state.service_account_email
@@ -41,6 +43,7 @@ def admin_settings():
 
 
 @app.route("/admin/service_account", methods=["POST", "DELETE"])
+@login_required(admin=True, save_redirect=False)
 def set_service_account():
     if request.method == "DELETE":
         print(" ", "Clearing service account info")
@@ -100,6 +103,7 @@ def set_service_account():
 
 
 @app.route("/admin/tms_spreadsheet", methods=["POST", "DELETE"])
+@login_required(admin=True, save_redirect=False)
 def set_tms_spreadsheet():
     if request.method == "DELETE":
         print(" ", "Clearing TMS spreadsheet url")
@@ -165,6 +169,7 @@ def set_tms_spreadsheet():
 
 
 @app.route("/admin/mailchimp/api_key", methods=["POST", "DELETE"])
+@login_required(admin=True, save_redirect=False)
 def set_mailchimp_api_key():
     if request.method == "DELETE":
         print(" ", "Clearing Mailchimp API key")
@@ -209,6 +214,7 @@ def set_mailchimp_api_key():
 
 
 @app.route("/admin/mailchimp/audiences", methods=["GET"])
+@login_required(admin=True, save_redirect=False)
 def get_mailchimp_audiences():
     if not db.global_state.has_mailchimp_api_key():
         return unsuccessful("No Mailchimp API key")
@@ -268,6 +274,7 @@ def get_mailchimp_audiences():
 
 
 @app.route("/admin/mailchimp/audiences/current", methods=["POST"])
+@login_required(admin=True, save_redirect=False)
 def set_mailchimp_audience():
     error_msg, request_args = get_request_json("audienceId")
     if error_msg is not None:

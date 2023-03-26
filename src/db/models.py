@@ -8,6 +8,7 @@ import json
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -76,6 +77,22 @@ class GlobalState(db.Model):
         if service_account_info is None:
             return None
         return service_account_info["client_email"]
+
+
+# =============================================================================
+
+
+class Admin(db.Model):
+    """Model for an admin."""
+
+    __tablename__ = "Admins"
+
+    email = Column(String(), primary_key=True)
+    is_super_admin = Column(Boolean(), nullable=False, default=False)
+
+    def __init__(self, email, is_super_admin=False):
+        self.email = email
+        self.is_super_admin = is_super_admin
 
 
 # =============================================================================
