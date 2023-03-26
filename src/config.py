@@ -6,6 +6,13 @@ Defines configuration objects for the Flask server.
 
 import os
 
+try:
+    # import values for development
+    from keys import DEV_POSTGRES_PASSWORD, DEV_SECRET_KEY
+except ImportError:
+    DEV_POSTGRES_PASSWORD = None
+    DEV_SECRET_KEY = None
+
 # =============================================================================
 
 __all__ = ("get_config",)
@@ -43,9 +50,7 @@ class DevConfig(Config):
     DEBUG = True
     DEVELOPMENT = True
 
-    # pylint: disable=import-outside-toplevel
-    from keys import DEV_POSTGRES_PASSWORD
-    from keys import DEV_SECRET_KEY as SECRET_KEY
+    SECRET_KEY = DEV_SECRET_KEY
 
     SQLALCHEMY_DATABASE_URI = (
         "postgresql://{username}:{password}@{server}:{port}/{db_name}".format(
