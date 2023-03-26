@@ -56,8 +56,8 @@ MATCHES_HEADERS = [
     "division",
     "round",
     "match status",
-    "blue team",
-    "red team",
+    "clean blue team",
+    "clean red team",
 ]
 
 SCHOOL_TEAM_CODE_PATTERN = re.compile(
@@ -727,16 +727,11 @@ def split_school_team_code(school_team_code):
 
 
 def _extract_school_team_code(team_name):
-    stripped_team_name = team_name
-    for search_text in ("(LMH)", "(LM)", "(LH)", "(MH)", "(L)", "(M)", "(H)"):
-        if team_name.endswith(search_text):
-            stripped_team_name = team_name[: -len(search_text)].rstrip()
-            break
-    school, code = split_school_team_code(stripped_team_name)
+    school, code = split_school_team_code(team_name)
     if school is None or code is None:
         return {"name": team_name, "valid": False}
     return {
-        "name": stripped_team_name,
+        "name": team_name,
         "valid": True,
         "school_code": (school, code),
     }
