@@ -1,7 +1,13 @@
-# ECTC Tournament App
+# ECTC Notifications App
 
 This is an app for the ECTC that aims to improve communication between the
-league and its participants (i.e., competitors and coaches).
+league and its participants (i.e., competitors and coaches) during tournaments.
+
+## Deployment
+
+This project is deployed live at https://ectc-notifications.onrender.com/. Due
+to the free tier for the PostgreSQL database on Render, the deployment will be
+suspended on June 23, 2023.
 
 ## Project Info
 
