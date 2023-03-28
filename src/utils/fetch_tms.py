@@ -9,6 +9,7 @@ from functools import partial
 
 import google.auth.exceptions
 import gspread
+import requests.exceptions
 
 import db
 
@@ -153,12 +154,15 @@ def get_service_account_client(
             try:
                 _ = GLOBAL_SERVICE_ACCOUNT.list_spreadsheet_files()
                 return None, GLOBAL_SERVICE_ACCOUNT
-            except google.auth.exceptions.TransportError as ex:
+            except (
+                google.auth.exceptions.TransportError,
+                requests.exceptions.ConnectionError,
+            ) as ex:
                 # error is: (
-                #     "Connection aborted.",
-                #     RemoteDisconnected(
-                #         "Remote end closed connection without response"
-                #     ),
+                #   "Connection aborted.",
+                #   RemoteDisconnected(
+                #     "Remote end closed connection without response"
+                #   ),
                 # )
                 print("!", "Client connection aborted:", ex)
             # refetch the client
@@ -230,12 +234,15 @@ def get_tms_spreadsheet(spreadsheet_id=None, force=False):
             try:
                 _ = GLOBAL_TMS_SPREADSHEET.sheet1
                 return None, GLOBAL_TMS_SPREADSHEET
-            except google.auth.exceptions.TransportError as ex:
+            except (
+                google.auth.exceptions.TransportError,
+                requests.exceptions.ConnectionError,
+            ) as ex:
                 # error is: (
-                #     "Connection aborted.",
-                #     RemoteDisconnected(
-                #         "Remote end closed connection without response"
-                #     ),
+                #   "Connection aborted.",
+                #   RemoteDisconnected(
+                #     "Remote end closed connection without response"
+                #   ),
                 # )
                 print("!", "Spreadsheet connection aborted:", ex)
             # refetch the client and spreadsheet
