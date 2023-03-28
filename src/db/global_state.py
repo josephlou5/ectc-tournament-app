@@ -32,6 +32,29 @@ def _set_global(global_state=None, **kwargs):
     return _set(global_state, **kwargs)
 
 
+def has_all_admin_settings():
+    """Returns whether all the admin settings are currently set.
+
+    Returns:
+        Optional[str]: An error message if any of the admin settings are
+            missing.
+    """
+    global_state = get()
+    missing = []
+    if global_state.service_account is None:
+        missing.append("service account")
+    if global_state.tms_spreadsheet_id is None:
+        missing.append("TMS spreadsheet url")
+    if global_state.mailchimp_api_key is None:
+        missing.append("Mailchimp API key")
+    if global_state.mailchimp_audience_id is None:
+        missing.append("Mailchimp audience")
+    if len(missing) == 0:
+        return None
+    missing_str = ", ".join(missing)
+    return f"Missing: {missing_str}"
+
+
 def get_service_account_info():
     """Returns the global service account info as a dict, or None if
     there is no current service account.

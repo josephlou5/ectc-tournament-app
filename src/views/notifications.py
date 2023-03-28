@@ -34,11 +34,15 @@ def get_roster_last_fetched_time_str():
 @app.route("/notifications", methods=["GET"])
 @login_required(admin=True)
 def notifications():
+    # make sure the notifications page is ready to use
+    has_all_admin_settings_error = db.global_state.has_all_admin_settings()
+
     roster_last_fetched_time = get_roster_last_fetched_time_str()
     has_fetch_logs = FETCH_ROSTER_LOGS_FILE.exists()
     last_matches_query = db.global_state.get_last_matches_query()
     return _render(
         "notifications/index.jinja",
+        has_all_admin_settings_error=has_all_admin_settings_error,
         roster_worksheet_name=fetch_tms.ROSTER_WORKSHEET_NAME,
         possible_roles=[role.title() for role in fetch_tms.POSSIBLE_ROLES],
         possible_weights=[

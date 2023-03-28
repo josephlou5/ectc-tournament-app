@@ -33,6 +33,21 @@ Notifications
 {% block body %}
 <div id="notifications-body" class="container-fluid">
   <h2>Notifications</h2>
+  {% if has_all_admin_settings_error is not none %}
+  <div class="row mb-2">
+    <div class="col">
+      {% call macros.bs_alert("danger", dismissible=false) %}
+      <div><strong>Error: Admin settings are not all set</strong></div>
+      <div>{{ has_all_admin_settings_error|e }}</div>
+      <div>
+        Please visit the
+        <a href="{{ url_for('admin_settings') }}">Admin Settings</a> page to
+        resolve the error.
+      </div>
+      {% endcall %}
+    </div>
+  </div>
+  {% endif %}
   <div id="teams-roster-section" class="row mb-2">
     <div class="col">
       <h4>Teams Roster</h4>
@@ -682,6 +697,10 @@ Notifications
   }
 
   $(document).ready(() => {
+    {% if has_all_admin_settings_error is not none %}
+    // There is an error; disable all inputs
+    $('input,button').prop('disabled', true);
+    {% else %}
     // Fetch roster
     $('#{{ fetch_roster_btn_id }}').click((event) => {
       handleFetchRosterClicked();
