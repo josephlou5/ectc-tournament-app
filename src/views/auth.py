@@ -55,8 +55,6 @@ def log_in():
         scope=["openid", "email"],
     )
 
-    print("request uri:", request_uri)
-
     # redirect to login page
     return redirect(request_uri)
 
@@ -94,6 +92,13 @@ def login_callback():
     user_info = requests.get(
         user_info_uri, headers=headers, data=body, timeout=REQUEST_TIMEOUT
     ).json()
+
+    # user_info: {
+    #   "sub": unique identifier from Google,
+    #   "picture": profile picture url,
+    #   "email": email,
+    #   "email_verified": True or False,
+    # }
 
     if not user_info.get("email_verified", False):
         return "User email not available or not verified by Google.", 400
