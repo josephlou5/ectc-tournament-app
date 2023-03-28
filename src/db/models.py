@@ -54,6 +54,8 @@ class GlobalState(db.Model):
     mailchimp_api_key = Column(String(), nullable=True)
     # The id of the currently selected Mailchimp audience
     mailchimp_audience_id = Column(String(), nullable=True)
+    # A Mailchimp audience tag
+    mailchimp_audience_tag = Column(String(), nullable=True)
 
     @property
     def service_account_info(self):

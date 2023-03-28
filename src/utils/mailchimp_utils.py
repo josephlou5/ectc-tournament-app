@@ -70,6 +70,12 @@ def get_client(api_key=None, force=False):
     return None, client
 
 
+def clear_global_client():
+    """Clears the global Mailchimp client."""
+    global GLOBAL_CLIENT  # pylint: disable=global-statement
+    GLOBAL_CLIENT = None
+
+
 # =============================================================================
 
 # Helpers for API calls

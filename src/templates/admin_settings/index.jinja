@@ -27,6 +27,9 @@ Admin Settings
 
 {% set mc_audiences_info_section_id = "mc-audiences-info" %}
 {% set mc_fetch_audiences_id = "mc-fetch-audiences" %}
+{% set mc_audience_tag_input_id = "mc-audience-tag-input" %}
+{% set mc_set_audience_tag_btn_id = "mc-set-audience-tag-btn" %}
+{% set mc_set_audience_tag_status_id = "mc-set-audience-tag-status" %}
 
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
@@ -292,7 +295,7 @@ Admin Settings
             <a href="{{ url_for('notifications') }}">Notifications</a> page, all
             the new contacts will be added to this audience.
           </div>
-          <div class="row">
+          <div class="row mb-2">
             <div id="{{ mc_audiences_info_section_id }}" class="col-auto">
               {% if not has_mc_api_key %}
               {% call macros.bs_alert("danger", dismissible=false) %}
@@ -310,6 +313,44 @@ Admin Settings
               {% endif %}
             </div>
           </div>
+          {% if has_mc_api_key %}
+          <div class="mb-2">
+            For ease of organization, you can have all the fetched contacts from
+            the TMS spreadsheet be tagged with this optional label when they are
+            imported into Mailchimp.
+          </div>
+          <div class="row">
+            <label
+              for="{{ mc_audience_tag_input_id }}"
+              class="col-form-label col-auto pe-0"
+            >
+              Audience Tag
+            </label>
+            <div class="col-xs col-sm-8 col-md-7 col-lg-4 pe-0 mb-2">
+              <input
+                type="text"
+                id="{{ mc_audience_tag_input_id }}"
+                class="form-control"
+                value="{{ mc_audience_tag or '' }}"
+                placeholder="e.g., 2023 Princeton Tournament"
+              />
+              <div
+                id="{{ mc_audience_tag_input_id }}-invalid"
+                class="invalid-feedback"
+              ></div>
+            </div>
+            <div class="col-auto pe-0">
+              {{ macros.loading_btn(
+                   mc_set_audience_tag_btn_id, "success", "Set", "Setting..."
+                 )
+              }}
+            </div>
+            <div
+              id="{{ mc_set_audience_tag_status_id }}"
+              class="col-form-label col-auto"
+            ></div>
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -459,10 +500,7 @@ Admin Settings
 
     const apiKey = getInputValue('{{ mc_api_key_input_id }}');
     if (apiKey === '') {
-      setInvalid(
-        '{{ mc_api_key_input_id }}',
-        'Please provide your API key.'
-      );
+      setInvalid('{{ mc_api_key_input_id }}', 'Please provide your API key.');
       return;
     }
 
@@ -569,6 +607,43 @@ Admin Settings
     });
   }
 
+  function handleMailchimpSetAudienceTagClicked() {
+    if (isButtonLoading('{{ mc_set_audience_tag_btn_id }}')) {
+      // currently setting; ignore click
+      return;
+    }
+
+    // clear status
+    $('#{{ mc_set_audience_tag_status_id }}').html('');
+    clearInvalid('{{ mc_audience_tag_input_id }}');
+
+    // can be empty, which would clear it
+    const audienceTag = getInputValue('{{ mc_audience_tag_input_id }}');
+
+    setButtonLoading('{{ mc_set_audience_tag_btn_id }}');
+    ajaxRequest('POST', '{{ url_for("set_mailchimp_audience_tag") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({ 'tag': audienceTag }),
+      success: (response, status, jqXHR) => {
+        stopButtonLoading('{{ mc_set_audience_tag_btn_id }}');
+        if (response.success) {
+          // success
+          setElementTextFor('{{ mc_set_audience_tag_status_id }}', 'Success');
+        } else {
+          // some failure
+          setInvalid(
+            '{{ mc_audience_tag_input_id }}',
+            response.reason ?? 'Unknown error: please try again'
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        stopButtonLoading('{{ mc_set_audience_tag_btn_id }}');
+        setInvalid('{{ mc_audience_tag_input_id }}', jqXHR.statusText);
+      },
+    });
+  }
+
   $(document).ready(() => {
     // Service account
     $('#{{ copy_email_btn_id }}').click((event) => {
@@ -622,6 +697,13 @@ Admin Settings
     clearElementAfter('{{ mc_api_key_messages_id }}', 60);
     // Audience
     populateMailchimpAudienceDropdown();
+    // Audience tag
+    $('#{{ mc_audience_tag_input_id }}').onEnterKeyPress((event) => {
+      $('#{{ mc_set_audience_tag_btn_id }}').click();
+    });
+    $('#{{ mc_set_audience_tag_btn_id }}').click((event) => {
+      handleMailchimpSetAudienceTagClicked();
+    });
   });
 </script>
 {% endblock %}

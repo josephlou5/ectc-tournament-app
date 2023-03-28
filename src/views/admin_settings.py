@@ -34,11 +34,13 @@ def admin_settings():
     if spreadsheet_id is not None:
         tms_spreadsheet_url = fetch_tms.id_to_url(spreadsheet_id)
     has_mc_api_key = db.global_state.has_mailchimp_api_key()
+    mc_audience_tag = global_state.mailchimp_audience_tag
     return _render(
         "admin_settings/index.jinja",
         service_account_email=service_account_email,
         tms_spreadsheet_url=tms_spreadsheet_url,
         has_mc_api_key=has_mc_api_key,
+        mc_audience_tag=mc_audience_tag,
     )
 
 
@@ -173,6 +175,9 @@ def set_tms_spreadsheet():
 def set_mailchimp_api_key():
     if request.method == "DELETE":
         print(" ", "Clearing Mailchimp API key")
+        # clear the global client so that other operations (such as
+        # populating the audience) does not use the wrong API key
+        mailchimp_utils.clear_global_client()
         success = db.global_state.clear_mailchimp_api_key()
         if not success:
             error_msg = "Database error"
@@ -297,5 +302,28 @@ def set_mailchimp_audience():
     success = db.global_state.set_mailchimp_audience_id(audience_id)
     if not success:
         return unsuccessful("Database error", "Saving audience id")
+
+    return {"success": True}
+
+
+@app.route("/admin/mailchimp/tag/current", methods=["POST"])
+@login_required(admin=True, save_redirect=False)
+def set_mailchimp_audience_tag():
+    error_msg, request_args = get_request_json("tag")
+    if error_msg is not None:
+        return unsuccessful(error_msg)
+    audience_tag = request_args["tag"]
+    
+    if audience_tag == "":
+        # clear it instead of setting it
+        print(" ", "Clearing Mailchimp audience tag (received empty)")
+        success = db.global_state.clear_mailchimp_audience_tag()
+        if not success:
+            return unsuccessful("Database error", "Clearing audience tag")
+    else:
+        print(" ", "Setting Mailchimp audience tag:", audience_tag)
+        success = db.global_state.set_mailchimp_audience_tag(audience_tag)
+        if not success:
+            return unsuccessful("Database error", "Saving audience tag")
 
     return {"success": True}

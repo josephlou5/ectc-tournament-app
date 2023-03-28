@@ -197,3 +197,28 @@ def clear_mailchimp_audience_id():
         bool: Whether the operation was successful.
     """
     return set_mailchimp_audience_id(None)
+
+
+def get_mailchimp_audience_tag():
+    """Returns the Mailchimp audience tag, or None if it does not exist."""
+    global_state = get()
+    return global_state.mailchimp_audience_tag
+
+
+def set_mailchimp_audience_tag(audience_tag):
+    """Sets the Mailchimp audience tag.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    _set_global(mailchimp_audience_tag=audience_tag)
+    return True
+
+
+def clear_mailchimp_audience_tag():
+    """Clears the Mailchimp audience tag.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    return set_mailchimp_audience_tag(None)
