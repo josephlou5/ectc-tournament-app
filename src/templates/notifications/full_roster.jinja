@@ -79,6 +79,13 @@ Full Roster
     </div>
     {% endif %}
   </div>
+  {% if has_fetch_logs %}
+  <div class="row mb-2">
+    <div class="col">
+      See the fetch logs <a href="{{ url_for('fetch_roster_logs') }}">here</a>.
+    </div>
+  </div>
+  {% endif %}
   <div class="row mb-2">
     <div id="{{ fetch_roster_messages_id }}" class="col-auto">
       {% for accent, messages in flashed["fetch-roster"].items() %}

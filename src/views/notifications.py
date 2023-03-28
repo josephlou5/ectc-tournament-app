@@ -168,6 +168,7 @@ def fetch_roster_logs():
 @login_required(admin=True)
 def view_full_roster():
     full_roster = db.roster.get_full_roster()
+    has_fetch_logs = FETCH_ROSTER_LOGS_FILE.exists()
 
     # split the users into coaches, athletes, and spectators
     coaches = []
@@ -192,7 +193,11 @@ def view_full_roster():
         len(objs) == 0 for objs in full_roster.values()
     )
 
-    return _render("notifications/full_roster.jinja", **full_roster)
+    return _render(
+        "notifications/full_roster.jinja",
+        **full_roster,
+        has_fetch_logs=has_fetch_logs,
+    )
 
 
 @app.route("/notifications/full_roster/raw", methods=["GET"])
