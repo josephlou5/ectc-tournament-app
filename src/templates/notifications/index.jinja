@@ -23,7 +23,7 @@ Notifications
 {% set refresh_matches_status_id = "refresh-matches-status" %}
 
 {% set matches_info_table_id = "matches-info-table" %}
-{% set delete_all_matches_btn_id = "delete-all-matches-btn" %}
+{% set remove_all_matches_btn_id = "remove-all-matches-btn" %}
 {% set no_matches_row_id = "no-matches-row" %}
 
 {% set send_notif_btn_id = "send-notification-btn" %}
@@ -172,7 +172,7 @@ Notifications
             </tr>
             <tr>
               <th scope="row">Email</th>
-              <td>The email. Must be unique.</td>
+              <td>The email. Must be unique in lowercase.</td>
             </tr>
             <tr>
               <th scope="row">Role</th>
@@ -371,11 +371,11 @@ Notifications
                 <th class="table-sm-col text-center">
                   <button
                     type="button"
-                    id="{{ delete_all_matches_btn_id }}"
+                    id="{{ remove_all_matches_btn_id }}"
                     class="btn btn-sm btn-danger"
                     disabled
                   >
-                    Delete All
+                    Remove All
                   </button>
                 </th>
               </tr>
@@ -485,8 +485,8 @@ Notifications
   }
 
   function resetMatchesTable({ clearWarnings = true } = {}) {
-    // disable the delete all button
-    $('#{{ delete_all_matches_btn_id }}').prop('disabled', true);
+    // disable the remove all button
+    $('#{{ remove_all_matches_btn_id }}').prop('disabled', true);
     if (clearWarnings) {
       // clear and hide the warnings
       $('#{{ fetch_matches_warnings_id }}').addClass('d-none').html('');
@@ -539,8 +539,8 @@ Notifications
     $('#{{ set_last_matches_query_btn_id }}')
       .removeClass('d-none')
       .attr('lastquery', lastMatchesQuery);
-    // enable delete all button
-    $('#{{ delete_all_matches_btn_id }}').prop('disabled', false);
+    // enable remove all button
+    $('#{{ remove_all_matches_btn_id }}').prop('disabled', false);
     // clear the table
     $('.match-row').remove();
     // add the results to the table
@@ -724,7 +724,7 @@ Notifications
     $('#{{ refresh_matches_btn_id }}').click((event) => {
       refreshMatches();
     });
-    $('#{{ delete_all_matches_btn_id }}').click((event) => {
+    $('#{{ remove_all_matches_btn_id }}').click((event) => {
       resetMatchesTable();
     });
   });

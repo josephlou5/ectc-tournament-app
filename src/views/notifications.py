@@ -12,7 +12,7 @@ from flask import flash, render_template, request
 
 import db
 import utils
-from utils import fetch_tms
+from utils import fetch_tms, mailchimp_utils
 from utils.auth import login_required, set_redirect_page
 from utils.server import AppRoutes, _render, print_records, unsuccessful
 
@@ -88,6 +88,8 @@ def fetch_roster():
     # and it would still work.
     flash_all = "flash_all" in request.args
 
+    error_messages = []
+
     print(" ", "Fetching teams roster from TMS spreadsheet")
     error_msg, logs, roster = fetch_tms.fetch_roster()
     if error_msg is not None:
@@ -95,24 +97,112 @@ def fetch_roster():
             flash(error_msg, "fetch-roster.danger")
         return unsuccessful(error_msg)
 
-    # save in database
-    print(" ", "Saving the roster to the database")
-    success = db.roster.set_roster(roster)
-    if success:
-        logs.append(
-            {
-                "level": "INFO",
-                "row_num": None,
-                "message": "Saved roster in database",
-            }
-        )
-    else:
-        # probably won't happen, since `fetch_roster()` should have good
-        # enough checks
-        logs.append(
-            {"level": "ERROR", "row_num": None, "message": "Database error"}
-        )
+    logs_has_error = False
+    logs_has_warning = False
+    for log in logs:
+        if log["level"] == "ERROR":
+            logs_has_error = True
+        elif log["level"] == "WARNING":
+            logs_has_warning = True
+        if logs_has_error and logs_has_warning:
+            break
 
+    # add contacts to mailchimp (also validates emails)
+    print(" ", "Adding contacts to Mailchimp")
+    all_emails_invalid = False
+    if not db.global_state.has_mailchimp_api_key():
+        error_msg = "No Mailchimp API key to import contacts"
+        error_messages.append(error_msg)
+        logs.append({"level": "ERROR", "row_num": None, "message": error_msg})
+        if flash_all:
+            flash(error_msg, "fetch-roster.danger")
+    else:
+        audience_id = db.global_state.get_mailchimp_audience_id()
+        if audience_id is None:
+            error_msg = "No selected Mailchimp audience id"
+            error_messages.append(error_msg)
+            logs.append(
+                {"level": "ERROR", "row_num": None, "message": error_msg}
+            )
+            if flash_all:
+                flash(error_msg, "fetch-roster.danger")
+        else:
+            deleted_emails = db.roster.get_all_user_emails(email_valid=True)
+            users_by_email = {}
+            for user in roster["users"]:
+                email = user["email"]
+                users_by_email[email] = user
+                deleted_emails.discard(email)
+            tournament_tag = db.global_state.get_mailchimp_audience_tag()
+            error_msg, invalid_emails = mailchimp_utils.add_members(
+                audience_id,
+                list(users_by_email.keys()),
+                tournament_tag=tournament_tag,
+                remove_emails=deleted_emails,
+            )
+
+            if error_msg is not None:
+                error_messages.append(error_msg)
+                logs.append(
+                    {"level": "ERROR", "row_num": None, "message": error_msg}
+                )
+                if flash_all:
+                    flash(error_msg, "fetch-roster.danger")
+
+            if len(invalid_emails) == 0:
+                pass
+            elif len(invalid_emails) == len(users_by_email):
+                # all emails were invalid
+                all_emails_invalid = True
+                error_msg = "All emails are invalid"
+                error_messages.append(error_msg)
+                logs.append(
+                    {"level": "ERROR", "row_num": None, "message": error_msg}
+                )
+                if flash_all:
+                    flash(error_msg, "fetch-roster.danger")
+            else:
+                flash("There are some invalid emails", "fetch-roster.warning")
+                for email in invalid_emails:
+                    user = users_by_email[email]
+                    user["email_valid"] = False
+                    logs.append(
+                        {
+                            "level": "WARNING",
+                            "row_num": user["row_num"],
+                            "message": f"Invalid email: {email}",
+                        }
+                    )
+
+    if not all_emails_invalid:
+        # save in database
+        print(" ", "Saving the roster to the database")
+        success = db.roster.set_roster(roster)
+        if success:
+            logs.append(
+                {
+                    "level": "INFO",
+                    "row_num": None,
+                    "message": "Saved roster in database",
+                }
+            )
+        else:
+            # probably won't happen, since `fetch_roster()` should have
+            # good enough checks
+            error_msg = "Database error"
+            error_messages.append(error_msg)
+            logs.append(
+                {"level": "ERROR", "row_num": None, "message": error_msg}
+            )
+            if flash_all:
+                flash(error_msg, "fetch-roster.danger")
+
+    # sort the logs by row number (`None` is at the end)
+    logs.sort(
+        key=lambda r: r["row_num"]
+        if r["row_num"] is not None
+        else float("inf")
+    )
     # save the logs in a file
     full_logs = {
         "time_fetched": get_roster_last_fetched_time_str(),
@@ -131,19 +221,20 @@ def fetch_roster():
         padding=2,
     )
 
-    if not success:
-        # no need to print here because it was printed with the logs
-        error_msg = "Database error"
-        if flash_all:
-            flash(error_msg, "fetch-roster.danger")
-        return {"success": False, "reason": error_msg}
+    if len(error_messages) > 0:
+        return {"success": False, "reason": "; ".join(error_messages)}
 
     # use flash so the last fetched time is updated
     success_msg = "Successfully fetched roster"
     print(" ", success_msg)
     flash(success_msg, "fetch-roster.success")
 
-    return {"success": True, "roster": roster}
+    if logs_has_error:
+        flash("There are some errors in the logs", "fetch-roster.warning")
+    elif logs_has_warning:
+        flash("There are some warnings in the logs", "fetch-roster.warning")
+
+    return {"success": True}
 
 
 @app.route("/notifications/fetch_roster/logs", methods=["GET"])
@@ -401,12 +492,24 @@ def fetch_matches_info():
 
     # get the team info for all the match teams
     print(" ", "Fetching info for all match teams")
+    # maps: match number -> team code
+    match_same_teams = {}
     # maps: (school, code) -> list of match numbers
     all_team_infos = {}
     for match_team in match_teams:
         match_number = match_team["number"]
         if not match_team["found"]:
             warnings.append(f"Match {match_number} not found")
+            continue
+        team_code = match_team["blue_team"].get("school_code", None)
+        has_same_team = team_code == match_team["red_team"].get(
+            "school_code", None
+        )
+        if team_code is not None and has_same_team:
+            match_same_teams[match_number] = team_code
+            if team_code not in all_team_infos:
+                all_team_infos[team_code] = []
+            all_team_infos[team_code].append(match_number)
             continue
         for color in ("blue_team", "red_team"):
             team_info = match_team[color]
@@ -416,6 +519,12 @@ def fetch_matches_info():
             if school_team_code not in all_team_infos:
                 all_team_infos[school_team_code] = []
             all_team_infos[school_team_code].append(match_number)
+    # check if some matches have the same teams
+    for match_number, (school, team_code) in match_same_teams.items():
+        warnings.append(
+            f'Match {match_number} has team "{school} {team_code}" '
+            "for both blue and red"
+        )
     # check if some teams have multiple matches
     for (school, team_code), team_matches in all_team_infos.items():
         if len(team_matches) <= 1:
@@ -440,12 +549,24 @@ def fetch_matches_info():
             continue
 
         match_valid = True
+        match_invalid_msg = None
+
+        def _invalid_match(msg):
+            nonlocal match_valid, match_invalid_msg
+            match_valid = False
+            if match_invalid_msg is None:
+                match_invalid_msg = msg
+
+        if match_number in match_same_teams:
+            # blue and red teams are the same
+            _invalid_match("Teams are the same")
 
         match_info = {"number": match_number}
+        missing_keys = []
         for key in ("division", "round"):
             value = match_team[key]
             if value == "":
-                match_valid = False
+                missing_keys.append(key.capitalize())
             match_info[key] = value
 
         compact_info = dict(match_info)
@@ -453,13 +574,20 @@ def fetch_matches_info():
         # add match status (doesn't need to be in compact info)
         match_status = match_team["status"]
         if match_status == "":
-            match_valid = False
+            missing_keys.append("Status")
         match_info["status"] = match_status
 
+        if len(missing_keys) > 0:
+            missing_str = ", ".join(missing_keys)
+            _invalid_match(f"Missing {missing_str}")
+
+        invalid_teams = []
+        invalid_team_emails = []
         for color in ("blue_team", "red_team"):
+            team_color = color.split("_", 1)[0].capitalize()
             team_info = match_team[color]
             if not team_info["valid"]:
-                match_valid = False
+                invalid_teams.append(team_color)
                 match_info[color] = {
                     "valid": False,
                     "name": team_info["name"],
@@ -467,7 +595,7 @@ def fetch_matches_info():
                 continue
             error_msg, team = team_infos[team_info["school_code"]]
             if error_msg is not None:
-                match_valid = False
+                invalid_teams.append(team_color)
                 match_info[color] = {
                     "valid": False,
                     "name": team_info["name"],
@@ -483,8 +611,40 @@ def fetch_matches_info():
                 "school": team.school.name,
                 "code": team.code,
             }
+            team_has_valid_email = False
+            for weight in ("light", "middle", "heavy"):
+                user = getattr(team, weight)
+                if user is not None and user.email_valid:
+                    team_has_valid_email = True
+                    break
+            else:
+                for user in team.alternates:
+                    if user.email_valid:
+                        team_has_valid_email = True
+                        break
+            if not team_has_valid_email:
+                # at least one person on the team must receive the email
+                invalid_team_emails.append(team_color)
+
+        if len(invalid_teams) == 0:
+            pass
+        elif len(invalid_teams) == 1:
+            _invalid_match(f"{invalid_teams[0]} team invalid")
+        else:  # len(invalid_teams) == 2
+            _invalid_match("Both teams invalid")
+
+        if len(invalid_team_emails) == 0:
+            pass
+        elif len(invalid_team_emails) == 1:
+            _invalid_match(
+                f"{invalid_team_emails[0]} team has no valid emails"
+            )
+        else:  # len(invalid_team_emails) == 2
+            _invalid_match("No teams have valid emails")
 
         match_info["valid"] = match_valid
+        match_info["invalid_msg"] = match_invalid_msg
+
         if match_valid:
             match_info["compact"] = utils.json_dump_compact(compact_info)
         else:

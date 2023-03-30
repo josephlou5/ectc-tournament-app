@@ -67,6 +67,9 @@ def clear_roster():
     Returns:
         bool: Whether the operation was successful.
     """
+    # rollback so that dropping the tables work after possibly using the
+    # session before this
+    db.session.rollback()
     # delete all the tables and add them again (resets id counters)
     # https://stackoverflow.com/a/49644099
     # in this particular order due to foreign key constraints
@@ -139,6 +142,7 @@ def set_roster(roster):
                 user_info["email"],
                 user_info["role"],
                 school_id,
+                email_valid=user_info.get("email_valid", True),
             )
             db.session.add(user)
         # maps: email -> athlete user id
@@ -172,6 +176,17 @@ def set_roster(roster):
 
     db.session.commit()
     return True
+
+
+# =============================================================================
+
+
+def get_all_user_emails(email_valid=None):
+    """Gets the user emails currently in the database."""
+    users = query(User).all()
+    if email_valid is None:
+        return set(user.email for user in users)
+    return set(user.email for user in users if user.email_valid is email_valid)
 
 
 # =============================================================================

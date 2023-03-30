@@ -4,6 +4,7 @@ Utilities for communicating with Mailchimp.
 
 # =============================================================================
 
+import hashlib
 from datetime import datetime
 
 import mailchimp_marketing as mc
@@ -92,7 +93,8 @@ def _get_fields_list(fields, prefix=None, include_total=True):
             field = f"{prefix}.{field}"
         fields_list.add(field)
 
-    for field_path in fields.values():
+    for field_info in fields.values():
+        field_path = field_info["path"]
         if isinstance(field_path, str):
             add(field_path)
         else:
@@ -114,24 +116,38 @@ def _get_key_path_value(obj, path):
 
 def _extract_fields(fields, obj):
     extracted = {}
-    for key, path in fields.items():
-        value = _get_key_path_value(obj, path)
+    for key, field_info in fields.items():
+        value = _get_key_path_value(obj, field_info["path"])
         if value == "":
             value = None
+        elif field_info.get("is_datetime", False):
+            value = utils.dt_str(
+                utils.dt_to_timezone(datetime.fromisoformat(value))
+            )
         extracted[key] = value
     return extracted
+
+
+def _get_subscriber_hash(email):
+    """Returns the MD5 hash of the lowercase version of the given email,
+    as used in the Mailchimp API.
+    """
+    return hashlib.md5(email.lower().encode()).hexdigest()
 
 
 # =============================================================================
 
 AUDIENCE_FIELDS = {
-    "id": "id",
-    "name": "name",
-    "from_name": ("campaign_defaults", "from_name"),
-    "from_email": ("campaign_defaults", "from_email"),
-    "subject": ("campaign_defaults", "subject"),
-    "num_members": ("stats", "member_count"),
-    "last_sent": ("stats", "campaign_last_sent"),
+    "id": {"path": "id"},
+    "name": {"path": "name"},
+    "from_name": {"path": ("campaign_defaults", "from_name")},
+    "from_email": {"path": ("campaign_defaults", "from_email")},
+    "subject": {"path": ("campaign_defaults", "subject")},
+    "num_members": {"path": ("stats", "member_count")},
+    "last_sent": {
+        "path": ("stats", "campaign_last_sent"),
+        "is_datetime": True,
+    },
 }
 
 
@@ -187,11 +203,11 @@ def get_audiences():
 
 
 def get_audience(audience_id):
-    """Gets the requested audience, or None if it doesn't exist.
+    """Gets the requested audience.
 
     Returns:
         Union[Tuple[str, None], Tuple[None, Dict]]:
-            An error messages, or the audience info in the format:
+            An error message, or the audience info in the format:
                 'id': audience id
                 'name': audience name
                 'from_name': the default from name
@@ -211,14 +227,90 @@ def get_audience(audience_id):
         )
     except ApiClientError as ex:
         # error is: {
-        #     "type": "https://mailchimp.com/developer/marketing/docs/errors/",
-        #     "title": "Resource Not Found",
-        #     "status": 404,
-        #     "detail": "The requested resource could not be found.",
-        #     "instance": "d3c1215f-555f-c179-24fb-d348b43a73b0",
+        #   "type": "https://mailchimp.com/developer/marketing/docs/errors/",
+        #   "title": "Resource Not Found",
+        #   "status": 404,
+        #   "detail": "The requested resource could not be found.",
+        #   "instance": "d3c1215f-555f-c179-24fb-d348b43a73b0",
         # }
-        # don't have any other audience ids to test what happens if the
-        # client doesn't have permission, so just assuming that an error
-        # always means the audience id is invalid *for this api key*
         return ex.text, None
     return None, _extract_fields(AUDIENCE_FIELDS, response)
+
+
+# =============================================================================
+
+
+def add_members(audience_id, emails, tournament_tag=None, remove_emails=None):
+    """Adds the given member emails to the given audience with the
+    optional given tournament tag.
+
+    If `remove_emails` is given, the given tournament tag will be
+    removed from those emails.
+
+    An error will be returned upon the first invalid request (except for
+    invalid emails), but all previous requests will have gone through.
+    Multiple calls to this function will not have any ill effects (the
+    members list will only be updated with these emails), so it is safe
+    to retry the function call if there is any error.
+
+    Returns:
+        Tuple[Optional[str], Set[str]]: An error message, which is None
+            if the operation was successful, and a set of invalid user
+            emails.
+    """
+
+    error_msg, client = get_client()
+    if error_msg is not None:
+        return error_msg, set()
+
+    # remove existing tag from deleted emails
+    # remove first because there are no errors here
+    if tournament_tag is not None and remove_emails is not None:
+        for email in remove_emails:
+            # remove the tournament tag
+            subscriber_hash = _get_subscriber_hash(email)
+            try:
+                client.lists.update_list_member_tags(
+                    audience_id,
+                    subscriber_hash,
+                    {"tags": [{"name": tournament_tag, "status": "inactive"}]},
+                )
+            except ApiClientError as ex:
+                # most likely error is that the user doesn't exist; ignore
+                error_msg = ex.text
+                print(
+                    f"Error while removing tag {tournament_tag!r} from "
+                    f"{email!r}: {error_msg}"
+                )
+
+    invalid_emails = set()
+
+    tags_kwargs = {}
+    if tournament_tag is not None:
+        tags_kwargs["tags"] = [tournament_tag]
+    for email in emails:
+        # add user and tag if doesn't exist
+        try:
+            client.lists.set_list_member(
+                audience_id,
+                email,
+                {
+                    "email_address": email,
+                    # even if they were previously unsubscribed,
+                    # re-subscribe them for this tournament
+                    # if they unsubscribed for this tournament, oops...
+                    "status": "subscribed",
+                    **tags_kwargs,
+                },
+            )
+        except ApiClientError as ex:
+            error_msg = ex.text
+            if "Please provide a valid email address." in str(error_msg):
+                # invalid email address
+                print("Invalid email address:", email)
+                invalid_emails.add(email)
+            else:
+                print("Adding member error:", error_msg)
+                return error_msg, set()
+
+    return None, invalid_emails

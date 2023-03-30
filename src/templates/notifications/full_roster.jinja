@@ -33,7 +33,13 @@ Full Roster
           <th class="table-sm-col">{{ loop.index }}</th>
           <td>{{ user.first_name|e }}</td>
           <td>{{ user.last_name|e }}</td>
+          {% if user.email_valid %}
           <td>{{ user.email|e }}</td>
+          {% else %}
+          <td class="table-danger">
+            {{ user.email|e }} [invalid]
+          </td>
+          {% endif %}
           <td>{{ user.school.name|e }}</td>
         </tr>
         {% endfor %}

@@ -12,7 +12,12 @@
 {% if user is none %}
 <em class="text-muted">None</em>
 {% else %}
-{{ (user.name ~ " <" ~ user.email ~ ">")|e }}
+{% if user.email_valid %}
+{{ (user.full_name ~ " <" ~ user.email ~ ">")|e }}
+{% else %}
+{{ user.full_name|e }}
+&lt;<span class="text-danger">{{ user.email|e }}</span>&gt;
+{% endif %}
 {% endif %}
 {% endmacro %}
 
@@ -46,6 +51,7 @@
       <div>
         <button
           type="button"
+          id="toggle-{{ match_team_id }}"
           class="btn btn-sm btn-secondary"
           onclick="toggleMatchTeamMembers('{{ match_team_id }}');"
         >
@@ -69,11 +75,11 @@
 </td>
 {% endmacro %}
 
-{% macro _match_valid_col(valid) %}
+{% macro _match_valid_col(valid, invalid_msg) %}
 {% if valid %}
 <td class="table-sm-col">Yes</td>
 {% else %}
-<td class="table-sm-col table-danger">No</td>
+<td class="table-sm-col table-danger">{{ invalid_msg|e }}</td>
 {% endif %}
 {% endmacro %}
 
@@ -93,14 +99,14 @@
   {{ _match_status_col(match["status"]) }}
   {{ _team_column(match["blue_team"], match_team_blue_id) }}
   {{ _team_column(match["red_team"], match_team_red_id) }}
-  {{ _match_valid_col(match["valid"]) }}
+  {{ _match_valid_col(match["valid"], match["invalid_msg"]) }}
   <td class="table-sm-col text-center">
     <button
       type="button"
       class="btn btn-sm btn-danger"
       onclick="removeMatchRow({{ match_number }});"
     >
-      Delete
+      Remove
     </button>
   </td>
 </tr>

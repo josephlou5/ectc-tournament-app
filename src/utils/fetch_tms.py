@@ -317,6 +317,8 @@ def fetch_roster():
                     'email': email
                     'role': role
                     'school': school name
+                    'row_num': the row number where this user was first
+                        seen (for logs)
                 'teams': list of:
                     'school': school name
                     'code': team code
@@ -440,6 +442,8 @@ def process_roster(row_generator):
                     'email': email
                     'role': role
                     'school': school name
+                    'row_num': the row number where this user was first
+                        seen (for logs)
                 'teams': list of:
                     'school': school name
                     'code': team code
@@ -472,7 +476,9 @@ def process_roster(row_generator):
         }
         return True
 
-    def _add_user(email, first_name, last_name, full_name, role, school):
+    def _add_user(
+        email, first_name, last_name, full_name, role, school, row_num
+    ):
         users[email] = {
             "first_name": first_name,
             "last_name": last_name,
@@ -480,6 +486,7 @@ def process_roster(row_generator):
             "email": email,
             "role": role,
             "school": school,
+            "row_num": row_num,
         }
         if role == "ATHLETE":
             schools[school]["athletes"] += 1
@@ -535,7 +542,7 @@ def process_roster(row_generator):
 
         first_name = row_data["first name"]
         last_name = row_data["last name"]
-        email = row_data["email"]
+        email = row_data["email"].lower()
         role = row_data["role"].upper()
         school = row_data["school"]
 
@@ -576,7 +583,9 @@ def process_roster(row_generator):
         if not is_athlete:
             if _add_school(school):
                 _log_info(f"Added school: {school}")
-            _add_user(email, first_name, last_name, full_name, role, school)
+            _add_user(
+                email, first_name, last_name, full_name, role, school, row_num
+            )
             _log_info(f"Added {role.lower()}: {name_email} ({school})")
             # shouldn't have any team data
             has_data = []
@@ -647,7 +656,9 @@ def process_roster(row_generator):
         if _add_school(school):
             _log_info(f"Added school: {school}")
         if email not in users:
-            _add_user(email, first_name, last_name, full_name, role, school)
+            _add_user(
+                email, first_name, last_name, full_name, role, school, row_num
+            )
             _log_info(f"Added athlete: {name_email} ({school})")
         if created_team:
             schools[school]["teams"] += 1

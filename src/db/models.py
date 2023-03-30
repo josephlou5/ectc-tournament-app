@@ -126,13 +126,17 @@ class User(db.Model):
     first_name = Column(String(), nullable=False)
     last_name = Column(String(), nullable=False)
     email = Column(String(), unique=True, nullable=False)
+    email_valid = Column(Boolean(), nullable=False, default=True)
     role = Column(String(), nullable=False)
     school_id = Column(Integer, ForeignKey(School.id), nullable=False)
 
-    def __init__(self, first_name, last_name, email, role, school_id):
+    def __init__(
+        self, first_name, last_name, email, role, school_id, email_valid=True
+    ):
         self.first_name = first_name
         self.last_name = last_name
         self.email = email
+        self.email_valid = email_valid
         self.role = role
         self.school_id = school_id
 
