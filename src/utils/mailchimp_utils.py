@@ -128,6 +128,58 @@ def _extract_fields(fields, obj):
     return extracted
 
 
+def _get_paginated_data(api_call, fields, data_key, additional_kwargs=None):
+    all_data = []
+    total_items = None
+    seen_items = 0
+
+    if additional_kwargs is None:
+        kwargs = {}
+    else:
+        kwargs = additional_kwargs
+    kwargs.update(
+        {
+            "fields": _get_fields_list(fields, prefix=data_key),
+            "count": PAGINATION_LIMIT,
+        }
+    )
+
+    while True:
+        try:
+            response = api_call(**kwargs, offset=seen_items)
+        except ApiClientError as ex:
+            error_msg = str(ex.text)
+            print("Mailchimp API error:", error_msg)
+            return error_msg, None
+        if total_items is None:
+            total_items = response["total_items"]
+        paginated = response[data_key]
+
+        for data in paginated:
+            all_data.append(_extract_fields(fields, data))
+
+        seen_items += len(paginated)
+        if seen_items >= total_items:
+            break
+
+    return None, all_data
+
+
+def _get_resource(api_call, resource_id, fields):
+    try:
+        response = api_call(resource_id, fields=_get_fields_list(fields))
+    except ApiClientError as ex:
+        # error is: {
+        #   "type": "https://mailchimp.com/developer/marketing/docs/errors/",
+        #   "title": "Resource Not Found",
+        #   "status": 404,
+        #   "detail": "The requested resource could not be found.",
+        #   "instance": "some identifier",
+        # }
+        return ex.text, None
+    return None, _extract_fields(fields, response)
+
+
 def _get_subscriber_hash(email):
     """Returns the MD5 hash of the lowercase version of the given email,
     as used in the Mailchimp API.
@@ -166,40 +218,12 @@ def get_audiences():
                 'num_members': the number of members
                 'last_sent': the time of the last sent campaign
     """
-
     error_msg, client = get_client()
     if error_msg is not None:
         return error_msg, None
-
-    audiences = []
-    total_items = None
-    seen_items = 0
-
-    while True:
-        # https://mailchimp.com/developer/marketing/api/lists/get-lists-info/
-        response = client.lists.get_all_lists(
-            fields=_get_fields_list(AUDIENCE_FIELDS, prefix="lists"),
-            count=PAGINATION_LIMIT,
-            offset=seen_items,
-        )
-        if total_items is None:
-            total_items = response["total_items"]
-        paginated = response["lists"]
-
-        for audience in paginated:
-            audience_info = _extract_fields(AUDIENCE_FIELDS, audience)
-            # convert "last_sent" to str in eastern time
-            if audience_info["last_sent"] is not None:
-                audience_info["last_sent"] = utils.dt_str(
-                    datetime.fromisoformat(audience_info["last_sent"])
-                )
-            audiences.append(audience_info)
-
-        seen_items += len(paginated)
-        if seen_items >= total_items:
-            break
-
-    return None, audiences
+    return _get_paginated_data(
+        client.lists.get_all_lists, AUDIENCE_FIELDS, "lists"
+    )
 
 
 def get_audience(audience_id):
@@ -216,25 +240,10 @@ def get_audience(audience_id):
                 'num_members': the number of members
                 'last_sent': the time of the last sent campaign
     """
-
     error_msg, client = get_client()
     if error_msg is not None:
         return error_msg, None
-
-    try:
-        response = client.lists.get_list(
-            audience_id, fields=_get_fields_list(AUDIENCE_FIELDS)
-        )
-    except ApiClientError as ex:
-        # error is: {
-        #   "type": "https://mailchimp.com/developer/marketing/docs/errors/",
-        #   "title": "Resource Not Found",
-        #   "status": 404,
-        #   "detail": "The requested resource could not be found.",
-        #   "instance": "d3c1215f-555f-c179-24fb-d348b43a73b0",
-        # }
-        return ex.text, None
-    return None, _extract_fields(AUDIENCE_FIELDS, response)
+    return _get_resource(client.lists.get_list, audience_id, AUDIENCE_FIELDS)
 
 
 # =============================================================================
@@ -314,3 +323,49 @@ def add_members(audience_id, emails, tournament_tag=None, remove_emails=None):
                 return error_msg, set()
 
     return None, invalid_emails
+
+
+# =============================================================================
+
+CAMPAIGN_FOLDER_FIELDS = {
+    "id": {"path": "id"},
+    "name": {"path": "name"},
+    "num_campaigns": {"path": "count"},
+}
+
+
+def get_campaign_folders():
+    """Gets the Mailchimp campaign folders.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, List[Dict]]]:
+            A tuple of an error message, or a list of campaign folder
+            infos in the format:
+                'id': folder id
+                'name': folder name
+                'num_campaigns': number of campaigns in the folder
+    """
+    error_msg, client = get_client()
+    if error_msg is not None:
+        return error_msg, None
+    return _get_paginated_data(
+        client.campaignFolders.list, CAMPAIGN_FOLDER_FIELDS, "folders"
+    )
+
+
+def get_campaign_folder(folder_id):
+    """Gets the requested campaign folder.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, Dict]]:
+            An error message, or the campaign folder info in the format:
+                'id': folder id
+                'name': folder name
+                'num_campaigns': number of campaigns in the folder
+    """
+    error_msg, client = get_client()
+    if error_msg is not None:
+        return error_msg, None
+    return _get_resource(
+        client.campaignFolders.get, folder_id, CAMPAIGN_FOLDER_FIELDS
+    )

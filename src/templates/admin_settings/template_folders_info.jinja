@@ -1,0 +1,47 @@
+{% set mc_folder_select_input_id = "mc-template-folder-select" %}
+
+<div class="row">
+  <label
+    for="{{ mc_folder_select_input_id }}"
+    class="col-form-label col-auto pe-0"
+  >
+    Folder Name
+  </label>
+  <div class="col">
+    <select
+      id="{{ mc_folder_select_input_id }}"
+      class="form-select"
+      {% if folders|length == 0 %}
+      disabled
+      {% else %}
+      oninput="handleMailchimpFolderSelected(this);"
+      {% endif %}
+    >
+      {% if folders|length == 0 %}
+      <option value="" selected>No template folders</option>
+      {% else %}
+      {% for folder_info in folders %}
+      {% set folder_id = folder_info["id"] %}
+      {% set folder_name = folder_info["name"] %}
+      {% set num_campaigns = folder_info["num_campaigns"] %}
+      {# although this is the number of campaigns, not the number of templates,
+         it is better for the purposes of the folder to call them "templates"
+       #}
+      {% set num_campaigns_str =
+           num_campaigns ~ " template" ~ ("s" if num_campaigns != 1)
+       %}
+      <option
+        value="{{ folder_id }}"
+        {% if folder_id == selected_folder_id %} selected {% endif %}
+      >
+        {{ (folder_name ~ " (" ~ num_campaigns_str ~ ")")|e }}
+      </option>
+      {% endfor %}
+      {% endif %}
+    </select>
+    <div
+      id="{{ mc_folder_select_input_id }}-invalid"
+      class="invalid-feedback"
+    ></div>
+  </div>
+</div>

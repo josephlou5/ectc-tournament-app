@@ -31,6 +31,9 @@ Admin Settings
 {% set mc_set_audience_tag_btn_id = "mc-set-audience-tag-btn" %}
 {% set mc_set_audience_tag_status_id = "mc-set-audience-tag-status" %}
 
+{% set mc_templates_info_section_id = "mc-template-folders-info" %}
+{% set mc_fetch_template_folders_id = "mc-fetch-template-folders" %}
+
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
 {% block body %}
@@ -283,7 +286,7 @@ Admin Settings
           </div>
         </div>
       </div>
-      <div class="row">
+      <div class="row mb-2">
         <div class="col">
           <h4>Audience</h4>
           <div class="mb-2">
@@ -351,6 +354,39 @@ Admin Settings
             ></div>
           </div>
           {% endif %}
+        </div>
+      </div>
+      <div class="row mb-2">
+        <div class="col">
+          <h4>Templates</h4>
+          <div class="mb-2">
+            Mailchimp has the concept of <em>templates</em>, but due to some API
+            limitations, we will duplicate campaigns instead. What this means
+            for you is that instead of editing templates on the "Email
+            Templates" page, you will need to go into a campaign and edit its
+            content, and the campaigns that you wish to use as "templates" must
+            all be in the campaign folder selected below. When you want to send
+            an email, you will be able to select which "campaign template" you
+            want to duplicate for the new email.
+          </div>
+          <div class="row mb-2">
+            <div id="{{ mc_templates_info_section_id }}" class="col-auto">
+              {% if not has_mc_api_key %}
+              {% call macros.bs_alert("danger", dismissible=false) %}
+              No Mailchimp API key
+              {% endcall %}
+              {% else %}
+              <div id="{{ mc_fetch_template_folders_id }}">
+                {# will be replaced when folders are fetched #}
+                <div
+                  class="spinner-border spinner-border-sm"
+                  role="status"
+                ></div>
+                Fetching Template Folders...
+              </div>
+              {% endif %}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -579,7 +615,7 @@ Admin Settings
       return;
     }
 
-    // show the proper rows
+    // show the proper row
     $('.mc-audience').addClass('d-none');
     $('.mc-audience-' + selectedAudienceId).removeClass('d-none');
 
@@ -644,6 +680,70 @@ Admin Settings
     });
   }
 
+  function populateMailchimpTemplateFolderDropdown() {
+    const $loadingDiv = $('#{{ mc_fetch_template_folders_id }}');
+    if ($loadingDiv.length === 0) return;
+
+    ajaxRequest('GET', '{{ url_for("get_mailchimp_template_folders") }}', {
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          // populate the template folder infos
+          $('#{{ mc_templates_info_section_id }}').html(
+            response['folders_html']
+          );
+        } else {
+          // some failure
+          $('#{{ mc_templates_info_section_id }}').html(
+            bsAlert(
+              response.reason ?? 'Unknown error: please try again',
+              'danger',
+              { dismissible: false }
+            )
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        $('#{{ mc_templates_info_section_id }}').html(
+          bsAlert(jqXHR.statusText, 'danger', { dismissible: false })
+        );
+      },
+    });
+  }
+
+  function handleMailchimpFolderSelected(element) {
+    const elementId = element.id;
+
+    clearInvalid(elementId);
+
+    const selectedFolderId = getInputValue(elementId);
+    if (selectedFolderId === '') {
+      return;
+    }
+
+    // send ajax request to save folder id
+    ajaxRequest('POST', '{{ url_for("set_mailchimp_template_folder") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({ folderId: selectedFolderId }),
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          // good! do nothing
+        } else {
+          // some failure
+          setInvalid(
+            elementId,
+            response.reason ?? 'Unknown error: please try again'
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        setInvalid(
+          elementId,
+          `Error while saving selection: ${jqXHR.statusText}`
+        );
+      },
+    });
+  }
+
   $(document).ready(() => {
     // Service account
     $('#{{ copy_email_btn_id }}').click((event) => {
@@ -704,6 +804,8 @@ Admin Settings
     $('#{{ mc_set_audience_tag_btn_id }}').click((event) => {
       handleMailchimpSetAudienceTagClicked();
     });
+    // Template folder
+    populateMailchimpTemplateFolderDropdown();
   });
 </script>
 {% endblock %}

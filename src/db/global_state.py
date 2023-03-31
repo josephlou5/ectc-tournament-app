@@ -49,6 +49,8 @@ def has_all_admin_settings():
         missing.append("Mailchimp API key")
     if global_state.mailchimp_audience_id is None:
         missing.append("Mailchimp audience")
+    if global_state.mailchimp_folder_id is None:
+        missing.append("Mailchimp template folder")
     if len(missing) == 0:
         return None
     missing_str = ", ".join(missing)
@@ -213,15 +215,6 @@ def set_mailchimp_audience_id(audience_id):
     return True
 
 
-def clear_mailchimp_audience_id():
-    """Clears the Mailchimp audience id.
-
-    Returns:
-        bool: Whether the operation was successful.
-    """
-    return set_mailchimp_audience_id(None)
-
-
 def get_mailchimp_audience_tag():
     """Returns the Mailchimp audience tag, or None if it does not exist."""
     global_state = get()
@@ -245,3 +238,21 @@ def clear_mailchimp_audience_tag():
         bool: Whether the operation was successful.
     """
     return set_mailchimp_audience_tag(None)
+
+
+def get_mailchimp_folder_id():
+    """Returns the global selected Mailchimp template folder, or None if
+    it does does not exist.
+    """
+    global_state = get()
+    return global_state.mailchimp_folder_id
+
+
+def set_mailchimp_folder_id(folder_id):
+    """Sets the Mailchimp template folder id.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    _set_global(mailchimp_folder_id=folder_id)
+    return True

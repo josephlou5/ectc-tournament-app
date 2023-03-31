@@ -257,9 +257,11 @@ def get_mailchimp_audiences():
             )
             if all(selected_audience_id != info["id"] for info in audiences):
                 # invalid audience id
-                # clear from database (don't care if failed)
-                _ = db.global_state.clear_mailchimp_audience_id()
                 selected_audience_id = audiences[0]["id"]
+                # replace in database (don't care if failed)
+                _ = db.global_state.set_mailchimp_audience_id(
+                    selected_audience_id
+                )
                 print(
                     " ",
                     " ",
@@ -313,7 +315,7 @@ def set_mailchimp_audience_tag():
     if error_msg is not None:
         return unsuccessful(error_msg)
     audience_tag = request_args["tag"]
-    
+
     if audience_tag == "":
         # clear it instead of setting it
         print(" ", "Clearing Mailchimp audience tag (received empty)")
@@ -325,5 +327,101 @@ def set_mailchimp_audience_tag():
         success = db.global_state.set_mailchimp_audience_tag(audience_tag)
         if not success:
             return unsuccessful("Database error", "Saving audience tag")
+
+    return {"success": True}
+
+
+@app.route("/admin/mailchimp/template_folders", methods=["GET"])
+@login_required(admin=True, save_redirect=False)
+def get_mailchimp_template_folders():
+    if not db.global_state.has_mailchimp_api_key():
+        return unsuccessful("No Mailchimp API key")
+
+    # fetch campaign folders
+    error_msg, folders = mailchimp_utils.get_campaign_folders()
+    if error_msg is not None:
+        return unsuccessful(
+            error_msg, "Error while fetching Mailchimp campaign folders"
+        )
+
+    if len(folders) == 0:
+        print(" ", "Fetched 0 folders")
+        selected_folder_id = None
+    else:
+        print(" ", "Fetched folders:")
+        print_records(folders[0].keys(), folders, indent=4, padding=2)
+
+        # determine which folder to select as default
+        selected_folder_id = db.global_state.get_mailchimp_folder_id()
+        if selected_folder_id is None:
+            selected_folder_id = folders[0]["id"]
+            print(
+                " ",
+                "No selected folder in database; using first folder:",
+                f'{folders[0]["name"]!r} ({selected_folder_id})',
+            )
+            # save in database (don't care if failed)
+            _ = db.global_state.set_mailchimp_folder_id(selected_folder_id)
+        else:
+            print(
+                " ",
+                "Selected folder id from database:",
+                selected_folder_id,
+            )
+            for info in folders:
+                if selected_folder_id == info["id"]:
+                    print(
+                        " ",
+                        " ",
+                        f'Selected folder: {info["name"]!r} ({info["id"]})',
+                    )
+                    break
+            else:
+                # invalid folder id
+                selected_folder_id = folders[0]["id"]
+                # replace in database
+                _ = db.global_state.set_mailchimp_folder_id(selected_folder_id)
+                print(
+                    " ",
+                    " ",
+                    (
+                        "Invalid selected folder id (not in fetched); using "
+                        "first folder:"
+                    ),
+                    f'{folders[0]["name"]!r} ({selected_folder_id})',
+                )
+
+    folders_html = render_template(
+        "admin_settings/template_folders_info.jinja",
+        folders=folders,
+        selected_folder_id=selected_folder_id,
+    )
+    return {"success": True, "folders_html": folders_html}
+
+
+@app.route("/admin/mailchimp/template_folders/current", methods=["POST"])
+@login_required(admin=True, save_redirect=False)
+def set_mailchimp_template_folder():
+    error_msg, request_args = get_request_json("folderId")
+    if error_msg is not None:
+        return unsuccessful(error_msg)
+    folder_id = request_args["folderId"]
+    if folder_id == "":
+        return unsuccessful("Folder id is empty")
+
+    print(" ", "Setting Mailchimp template folder id:", folder_id)
+
+    # verify folder id
+    error_msg, _ = mailchimp_utils.get_campaign_folder(folder_id)
+    if error_msg is not None:
+        print(" ", "Template folder id verification failed:", error_msg)
+        # the error message returned by the API is a bit too detailed
+        # and clunky, so just keep it simple for the user
+        return {"success": False, "reason": "Invalid folder id"}
+
+    # save in database
+    success = db.global_state.set_mailchimp_folder_id(folder_id)
+    if not success:
+        return unsuccessful("Database error", "Saving folder id")
 
     return {"success": True}

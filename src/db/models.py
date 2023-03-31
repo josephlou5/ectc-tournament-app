@@ -56,6 +56,10 @@ class GlobalState(db.Model):
     mailchimp_audience_id = Column(String(), nullable=True)
     # A Mailchimp audience tag
     mailchimp_audience_tag = Column(String(), nullable=True)
+    # The id of the currently selected Mailchimp template folder
+    # NOTE: For now, the template folder is actually a campaign folder,
+    #   but the column name shouldn't have to change if this gets fixed.
+    mailchimp_folder_id = Column(String(), nullable=True)
 
     @property
     def service_account_info(self):
