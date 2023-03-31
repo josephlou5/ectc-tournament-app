@@ -57,6 +57,11 @@ def has_all_admin_settings():
     return f"Missing: {missing_str}"
 
 
+# =============================================================================
+
+# TMS fields
+
+
 def get_service_account_info():
     """Returns the global service account info as a dict, or None if
     there is no current service account.
@@ -167,6 +172,11 @@ def clear_roster_related_fields():
     return True
 
 
+# =============================================================================
+
+# Mailchimp fields
+
+
 def has_mailchimp_api_key():
     """Returns whether the Mailchimp API key is set."""
     return get_mailchimp_api_key() is not None
@@ -186,15 +196,6 @@ def set_mailchimp_api_key(api_key):
     """
     _set_global(mailchimp_api_key=api_key)
     return True
-
-
-def clear_mailchimp_api_key():
-    """Clears the Mailchimp API key.
-
-    Returns:
-        bool: Whether the operation was successful.
-    """
-    return set_mailchimp_api_key(None)
 
 
 def get_mailchimp_audience_id():
@@ -255,4 +256,23 @@ def set_mailchimp_folder_id(folder_id):
         bool: Whether the operation was successful.
     """
     _set_global(mailchimp_folder_id=folder_id)
+    return True
+
+
+def clear_mailchimp_related_fields():
+    """Clears the global Mailchimp API key, selected audience id, and
+    selected template folder id.
+
+    All these values depend on the permissions of the API key, so if the
+    API key needs to be cleared (because it's invalid or if initiated by
+    the user), all these values should also be deleted.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    _set_global(
+        mailchimp_api_key=None,
+        mailchimp_audience_id=None,
+        mailchimp_folder_id=None,
+    )
     return True

@@ -56,7 +56,8 @@ def get_client(api_key=None, force=False):
         # host url for the request is not valid
         if from_db:
             # remove the api key from the database
-            _ = db.global_state.clear_mailchimp_api_key()
+            # if the api key is invalid, also need to clear others
+            _ = db.global_state.clear_mailchimp_related_fields()
         return "Invalid API key", None
     try:
         client.ping.get()
@@ -64,7 +65,8 @@ def get_client(api_key=None, force=False):
         GLOBAL_CLIENT = None
         if from_db:
             # remove the api key from the database
-            _ = db.global_state.clear_mailchimp_api_key()
+            # if the api key is invalid, also need to clear others
+            _ = db.global_state.clear_mailchimp_related_fields()
         return str(ex.text), None
 
     GLOBAL_CLIENT = client

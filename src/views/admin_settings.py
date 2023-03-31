@@ -174,11 +174,11 @@ def set_tms_spreadsheet():
 @login_required(admin=True, save_redirect=False)
 def set_mailchimp_api_key():
     if request.method == "DELETE":
-        print(" ", "Clearing Mailchimp API key")
+        print(" ", "Clearing Mailchimp API key (and other related values)")
         # clear the global client so that other operations (such as
         # populating the audience) does not use the wrong API key
         mailchimp_utils.clear_global_client()
-        success = db.global_state.clear_mailchimp_api_key()
+        success = db.global_state.clear_mailchimp_related_fields()
         if not success:
             error_msg = "Database error"
             print(" ", "Error:", error_msg)
