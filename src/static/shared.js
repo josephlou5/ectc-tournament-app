@@ -73,9 +73,11 @@ function setElementTextFor(elementId, text, seconds = 60) {
 /** FORMS **/
 
 function getInputValue(elementId) {
-  return $('#' + elementId)
-    .val()
-    .trim();
+  return (
+    $('#' + elementId)
+      .val()
+      ?.trim() ?? ''
+  );
 }
 
 function clearInvalid(elementId) {

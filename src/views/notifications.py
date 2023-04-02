@@ -40,6 +40,7 @@ def notifications():
     roster_last_fetched_time = get_roster_last_fetched_time_str()
     has_fetch_logs = FETCH_ROSTER_LOGS_FILE.exists()
     last_matches_query = db.global_state.get_last_matches_query()
+    last_subject = db.global_state.get_mailchimp_subject()
     return _render(
         "notifications/index.jinja",
         has_all_admin_settings_error=has_all_admin_settings_error,
@@ -52,6 +53,7 @@ def notifications():
         has_fetch_logs=has_fetch_logs,
         matches_worksheet_name=fetch_tms.MATCHES_WORKSHEET_NAME,
         last_matches_query=last_matches_query,
+        last_subject=last_subject,
     )
 
 

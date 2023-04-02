@@ -58,17 +58,23 @@ code {
      */
     width: 457px;
   }
+
+  .email-items-col {
+    width: 550px;
+  }
 }
 
 @media (max-width: 699.98px) {
   /* Less than 700px. */
-  #fetch-roster-help {
+  #fetch-roster-help,
+  #email-subject-help {
     width: 100%;
   }
 }
 @media (min-width: 700px) {
   /* More than 700px. */
-  #fetch-roster-help {
+  #fetch-roster-help,
+  #email-subject-help {
     min-width: 700px;
   }
 }

@@ -241,35 +241,28 @@ def get_mailchimp_audiences():
         # determine which audience to select as default
         selected_audience_id = db.global_state.get_mailchimp_audience_id()
         if selected_audience_id is None:
-            selected_audience_id = audiences[0]["id"]
-            print(
-                " ",
-                "No selected audience in database; using first audience:",
-                selected_audience_id,
-            )
-            # save in database (don't care if failed)
-            _ = db.global_state.set_mailchimp_audience_id(selected_audience_id)
+            print(" ", "No selected audience in database")
         else:
             print(
                 " ",
                 "Selected audience id from database:",
                 selected_audience_id,
             )
-            if all(selected_audience_id != info["id"] for info in audiences):
+            for info in audiences:
+                if info["id"] == selected_audience_id:
+                    print(
+                        " ",
+                        " ",
+                        f'Selected audience: {info["name"]!r} ({info["id"]})',
+                    )
+                    break
+            else:
                 # invalid audience id
-                selected_audience_id = audiences[0]["id"]
-                # replace in database (don't care if failed)
-                _ = db.global_state.set_mailchimp_audience_id(
-                    selected_audience_id
-                )
+                # clear from database (don't care if failed)
+                _ = db.global_state.clear_mailchimp_audience_id()
+                selected_audience_id = None
                 print(
-                    " ",
-                    " ",
-                    (
-                        "Invalid selected audience id (not in fetched); using "
-                        "first audience:"
-                    ),
-                    selected_audience_id,
+                    " ", " ", "Invalid selected audience id (not in fetched)"
                 )
 
     audiences_html = render_template(
@@ -354,14 +347,7 @@ def get_mailchimp_template_folders():
         # determine which folder to select as default
         selected_folder_id = db.global_state.get_mailchimp_folder_id()
         if selected_folder_id is None:
-            selected_folder_id = folders[0]["id"]
-            print(
-                " ",
-                "No selected folder in database; using first folder:",
-                f'{folders[0]["name"]!r} ({selected_folder_id})',
-            )
-            # save in database (don't care if failed)
-            _ = db.global_state.set_mailchimp_folder_id(selected_folder_id)
+            print(" ", "No selected folder in database")
         else:
             print(
                 " ",
@@ -369,7 +355,7 @@ def get_mailchimp_template_folders():
                 selected_folder_id,
             )
             for info in folders:
-                if selected_folder_id == info["id"]:
+                if info["id"] == selected_folder_id:
                     print(
                         " ",
                         " ",
@@ -378,18 +364,10 @@ def get_mailchimp_template_folders():
                     break
             else:
                 # invalid folder id
-                selected_folder_id = folders[0]["id"]
-                # replace in database
-                _ = db.global_state.set_mailchimp_folder_id(selected_folder_id)
-                print(
-                    " ",
-                    " ",
-                    (
-                        "Invalid selected folder id (not in fetched); using "
-                        "first folder:"
-                    ),
-                    f'{folders[0]["name"]!r} ({selected_folder_id})',
-                )
+                # clear from database (don't care if failed)
+                _ = db.global_state.clear_mailchimp_folder_id()
+                selected_folder_id = None
+                print(" ", " ", "Invalid selected folder id (not in fetched)")
 
     folders_html = render_template(
         "admin_settings/template_folders_info.jinja",
@@ -425,3 +403,75 @@ def set_mailchimp_template_folder():
         return unsuccessful("Database error", "Saving folder id")
 
     return {"success": True}
+
+
+@app.route("/admin/mailchimp/templates", methods=["GET"])
+@login_required(admin=True, save_redirect=False)
+def get_mailchimp_templates():
+    if not db.global_state.has_mailchimp_api_key():
+        return unsuccessful("No Mailchimp API key")
+
+    audience_id = db.global_state.get_mailchimp_audience_id()
+    if audience_id is None:
+        return unsuccessful("No selected Mailchimp audience")
+    folder_id = db.global_state.get_mailchimp_folder_id()
+    if folder_id is None:
+        return unsuccessful("No selected Mailchimp template folder")
+
+    print(
+        " ",
+        (
+            f"Fetching Mailchimp campaigns in audience {audience_id} and "
+            f"folder {folder_id}"
+        ),
+    )
+
+    # fetch templates
+    error_msg, templates = mailchimp_utils.get_campaigns_in_folder(
+        audience_id, folder_id
+    )
+    if error_msg is not None:
+        return unsuccessful(
+            error_msg, "Error while fetching Mailchimp campaigns"
+        )
+
+    if len(templates) == 0:
+        print(" ", "Fetched 0 campaign templates")
+        selected_template_id = None
+    else:
+        print(" ", "Fetched campaign templates:")
+        print_records(templates[0].keys(), templates, indent=4, padding=2)
+
+        # determine which template to select as default
+        selected_template_id = db.global_state.get_mailchimp_template_id()
+        if selected_template_id is None:
+            print(" ", "No selected template in database")
+        else:
+            print(
+                " ",
+                "Selected template id from database:",
+                selected_template_id,
+            )
+            for info in templates:
+                if info["id"] == selected_template_id:
+                    print(
+                        " ",
+                        " ",
+                        f'Selected template: {info["title"]!r} ({info["id"]})',
+                    )
+                    break
+            else:
+                # invalid template id
+                # clear from database (don't care if failed)
+                _ = db.global_state.clear_mailchimp_template_id()
+                selected_template_id = None
+                print(
+                    " ", " ", "Invalid selected template id (not in fetched)"
+                )
+
+    templates_html = render_template(
+        "notifications/templates_info.jinja",
+        templates=templates,
+        selected_template_id=selected_template_id,
+    )
+    return {"success": True, "templates_html": templates_html}

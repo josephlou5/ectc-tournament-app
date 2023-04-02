@@ -1,0 +1,33 @@
+{# if this value changes, it also needs to change in
+   `handleSendNotificationClicked()` in `src/templates/notifications/index.jinja`
+ #}
+{% set mc_template_select_input_id = "mc-template-select" %}
+
+<select
+  id="{{ mc_template_select_input_id }}"
+  class="form-select"
+  {% if templates|length == 0 %}
+  disabled
+  {% endif %}
+>
+  {% if templates|length == 0 %}
+  <option value="" selected>No templates in folder</option>
+  {% else %}
+  {% if selected_template_id is none %}
+  <option value="" disabled selected>Select template</option>
+  {% endif %}
+  {% for template_info in templates %}
+  {% set template_id = template_info["id"] %}
+  <option
+    value="{{ template_id }}"
+    {% if template_id == selected_template_id %} selected {% endif %}
+  >
+    {{ template_info["title"]|e }}
+  </option>
+  {% endfor %}
+  {% endif %}
+</select>
+<div
+  id="{{ mc_template_select_input_id }}-invalid"
+  class="invalid-feedback"
+></div>

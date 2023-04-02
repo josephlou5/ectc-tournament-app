@@ -29,6 +29,9 @@
         class="form-select"
         oninput="handleMailchimpAudienceSelected(this);"
       >
+        {% if selected_audience_id is none %}
+        <option value="" disabled selected>Select audience</option>
+        {% endif %}
         {% for audience_info in audiences %}
         {% set audience_id = audience_info["id"] %}
         <option
@@ -45,10 +48,33 @@
       ></div>
     </td>
   </tr>
+  {% if selected_audience_id is none %}
+  <tr class="mc-audience">
+    <th>From Name</th>
+    <td><em>-</em></td>
+  </tr>
+  <tr class="mc-audience">
+    <th>From Email</th>
+    <td><em>-</em></td>
+  </tr>
+  <tr class="mc-audience">
+    <th>Default Subject</th>
+    <td><em>-</em></td>
+  </tr>
+  <tr class="mc-audience">
+    <th>Members</th>
+    <td><em>-</em></td>
+  </tr>
+  <tr class="mc-audience">
+    <th>Last email sent</th>
+    <td><em>-</em></td>
+  </tr>
+  {% endif %}
   {% for audience_info in audiences %}
+  {% set audience_id = audience_info["id"] %}
   {% set row_classes =
-       "mc-audience mc-audience-" ~ audience_info["id"]
-       ~ (" d-none" if audience_info["id"] != selected_audience_id)
+       "mc-audience mc-audience-" ~ audience_id
+       ~ (" d-none" if audience_id != selected_audience_id)
    %}
   <tr class="{{ row_classes }}">
     <th>From Name</th>

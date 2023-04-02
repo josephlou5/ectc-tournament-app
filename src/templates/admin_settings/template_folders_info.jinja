@@ -20,6 +20,9 @@
       {% if folders|length == 0 %}
       <option value="" selected>No template folders</option>
       {% else %}
+      {% if selected_folder_id is none %}
+      <option value="" disabled selected>Select folder</option>
+      {% endif %}
       {% for folder_info in folders %}
       {% set folder_id = folder_info["id"] %}
       {% set folder_name = folder_info["name"] %}

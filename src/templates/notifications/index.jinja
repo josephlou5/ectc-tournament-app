@@ -26,7 +26,13 @@ Notifications
 {% set remove_all_matches_btn_id = "remove-all-matches-btn" %}
 {% set no_matches_row_id = "no-matches-row" %}
 
+{% set mc_templates_dropdown_wrapper_id = "mc-templates-dropdown-wrapper" %}
+{% set mc_fetch_templates_id = "mc-fetch-templates" %}
+{% set mc_templates_dropdown_id = "mc-templates-dropdown-id" %}
+{% set email_subject_input_id = "email-subject-input" %}
+{% set email_subject_help_id = "email-subject-help" %}
 {% set send_notif_btn_id = "send-notification-btn" %}
+{% set send_notif_error_id = "send-notification-error" %}
 
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
@@ -265,10 +271,10 @@ Notifications
           <h4>Send Match Notifications</h4>
           <div class="mb-2">
             Enter the match numbers below that you want to send notifications
-            for. The matches will keep being added to the match queue, which you
-            can edit as needed, until the "Send Notification" button is pressed.
-            To restore the state of the last queue, click the "Last Query"
-            button.
+            for. The matches will keep being added to the matches queue, which
+            you can edit as needed, until the "Send Notification" button is
+            pressed. To restore the state of the last queue, click the "Last
+            Query" button.
           </div>
           <div class="mb-2">
             The TMS spreadsheet should have a worksheet called
@@ -389,12 +395,168 @@ Notifications
         </div>
       </div>
       <div class="row">
-        <div class="col">
-          {# button currently does nothing #}
-          {{ macros.loading_btn(
-               send_notif_btn_id, "primary", "Send Notification", "Sending..."
-             )
-          }}
+        <div class="col-md-auto">
+          <table class="table table-sm table-borderless">
+            <tr>
+              <td class="table-sm-col">
+                <div class="col-form-label">Template</div>
+              </td>
+              {% if has_all_admin_settings_error is none %}
+              <td
+                id="{{ mc_templates_dropdown_wrapper_id }}"
+                class="email-items-col"
+              >
+                <div id="{{ mc_fetch_templates_id }}" class="col-form-label">
+                  {# will be replaced when templates are fetched #}
+                  <div
+                    class="spinner-border spinner-border-sm"
+                    role="status"
+                  ></div>
+                  Fetching Templates...
+                </div>
+              </td>
+              {% else %}
+              <td class="email-items-col">
+                <em class="text-muted">Cannot fetch templates</em>
+              </td>
+              {% endif %}
+            </tr>
+            <tr>
+              <td class="table-sm-col">
+                <div class="col-form-label">Subject</div>
+              </td>
+              <td class="email-items-col">
+                <input
+                  type="text"
+                  id="{{ email_subject_input_id }}"
+                  class="form-control"
+                  value="{{ last_subject or '' }}"
+                  placeholder="e.g., Match {match}: Report to Holding"
+                />
+                <div
+                  id="{{ email_subject_input_id }}-invalid"
+                  class="invalid-feedback"
+                ></div>
+                <div class="form-text">
+                  You must use the placeholder <code>{match}</code> to indicate
+                  the match number. For the full placeholder list and subject
+                  specifications, see help
+                  <a
+                    href="#{{ email_subject_help_id }}"
+                    data-bs-toggle="offcanvas"
+                    aria-controls="{{ email_subject_help_id }}"
+                  >here</a>.
+                </div>
+              </td>
+            </tr>
+          </table>
+          <div
+            id="{{ email_subject_help_id }}"
+            class="offcanvas offcanvas-end"
+            tabindex="-1"
+            aria-labelledby="{{ email_subject_help_id }}-title"
+            data-bs-scroll="true"
+          >
+            <div class="offcanvas-header">
+              <h5
+                class="offcanvas-title"
+                id="{{ email_subject_help_id }}-title"
+              >
+                Email Subject Help
+              </h5>
+              {{ macros.bs_close_btn(dismiss="offcanvas") }}
+            </div>
+            <div class="offcanvas-body">
+              <p>
+                The email subject can be customized on a per-match or per-team
+                basis by using placeholder variables. These placeholders will be
+                replaced in the actual emails that are sent. Here is a list of
+                the available placeholders:
+              </p>
+              <div>
+                <table class="table table-bordered">
+                  <tr>
+                    <td scope="row">
+                      <code>{match}</code>
+                    </td>
+                    <td>The match number (required in the subject).</td>
+                  </tr>
+                  <tr>
+                    <td scope="row">
+                      <code>{division}</code>
+                    </td>
+                    <td>The division (as seen in the TMS).</td>
+                  </tr>
+                  <tr>
+                    <td scope="row">
+                      <code>{round}</code>
+                    </td>
+                    <td>The round (as seen in the TMS).</td>
+                  </tr>
+                  <tr>
+                    <td scope="row">
+                      <code>{blueteam}</code>
+                    </td>
+                    <td>The name of the blue team.</td>
+                  </tr>
+                  <tr>
+                    <td scope="row">
+                      <code>{redteam}</code>
+                    </td>
+                    <td>The name of the red team.</td>
+                  </tr>
+                  <tr>
+                    <td scope="row">
+                      <code>{team}</code>
+                    </td>
+                    <td>
+                      The name of the team receiving the email (will be
+                      different for both teams).
+                    </td>
+                  </tr>
+                </table>
+              </div>
+              <p>
+                For example, a simple subject could look like:
+              </p>
+              <p>
+                <input
+                  type="text"
+                  class="form-control"
+                  value="Match {match}: Report to Holding"
+                  disabled
+                  readonly
+                />
+              </p>
+              <p>
+                Or, if you want to get fancier, something like:
+              </p>
+              <p>
+                <input
+                  type="text"
+                  class="form-control"
+                  value="Match {match} [{division}, {round}]: {blueteam} & {redteam}: Report to Holding"
+                  disabled
+                  readonly
+                />
+              </p>
+              <p>
+                Note that the character set for the subject is limited to
+                letters, digits, spaces, and any of the following:
+                <code>-_+.,!#&()[]{}|:;'"/?</code>.
+              </p>
+            </div>
+          </div>
+          <div>
+            {{ macros.loading_btn(
+                 send_notif_btn_id, "primary", "Send Notification", "Sending..."
+               )
+            }}
+            <span
+              id="{{ send_notif_error_id }}"
+              class="text-danger ms-2"
+            ></span>
+          </div>
         </div>
       </div>
     </div>
@@ -473,6 +635,8 @@ Notifications
   }
 
   function handleSetLastMatchesQueryClicked() {
+    resetSendNotificationErrors();
+
     const lastMatchesQuery = getAttr(
       '{{ set_last_matches_query_btn_id }}',
       'lastquery'
@@ -558,6 +722,8 @@ Notifications
       return;
     }
 
+    resetSendNotificationErrors();
+
     clearInvalid('{{ match_numbers_input_id }}');
     $('#{{ refresh_matches_status_id }}').addClass('d-none').html('');
 
@@ -600,8 +766,6 @@ Notifications
   }
 
   function refreshMatches() {
-    const refreshStatusId = '#refresh-matches-status';
-
     if (isButtonLoading('{{ refresh_matches_btn_id }}')) {
       // currently refreshing; ignore the click
       return;
@@ -610,6 +774,8 @@ Notifications
       // currently fetching; ignore the click
       return;
     }
+
+    resetSendNotificationErrors();
 
     // clear the input and any errors
     $('#{{ match_numbers_input_id }}').val('');
@@ -661,6 +827,8 @@ Notifications
   }
 
   function removeMatchRow(matchNumber) {
+    resetSendNotificationErrors();
+
     const $matchRow = $('#match-' + matchNumber);
     if ($matchRow.length === 0) return;
     $matchRow.remove();
@@ -696,6 +864,98 @@ Notifications
     });
   }
 
+  function populateMailchimpTemplateDropdown() {
+    const $loadingDiv = $('#{{ mc_fetch_templates_id }}');
+    if ($loadingDiv.length === 0) return;
+
+    ajaxRequest('GET', '{{ url_for("get_mailchimp_templates") }}', {
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          // populate the templates
+          $('#{{ mc_templates_dropdown_wrapper_id }}').html(
+            response['templates_html']
+          );
+        } else {
+          // some failure
+          $('#{{ mc_templates_dropdown_wrapper_id }}').html(
+            bsAlert(
+              response.reason ?? 'Unknown error: please try again',
+              'danger',
+              { dismissible: false }
+            )
+          );
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        $('#{{ mc_templates_dropdown_wrapper_id }}').html(
+          bsAlert(jqXHR.statusText, 'danger', { dismissible: false })
+        );
+      },
+    });
+  }
+
+  {# this id is from `src/templates/notifications/templates_info.jinja` #}
+  const TEMPLATE_SELECT_ID = 'mc-template-select';
+
+  function resetSendNotificationErrors() {
+    clearInvalid(TEMPLATE_SELECT_ID);
+    clearInvalid('{{ email_subject_input_id }}');
+    $('#{{ send_notif_error_id }}').html('');
+  }
+
+  function handleSendNotificationClicked() {
+    if (isButtonLoading('{{ send_notif_btn_id }}')) {
+      // currently sending; ignore the click
+      return;
+    }
+
+    resetSendNotificationErrors();
+
+    const matches = getCurrentMatchRows();
+    if (matches.length === 0) {
+      $('#{{ send_notif_error_id }}').html('No matches.');
+      return;
+    }
+    const validMatches = matches.filter((matchData) =>
+      matchData['blue_team'] != null && matchData['red_team'] != null
+    );
+    if (validMatches.length === 0) {
+      $('#{{ send_notif_error_id }}').html('No valid matches.');
+      return;
+    }
+
+    let invalid = false;
+
+    const selectedTemplateId = getInputValue(TEMPLATE_SELECT_ID);
+    if (selectedTemplateId === '') {
+      invalid = true;
+      setInvalid(TEMPLATE_SELECT_ID, 'Please select an email template.');
+    }
+
+    const emailSubject = getInputValue('{{ email_subject_input_id }}');
+    if (emailSubject === '') {
+      invalid = true;
+      setInvalid('{{ email_subject_input_id }}', 'Please enter a subject.');
+    } else if (!emailSubject.includes('{match}')) {
+      invalid = true;
+      setInvalid(
+        '{{ email_subject_input_id }}',
+        'Missing "{match}" placeholder.'
+      );
+    } else if (!emailSubject.match(/^[A-Z0-9 \-_+.,!#&()[\]{}|:;'"/?]+$/i)) {
+      invalid = true;
+      setInvalid(
+        '{{ email_subject_input_id }}',
+        'Subject contains illegal characters.'
+      );
+    }
+
+    if (invalid) return;
+
+    // TODO
+    console.log(validMatches);
+  }
+
   $(document).ready(() => {
     {% if has_all_admin_settings_error is not none %}
     // There is an error; disable all inputs
@@ -727,6 +987,16 @@ Notifications
     $('#{{ remove_all_matches_btn_id }}').click((event) => {
       resetMatchesTable();
     });
+
+    // Send notifications
+    populateMailchimpTemplateDropdown();
+    $('#{{ email_subject_input_id }}').onEnterKeyPress((event) => {
+      $('#{{ send_notif_btn_id }}').click();
+    });
+    $('#{{ send_notif_btn_id }}').click((event) => {
+      handleSendNotificationClicked();
+    });
+    {% endif %}
   });
 </script>
 {% endblock %}

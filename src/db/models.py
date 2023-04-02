@@ -60,6 +60,12 @@ class GlobalState(db.Model):
     # NOTE: For now, the template folder is actually a campaign folder,
     #   but the column name shouldn't have to change if this gets fixed.
     mailchimp_folder_id = Column(String(), nullable=True)
+    # The id of the last selected Mailchimp template
+    # NOTE: For now, this is actually a campaign id, but the column name
+    #   shouldn't have to change if this gets fixed.
+    mailchimp_template_id = Column(String(), nullable=True)
+    # The subject of the last sent Mailchimp email
+    mailchimp_subject = Column(String(), nullable=True)
 
     @property
     def service_account_info(self):
