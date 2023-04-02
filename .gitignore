@@ -1,6 +1,9 @@
 # MacOS files
 .DS_Store
 
+# VSCode
+.vscode/
+
 # Private keys
 keys.py
 
