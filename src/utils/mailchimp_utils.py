@@ -371,3 +371,33 @@ def get_campaign_folder(folder_id):
     return _get_resource(
         client.campaignFolders.get, folder_id, CAMPAIGN_FOLDER_FIELDS
     )
+
+
+# =============================================================================
+
+CAMPAIGN_FIELDS = {
+    "id": {"path": "id"},
+    "title": {"path": ["settings", "title"]},
+}
+
+
+def get_campaigns_in_folder(audience_id, folder_id):
+    """Gets the Mailchimp campaigns in the given folder.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, List[Dict]]]:
+            A tuple of an error message, or a list of campaigns in the
+            format:
+                'id': campaign id
+                'title': campaign title
+    """
+    error_msg, client = get_client()
+    if error_msg is not None:
+        return error_msg, None
+    return _get_paginated_data(
+        client.campaigns.list,
+        CAMPAIGN_FIELDS,
+        "campaigns",
+        list_id=audience_id,
+        folder_id=folder_id,
+    )
