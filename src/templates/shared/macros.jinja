@@ -108,6 +108,7 @@
      loading_classes=""
    )
  %}
+{% set title_id = btn_id ~ "-confirmation-modal-title" %}
 <button
   type="button"
   class="btn btn-{{ accent }} {{ classes }}"
@@ -119,14 +120,14 @@
   id="{{ btn_id }}-modal"
   class="modal fade"
   tabindex="-1"
-  aria-labelledby="{{ btn_id }}-confirmation-modal"
+  aria-labelledby="{{ title_id }}"
   aria-hidden="true"
 >
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 id="exampleModalLabel" class="modal-title">{{ title }}?</h5>
-        {{ bs_close_btn(classes="ms-2" if small else "", dismiss="modal") }}
+        <h5 id="{{ title_id }}" class="modal-title">{{ title }}?</h5>
+        {{ bs_close_btn(dismiss="modal") }}
       </div>
       <div class="modal-body">
         Are you sure you want to {{ action }}?
