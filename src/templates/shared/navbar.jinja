@@ -39,6 +39,9 @@
     <div id="navbar-text" class="collapse navbar-collapse">
       <ul class="nav navbar-nav me-auto mb-2 mb-lg-0">
         {% if user_is_logged_in and user_is_admin %}
+        {% if user_is_super_admin %}
+        {{ _nav_item_link("Global Settings", "global_settings") }}
+        {% endif %}
         {{ _nav_item_link("Admin Settings", "admin_settings") }}
         {{ _nav_item_link("Notifications", "notifications") }}
         {% endif %}

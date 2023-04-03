@@ -4,15 +4,27 @@
 Admin Settings
 {% endblock %}
 
+{% set super_admin_contact_modal_id = "super-admin-contact-modal" %}
+
+{% macro _contact_super_admin(action) %}
+{% if user_is_super_admin %}
+Please visit the <a href="{{ url_for('global_settings') }}">Global Settings</a>
+page to {{ action }}.
+{% else %}
+Please contact a
+<a
+  data-bs-toggle="modal"
+  href="#{{ super_admin_contact_modal_id }}"
+>Super Admin</a> to {{ action }}.
+{% endif %}
+{% endmacro %}
+
+{# Service account #}
 {% set service_account_email_id = "service-account-email" %}
 {% set copy_email_btn_id = "copy-service-account-email-btn" %}
 {% set copy_email_status_id = "copy-service-account-email-status" %}
 
-{% set service_account_creds_input_id = "service-account-credentials" %}
-{% set service_account_messages_id = "service-account-messages" %}
-{% set set_service_account_btn_id = "set-service-account-btn" %}
-{% set clear_service_account_btn_id = "clear-service-account-btn" %}
-
+{# TMS spreadsheet #}
 {% set tms_url_input_id = "tms-url-input" %}
 {% set tms_url_messages_id = "tms-url-messages" %}
 {% set open_tms_btn_id = "open-tms-btn" %}
@@ -20,13 +32,9 @@ Admin Settings
 {% set clear_tms_url_btn_id = "clear-tms-url-btn" %}
 
 {# Mailchimp #}
-{% set mc_api_key_input_id = "mc-api-key-input" %}
-{% set mc_api_key_messages_id = "mc-api-key-messages" %}
-{% set mc_set_api_key_btn_id = "mc-set-api-key-btn" %}
-{% set mc_clear_api_key_btn_id = "mc-clear-api-key-btn" %}
-
 {% set mc_audiences_info_section_id = "mc-audiences-info" %}
 {% set mc_fetch_audiences_id = "mc-fetch-audiences" %}
+
 {% set mc_audience_tag_input_id = "mc-audience-tag-input" %}
 {% set mc_set_audience_tag_btn_id = "mc-set-audience-tag-btn" %}
 {% set mc_set_audience_tag_status_id = "mc-set-audience-tag-status" %}
@@ -37,7 +45,47 @@ Admin Settings
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
 {% block body %}
-<div id="admin-config-body" class="container-fluid">
+<div id="admin-settings-body" class="container-fluid">
+  {% if not user_is_super_admin %}
+  <div
+    id="{{ super_admin_contact_modal_id }}"
+    class="modal fade"
+    tabindex="-1"
+    aria-labelledby="{{ super_admin_contact_modal_id }}-title"
+    aria-hidden="true"
+  >
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5
+            id="{{ super_admin_contact_modal_id }}-title" 
+            class="modal-title"
+          >
+            Super Admins
+          </h5>
+          {{ macros.bs_close_btn(dismiss="modal") }}
+        </div>
+        <div class="modal-body">
+          {% if super_admins|length == 0 %}
+          Sorry, there are currently no super admins.
+          {% else %}
+          You may contact any of these super admins:
+          <ul>
+            {% for email in super_admins %}
+            <li>{{ email|e }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-success" data-bs-dismiss="modal">
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
   <div id="tms-spreadsheet-section" class="row mb-2">
     <div class="col">
       <div class="row">
@@ -71,69 +119,17 @@ Admin Settings
             <span id="{{ copy_email_status_id }}" class="ms-2"></span>
             {% endif %}
           </div>
-          {% if service_account_email is not none %}
-          <div class="mb-2">
-            {{ macros.confirm_btn(
-                 clear_service_account_btn_id,
-                 "Clear Service Account",
-                 "clear the service account",
-                 loading_text="Clearing...",
-               )
-            }}
-          </div>
-          {% endif %}
         </div>
       </div>
-      <div class="row">
-        <div class="col">
-          <h5>Change Service Account</h5>
-          <div class="row mb-2">
-            <div class="col">
-              Please see
-              <a
-                href="https://docs.gspread.org/en/latest/oauth2.html#for-bots-using-service-account"
-                target="_blank"
-              >this page</a> for how to create a service account. Upload the
-              credentials JSON file here.
-            </div>
-          </div>
-          {# "gy-2" because the set button wraps when the screen gets too small,
-             so still want good spacing between the input and the button.
-           #}
-          <div class="row gy-2 mb-2">
-            <div class="col col-sm-auto pe-0">
-              <div id="service-account-file-input-wrapper">
-                <input
-                  type="file"
-                  id="{{ service_account_creds_input_id }}"
-                  class="form-control"
-                />
-                <div
-                  id="{{ service_account_creds_input_id }}-invalid"
-                  class="invalid-feedback"
-                ></div>
-              </div>
-            </div>
-            <div class="col-auto">
-              {{ macros.loading_btn(
-                   set_service_account_btn_id, "success", "Set", "Setting..."
-                 )
-              }}
-            </div>
-          </div>
-          <div class="row">
-            <div id="{{ service_account_messages_id }}" class="col-auto">
-              {% for accent, messages in flashed["service-account"].items() %}
-              {% for message in messages %}
-              {% call macros.bs_alert(accent) %}
-              {{ message }}
-              {% endcall %}
-              {% endfor %}
-              {% endfor %}
-            </div>
-          </div>
+      {% if service_account_email is none %}
+      <div class="row mb-2">
+        <div class="col-auto">
+          {% call macros.bs_alert("danger", dismissible=false) %}
+          {{ _contact_super_admin("set a service account") }}
+          {% endcall %}
         </div>
       </div>
+      {% endif %}
       <div class="row">
         <div class="col">
           <h4>Spreadsheet URL</h4>
@@ -209,83 +205,15 @@ Admin Settings
           <h2>Mailchimp</h2>
         </div>
       </div>
-      <div class="row">
-        <div class="col">
-          <h4>API Key</h4>
-          <div class="row">
-            <div class="col">
-              <div class="mb-2">
-                We use Mailchimp to send email notifications. To allow the
-                system to access your Mailchimp account, we will need an API
-                key. Please see
-                <a
-                  href="https://mailchimp.com/help/about-api-keys/"
-                  target="_blank"
-                >this article</a> for information about them.
-              </div>
-              <div class="mb-2">
-                API keys must secure. Because of this, once you provide your API
-                key, you won't be able to see it on this site again (similar to
-                when you generated the API key), so be sure to store it
-                somewhere else. You can always clear or set another API key in
-                case the one you provided is no longer working.
-              </div>
-              <div class="mb-2">
-                {% if has_mc_api_key %}
-                <span class="me-2">You currently have an API key set.</span>
-                {{ macros.confirm_btn(
-                     mc_clear_api_key_btn_id,
-                     "Clear API key",
-                     "clear the Mailchimp API key",
-                     loading_text="Clearing...",
-                     classes="btn-sm",
-                   )
-                }}
-                {% else %}
-                You currently do not have an API key set.
-                {% endif %}
-              </div>
-            </div>
-          </div>
-          <div class="row mb-2">
-            <div class="col-xs col-sm-8 col-md-7 col-lg-4">
-              <div class="row">
-                <div class="col pe-0">
-                  <input
-                    type="text"
-                    id="{{ mc_api_key_input_id }}"
-                    class="form-control"
-                    {% with action = "Edit" if has_mc_api_key else "Set" %}
-                    placeholder="{{ action }} Mailchimp API Key"
-                    {% endwith %}
-                  />
-                  <div
-                    id="{{ mc_api_key_input_id }}-invalid"
-                    class="invalid-feedback"
-                  ></div>
-                </div>
-                <div class="col-auto">
-                  {{ macros.loading_btn(
-                       mc_set_api_key_btn_id, "success", "Set", "Setting..."
-                     )
-                  }}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="row">
-            <div id="{{ mc_api_key_messages_id }}" class="col-auto">
-              {% for accent, messages in flashed["mailchimp-api-key"].items() %}
-              {% for message in messages %}
-              {% call macros.bs_alert(accent) %}
-              {{ message }}
-              {% endcall %}
-              {% endfor %}
-              {% endfor %}
-            </div>
-          </div>
+      {% if not has_mc_api_key %}
+      <div class="row mb-2">
+        <div class="col-auto">
+          {% call macros.bs_alert("danger", dismissible=false) %}
+          {{ _contact_super_admin("set the Mailchimp API key") }}
+          {% endcall %}
         </div>
       </div>
+      {% endif %}
       <div class="row mb-2">
         <div class="col">
           <h4>Audience</h4>
@@ -396,66 +324,6 @@ Admin Settings
 
 {% block script %}
 <script>
-  function handleSetServiceAccountClicked() {
-    if (isButtonLoading('{{ set_service_account_btn_id }}')) {
-      // currently setting; ignore click
-      return;
-    }
-
-    // clear messages
-    $('#{{ service_account_messages_id }}').html('');
-    clearInvalid('{{ service_account_creds_input_id }}');
-
-    const fileList = $('#{{ service_account_creds_input_id }}').prop('files');
-    if (fileList.length === 0) {
-      // Error: no file chosen
-      setInvalid(
-        '{{ service_account_creds_input_id }}',
-        'Please choose a file.'
-      );
-      return;
-    }
-
-    // read file
-    const file = fileList[0];
-    file.text().then((fileText) => {
-      // set service account with file contents
-      setButtonLoading('{{ set_service_account_btn_id }}');
-      ajaxRequest('POST', '{{ url_for("set_service_account") }}', {
-        contentType: 'application/json',
-        data: fileText,
-        success: (response, status, jqXHR) => {
-          if (response.success) {
-            // reload the page
-            location.reload();
-          } else {
-            // some failure
-            stopButtonLoading('{{ set_service_account_btn_id }}');
-            setInvalid(
-              '{{ service_account_creds_input_id }}',
-              response.reason ?? 'Unknown error: please try again'
-            );
-          }
-        },
-        error: (jqXHR, status, errorThrown) => {
-          stopButtonLoading('{{ set_service_account_btn_id }}');
-          setInvalid('{{ service_account_creds_input_id }}', jqXHR.statusText);
-        },
-      })
-    });
-  }
-
-  function handleClearServiceAccountClicked() {
-    if (isButtonLoading('{{ clear_service_account_btn_id }}')) {
-      // currently clearing; ignore click
-      return;
-    }
-
-    setButtonLoading('{{ clear_service_account_btn_id }}');
-    // just reload once the clearing is done
-    ajaxRequest('DELETE', '{{ url_for("set_service_account") }}');
-  }
-
   function getUrl() {
     return getInputValue('{{ tms_url_input_id }}');
   }
@@ -522,57 +390,6 @@ Admin Settings
     setButtonLoading('{{ clear_tms_url_btn_id }}');
     // just reload once the clearing is done
     ajaxRequest('DELETE', '{{ url_for("set_tms_spreadsheet") }}');
-  }
-
-  function handleMailchimpSetApiKeyClicked() {
-    if (isButtonLoading('{{ mc_set_api_key_btn_id }}')) {
-      // currently setting; ignore click
-      return;
-    }
-
-    // clear messages
-    $('#{{ mc_api_key_messages_id }}').html('');
-    clearInvalid('{{ mc_api_key_input_id }}');
-
-    const apiKey = getInputValue('{{ mc_api_key_input_id }}');
-    if (apiKey === '') {
-      setInvalid('{{ mc_api_key_input_id }}', 'Please provide your API key.');
-      return;
-    }
-
-    setButtonLoading('{{ mc_set_api_key_btn_id }}');
-    ajaxRequest('POST', '{{ url_for("set_mailchimp_api_key") }}', {
-      contentType: 'application/json',
-      data: JSON.stringify({ apiKey }),
-      success: (response, status, jqXHR) => {
-        if (response.success) {
-          // reload the page
-          location.reload();
-        } else {
-          // some failure
-          stopButtonLoading('{{ mc_set_api_key_btn_id }}');
-          setInvalid(
-            '{{ mc_api_key_input_id }}',
-            response.reason ?? 'Unknown error: please try again'
-          );
-        }
-      },
-      error: (jqXHR, status, errorThrown) => {
-        stopButtonLoading('{{ mc_set_api_key_btn_id }}');
-        setInvalid('{{ mc_api_key_input_id }}', jqXHR.statusText);
-      },
-    });
-  }
-
-  function handleMailchimpClearApiKeyClicked() {
-    if (isButtonLoading('{{ mc_clear_api_key_btn_id }}')) {
-      // currently clearing; ignore click
-      return;
-    }
-
-    setButtonLoading('{{ mc_clear_api_key_btn_id }}');
-    // just reload once the clearing is done
-    ajaxRequest('DELETE', '{{ url_for("set_mailchimp_api_key") }}');
   }
 
   function populateMailchimpAudienceDropdown() {
@@ -756,14 +573,6 @@ Admin Settings
         );
       });
     });
-    $('#{{ set_service_account_btn_id }}').click((event) => {
-      handleSetServiceAccountClicked();
-    });
-    $('#{{ clear_service_account_btn_id }}').click((event) => {
-      handleClearServiceAccountClicked();
-    });
-    // clear the flashed text after 60 seconds
-    clearElementAfter('{{ service_account_messages_id }}', 60);
 
     // TMS Spreadsheet
     handleTMSSpreadsheetUrlChanged();
@@ -783,18 +592,6 @@ Admin Settings
     clearElementAfter('{{ tms_url_messages_id }}', 60);
 
     // Mailchimp
-    // API key
-    $('#{{ mc_api_key_input_id }}').onEnterKeyPress((event) => {
-      $('#{{ mc_set_api_key_btn_id }}').click();
-    });
-    $('#{{ mc_set_api_key_btn_id }}').click((event) => {
-      handleMailchimpSetApiKeyClicked();
-    });
-    $('#{{ mc_clear_api_key_btn_id }}').click((event) => {
-      handleMailchimpClearApiKeyClicked();
-    });
-    // clear the flashed text after 60 seconds
-    clearElementAfter('{{ mc_api_key_messages_id }}', 60);
     // Audience
     populateMailchimpAudienceDropdown();
     // Audience tag

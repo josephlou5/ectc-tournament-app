@@ -703,7 +703,68 @@ def get_matches_query():
     return {"success": True, "matches_query": clean_matches_query}
 
 
-@app.route("/notifications/matches_status", methods=["GET"])
+@app.route("/mailchimp/templates", methods=["GET"])
+@login_required(admin=True, save_redirect=False)
+def get_mailchimp_templates():
+    if not db.global_state.has_mailchimp_api_key():
+        return unsuccessful("No Mailchimp API key")
+
+    folder_id = db.global_state.get_mailchimp_folder_id()
+    if folder_id is None:
+        return unsuccessful("No selected Mailchimp template folder")
+
+    print(" ", f"Fetching Mailchimp campaigns in folder {folder_id}")
+
+    # fetch templates
+    error_msg, templates = mailchimp_utils.get_campaigns_in_folder(folder_id)
+    if error_msg is not None:
+        return unsuccessful(
+            error_msg, "Error while fetching Mailchimp campaigns"
+        )
+
+    if len(templates) == 0:
+        print(" ", "Fetched 0 campaign templates")
+        selected_template_id = None
+    else:
+        print(" ", "Fetched campaign templates:")
+        print_records(templates[0].keys(), templates, indent=4, padding=2)
+
+        # determine which template to select as default
+        selected_template_id = db.global_state.get_mailchimp_template_id()
+        if selected_template_id is None:
+            print(" ", "No selected template in database")
+        else:
+            print(
+                " ",
+                "Selected template id from database:",
+                selected_template_id,
+            )
+            for info in templates:
+                if info["id"] == selected_template_id:
+                    print(
+                        " ",
+                        " ",
+                        f'Selected template: {info["title"]!r} ({info["id"]})',
+                    )
+                    break
+            else:
+                # invalid template id
+                # clear from database (don't care if failed)
+                _ = db.global_state.clear_mailchimp_template_id()
+                selected_template_id = None
+                print(
+                    " ", " ", "Invalid selected template id (not in fetched)"
+                )
+
+    templates_html = render_template(
+        "notifications/templates_info.jinja",
+        templates=templates,
+        selected_template_id=selected_template_id,
+    )
+    return {"success": True, "templates_html": templates_html}
+
+
+@app.route("/matches_status", methods=["GET"])
 def view_matches_status():
     set_redirect_page()
 
