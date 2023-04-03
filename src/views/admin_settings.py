@@ -411,25 +411,14 @@ def get_mailchimp_templates():
     if not db.global_state.has_mailchimp_api_key():
         return unsuccessful("No Mailchimp API key")
 
-    audience_id = db.global_state.get_mailchimp_audience_id()
-    if audience_id is None:
-        return unsuccessful("No selected Mailchimp audience")
     folder_id = db.global_state.get_mailchimp_folder_id()
     if folder_id is None:
         return unsuccessful("No selected Mailchimp template folder")
 
-    print(
-        " ",
-        (
-            f"Fetching Mailchimp campaigns in audience {audience_id} and "
-            f"folder {folder_id}"
-        ),
-    )
+    print(" ", f"Fetching Mailchimp campaigns in folder {folder_id}")
 
     # fetch templates
-    error_msg, templates = mailchimp_utils.get_campaigns_in_folder(
-        audience_id, folder_id
-    )
+    error_msg, templates = mailchimp_utils.get_campaigns_in_folder(folder_id)
     if error_msg is not None:
         return unsuccessful(
             error_msg, "Error while fetching Mailchimp campaigns"

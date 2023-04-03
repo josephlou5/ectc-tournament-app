@@ -381,7 +381,7 @@ CAMPAIGN_FIELDS = {
 }
 
 
-def get_campaigns_in_folder(audience_id, folder_id):
+def get_campaigns_in_folder(folder_id):
     """Gets the Mailchimp campaigns in the given folder.
 
     Returns:
@@ -398,6 +398,5 @@ def get_campaigns_in_folder(audience_id, folder_id):
         client.campaigns.list,
         CAMPAIGN_FIELDS,
         "campaigns",
-        list_id=audience_id,
         folder_id=folder_id,
     )
