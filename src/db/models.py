@@ -78,7 +78,10 @@ class GlobalState(db.Model):
 
     @service_account_info.setter
     def service_account_info(self, value):
-        self.service_account = utils.json_dump_compact(value)
+        if value is None:
+            self.service_account = None
+        else:
+            self.service_account = utils.json_dump_compact(value)
 
     @property
     def service_account_email(self):
