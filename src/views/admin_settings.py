@@ -65,7 +65,7 @@ def set_tms_spreadsheet():
     error_msg, request_args = get_request_json("url")
     if error_msg is not None:
         return unsuccessful(error_msg)
-    url = request_args["url"]
+    url = request_args["url"].strip()
     if url == "":
         return unsuccessful("TMS spreadsheet url is empty")
 
@@ -173,7 +173,7 @@ def set_mailchimp_audience():
     error_msg, request_args = get_request_json("audienceId")
     if error_msg is not None:
         return unsuccessful(error_msg)
-    audience_id = request_args["audienceId"]
+    audience_id = request_args["audienceId"].strip()
     if audience_id == "":
         return unsuccessful("Audience id is empty")
 
@@ -201,7 +201,7 @@ def set_mailchimp_audience_tag():
     error_msg, request_args = get_request_json("tag")
     if error_msg is not None:
         return unsuccessful(error_msg)
-    audience_tag = request_args["tag"]
+    audience_tag = request_args["tag"].strip()
 
     if audience_tag == "":
         # clear it instead of setting it
@@ -277,7 +277,7 @@ def set_mailchimp_template_folder():
     error_msg, request_args = get_request_json("folderId")
     if error_msg is not None:
         return unsuccessful(error_msg)
-    folder_id = request_args["folderId"]
+    folder_id = request_args["folderId"].strip()
     if folder_id == "":
         return unsuccessful("Folder id is empty")
 
