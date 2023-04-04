@@ -17,6 +17,8 @@ import utils
 
 PAGINATION_LIMIT = 100
 
+TNS_SEGMENT_NAME = "[TNS] Match Segment"
+
 # =============================================================================
 
 GLOBAL_CLIENT = None
@@ -130,15 +132,12 @@ def _extract_fields(fields, obj):
     return extracted
 
 
-def _get_paginated_data(api_call, fields, data_key, additional_kwargs=None):
-    all_data = []
+def _yield_paginated_data(api_call, fields, data_key, *args, **kwargs):
+    """Yields the paginated data, but does not handle API errors."""
+
     total_items = None
     seen_items = 0
 
-    if additional_kwargs is None:
-        kwargs = {}
-    else:
-        kwargs = additional_kwargs
     kwargs.update(
         {
             "fields": _get_fields_list(fields, prefix=data_key),
@@ -147,23 +146,28 @@ def _get_paginated_data(api_call, fields, data_key, additional_kwargs=None):
     )
 
     while True:
-        try:
-            response = api_call(**kwargs, offset=seen_items)
-        except ApiClientError as ex:
-            error_msg = str(ex.text)
-            print("Mailchimp API error:", error_msg)
-            return error_msg, None
+        response = api_call(*args, **kwargs, offset=seen_items)
         if total_items is None:
             total_items = response["total_items"]
         paginated = response[data_key]
 
         for data in paginated:
-            all_data.append(_extract_fields(fields, data))
+            yield _extract_fields(fields, data)
 
         seen_items += len(paginated)
         if seen_items >= total_items:
             break
 
+
+def _get_paginated_data(api_call, fields, data_key, *args, **kwargs):
+    try:
+        all_data = list(
+            _yield_paginated_data(api_call, fields, data_key, *args, **kwargs)
+        )
+    except ApiClientError as ex:
+        error_msg = str(ex.text)
+        print("Mailchimp API error:", error_msg)
+        return error_msg, None
     return None, all_data
 
 
@@ -400,3 +404,177 @@ def get_campaigns_in_folder(folder_id):
         "campaigns",
         folder_id=folder_id,
     )
+
+
+# =============================================================================
+
+SEGMENT_FIELDS = {
+    "id": {"path": "id"},
+    "name": {"path": "name"},
+}
+
+
+def get_or_create_tns_segment(audience_id):
+    """Gets the TNS email segment, or creates it if it doesn't exist.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, int]]:
+            An error message, or the segment id.
+    """
+
+    error_msg, client = get_client()
+    if error_msg is not None:
+        return error_msg, None
+
+    # get all static segments
+    segment_id = None
+    try:
+        for segment_info in _yield_paginated_data(
+            client.lists.list_segments,
+            SEGMENT_FIELDS,
+            "segments",
+            audience_id,
+            type="static",
+        ):
+            if segment_info["name"] == TNS_SEGMENT_NAME:
+                # found the segment
+                segment_id = segment_info["id"]
+                break
+    except ApiClientError as ex:
+        error_msg = str(ex.text)
+        print("Mailchimp API error:", error_msg)
+        return error_msg, None
+
+    # create segment if not found
+    if segment_id is None:
+        try:
+            created_segment = client.lists.create_segment(
+                audience_id,
+                {"name": TNS_SEGMENT_NAME, "static_segment": []},
+            )
+        except ApiClientError as ex:
+            error_msg = str(ex.text)
+            print("Mailchimp API error while creating segment:", error_msg)
+            return error_msg, None
+        segment_id = created_segment["id"]
+
+    return None, segment_id
+
+
+def update_tns_segment_emails(audience_id, segment_id, emails):
+    """Replaces the emails in the given segment with the given emails.
+
+    Assumes the given segment is the reserved TNS segment.
+
+    Returns:
+        Union[str, None]: An error message if an error occurred.
+    """
+    INVALID_EMAILS_MSG = (
+        "None of the emails provided were subscribed to the list"
+    )
+
+    error_msg, client = get_client()
+    if error_msg is not None:
+        return error_msg
+
+    # edit the emails in the segment
+    try:
+        # this call with REPLACE the emails in the segment
+        response = client.lists.update_segment(
+            audience_id, segment_id, {"static_segment": emails}
+        )
+    except ApiClientError as ex:
+        error_msg = str(ex.text)
+        if INVALID_EMAILS_MSG in error_msg:
+            error_msg = "All given emails were not subscribed to the audience"
+        print("Mailchimp API error while updating segment:", error_msg)
+        return error_msg
+
+    if response["member_count"] != len(emails):
+        # some of the given emails were not in the audience
+        # TODO: handle this? or does it not matter?
+        pass
+
+    return None
+
+
+# =============================================================================
+
+
+def create_and_send_campaign(
+    audience_id, replicate_id, segment_id, subject, emails
+):
+    """Creates and sends a campaign in the given audience.
+
+    Replicates the given campaign, then sets the subject, preview, and
+    title, and sets the proper recipients in the given segment.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, Dict]]:
+            An error message, or the info for the created campaign
+            (before the send).
+    """
+
+    error_msg, client = get_client()
+    if error_msg is not None:
+        return error_msg, None
+
+    # update segment emails
+    error_msg = update_tns_segment_emails(audience_id, segment_id, emails)
+    if error_msg is not None:
+        return error_msg, None
+
+    # replicate campaign
+    try:
+        new_campaign = client.campaigns.replicate(replicate_id)
+    except ApiClientError as ex:
+        error_msg = str(ex.text)
+        print(
+            f"Mailchimp API error while replicating campaign {replicate_id}:",
+            error_msg,
+        )
+        return error_msg, None
+    campaign_id = new_campaign["id"]
+
+    # update campaign info
+    try:
+        campaign_info = client.campaigns.update(
+            campaign_id,
+            {
+                "recipients": {
+                    "list_id": audience_id,
+                    # update to the TNS segment
+                    "segment_opts": {"saved_segment_id": segment_id},
+                },
+                "settings": {
+                    "subject_line": subject,
+                    "preview_text": subject,
+                    "title": f"[TNS] {subject}",
+                    # remove from template folder
+                    "folder_id": "",
+                },
+            },
+        )
+    except ApiClientError as ex:
+        error_msg = str(ex.text)
+        print(
+            (
+                "Mailchimp API error while updating campaign settings for "
+                f"{campaign_id}:"
+            ),
+            error_msg,
+        )
+        return error_msg, None
+
+    # send campaign
+    try:
+        client.campaigns.send(campaign_id)
+    except ApiClientError as ex:
+        error_msg = str(ex.text)
+        print(
+            f"Mailchimp API error while sending campaign {campaign_id}:",
+            error_msg,
+        )
+        return error_msg, None
+
+    return None, campaign_info

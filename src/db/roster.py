@@ -20,12 +20,16 @@ class TeamJoined:
         self.code = team.code
         self.school_code = f"{self.school.name} {self.code}"
 
+        valid_emails = set()
+
         def _get_user(user_id):
             if user_id is None:
                 return None
             user = query(User, {"id": user_id}).first()
             if user is None:
                 raise ValueError(f"No user with id {user_id}")
+            if user.email_valid:
+                valid_emails.add(user.email)
             return user
 
         self.light = _get_user(team.light_id)
@@ -34,6 +38,11 @@ class TeamJoined:
         self.alternates = [
             _get_user(user_id) for user_id in team.get_alternate_ids()
         ]
+
+        self._valid_emails = sorted(valid_emails)
+
+    def valid_emails(self):
+        return list(self._valid_emails)
 
 
 # =============================================================================

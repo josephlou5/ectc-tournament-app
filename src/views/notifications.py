@@ -6,6 +6,7 @@ team info, and sending notifications.
 # =============================================================================
 
 import json
+from collections import defaultdict
 from pathlib import Path
 
 from flask import flash, render_template, request
@@ -14,7 +15,13 @@ import db
 import utils
 from utils import fetch_tms, mailchimp_utils
 from utils.auth import login_required, set_redirect_page
-from utils.server import AppRoutes, _render, print_records, unsuccessful
+from utils.server import (
+    AppRoutes,
+    _render,
+    get_request_json,
+    print_records,
+    unsuccessful,
+)
 
 # =============================================================================
 
@@ -22,6 +29,13 @@ app = AppRoutes()
 
 STATIC_FOLDER = (Path(__file__).parent / ".." / "static").resolve()
 FETCH_ROSTER_LOGS_FILE = STATIC_FOLDER / "fetch_roster_logs.json"
+
+# Instead of injecting these characters into the Jinja template as a
+# JavaScript RegExp object, the client-side JavaScript should be
+# manually updated in `src/templates/notifications/index.jinja` whenever
+# this value changes.
+EMAIL_SUBJECT_VALID_CHARS = "-_+.,!#&()[]|:;'\"/?"
+EMAIL_SUBJECT_VALID_CHARS_SET = set(EMAIL_SUBJECT_VALID_CHARS)
 
 # =============================================================================
 
@@ -54,6 +68,7 @@ def notifications():
         matches_worksheet_name=fetch_tms.MATCHES_WORKSHEET_NAME,
         last_matches_query=last_matches_query,
         last_subject=last_subject,
+        EMAIL_SUBJECT_VALID_CHARS=EMAIL_SUBJECT_VALID_CHARS,
     )
 
 
@@ -762,6 +777,393 @@ def get_mailchimp_templates():
         selected_template_id=selected_template_id,
     )
     return {"success": True, "templates_html": templates_html}
+
+
+def _validate_subject(subject):
+    """Validates a given subject with optional placeholder values.
+
+    Returns the same subject with placeholders converted into lowercase.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, str]]:
+            An error message, or the validated subject.
+    """
+    VALID_PLACEHOLDERS = {
+        "match",
+        "division",
+        "round",
+        "blueteam",
+        "redteam",
+        "team",
+    }
+
+    def _error(msg):
+        return msg, None
+
+    subject_chars = []
+
+    in_placeholder = False
+    placeholder_chars = []
+    has_match_number = False
+    for i, c in enumerate(subject):
+        if c == "{":
+            if in_placeholder:
+                return _error(
+                    f"Index {i+1}: invalid open bracket: cannot have a nested "
+                    "placeholder"
+                )
+            in_placeholder = True
+        elif c == "}":
+            if not in_placeholder:
+                return _error(
+                    f"Index {i+1}: invalid close bracket: not in a placeholder"
+                )
+            placeholder_str = "".join(placeholder_chars)
+            bracket_index = i - len(placeholder_str)
+            if placeholder_str == "":
+                return _error(f"Index {bracket_index}: empty placeholder")
+            if placeholder_str == "match":
+                has_match_number = True
+            elif placeholder_str not in VALID_PLACEHOLDERS:
+                return _error(
+                    f"Index {bracket_index}: unknown placeholder "
+                    f'"{placeholder_str}"'
+                )
+            # reset placeholder values
+            in_placeholder = False
+            placeholder_chars.clear()
+        elif in_placeholder:
+            if not c.isalpha():
+                return _error(
+                    f"Index {i+1}: invalid character inside placeholder: {c}"
+                )
+            placeholder_chars.append(c.lower())
+        elif not (
+            c.isalpha()
+            or c.isdigit()
+            or c == " "
+            or c in EMAIL_SUBJECT_VALID_CHARS_SET
+        ):
+            return _error(f"Index {i+1}: invalid character: {c}")
+
+        if in_placeholder:
+            subject_chars.append(c.lower())
+        else:
+            subject_chars.append(c)
+    if in_placeholder:
+        bracket_index = len(subject) - len(placeholder_chars)
+        return _error(f"Index {bracket_index}: unclosed placeholder")
+    if not has_match_number:
+        return _error('Missing "{match}" placeholder')
+    # valid!
+    return None, "".join(subject_chars)
+
+
+def _format_subject(subject, match_info):
+    """Formats a subject with the possible placeholder values.
+
+    Returns:
+        Dict[str, str]: The subject for each team color in the format:
+            'blue_team': subject
+            'red_team': subject
+        Note that the two subjects may be the same.
+    """
+
+    def _team_name(team_info):
+        return " ".join(team_info["school_code"])
+
+    blue_team = _team_name(match_info["blue_team"])
+    red_team = _team_name(match_info["red_team"])
+    kwargs = {
+        "match": match_info["number"],
+        "division": match_info["division"],
+        "round": match_info["round"],
+        "blueteam": blue_team,
+        "redteam": red_team,
+    }
+    return {
+        "blue_team": subject.format(**kwargs, team=blue_team),
+        "red_team": subject.format(**kwargs, team=red_team),
+    }
+
+
+@app.route("/notifications/send", methods=["POST"])
+@login_required(admin=True, save_redirect=False)
+def send_notification():
+    if not db.global_state.has_mailchimp_api_key():
+        error_msg = "No Mailchimp API key"
+        print(" ", "Error:", error_msg)
+        return {"success": False, "errors": {"GENERAL": error_msg}}
+
+    error_msg, request_args = get_request_json(
+        "templateId", "subject", ("matches", list)
+    )
+    if error_msg is not None:
+        return {"success": False, "errors": {"GENERAL": error_msg}}
+
+    # get and validate request args
+    template_id = request_args["templateId"].strip()
+    subject = request_args["subject"].strip()
+    matches = request_args["matches"]
+
+    errors = {}
+
+    if template_id == "":
+        errors["TEMPLATE"] = "Template id is empty"
+    if subject == "":
+        errors["SUBJECT"] = "Subject is empty"
+    else:
+        error_msg, subject = _validate_subject(subject)
+        if error_msg is not None:
+            errors["SUBJECT"] = error_msg
+
+    # maps: severity -> match number -> statuses
+    notification_status = defaultdict(
+        lambda: defaultdict(
+            lambda: {"warned_repeat_number": False, "messages": []}
+        )
+    )
+    invalid_matches = {"index": [], "match_number": []}
+
+    def _add_status(severity, match_number, message, repeat_number=False):
+        match_status = notification_status[severity][match_number]
+        if repeat_number:
+            if match_status["warned_repeat_number"]:
+                return
+            match_status["warned_repeat_number"] = True
+        match_status["messages"].append(message)
+
+    # preprocess matches
+    # maps: match number -> match info
+    valid_matches = {}
+    # set of (school, code) tuples
+    all_team_infos = set()
+    if len(matches) == 0:
+        errors["GENERAL"] = "No matches given"
+    else:
+        # filter out valid matches
+        def _check_valid_match(index, match_info):
+            nonlocal notification_status, valid_matches, all_team_infos
+
+            match_number = match_info.get("number", None)
+            if match_number is None:
+                invalid_matches["index"].append(index)
+                return
+
+            for key in ("division", "round"):
+                if key not in match_info:
+                    invalid_matches["match_number"].append(match_number)
+                    return
+            if match_number in valid_matches:
+                # repeated match number; assume same
+                _add_status(
+                    "WARNING",
+                    match_number,
+                    "Repeated match number",
+                    repeat_number=True,
+                )
+                return
+
+            for color in ("blue_team", "red_team"):
+                if color not in match_info:
+                    invalid_matches["match_number"].append(match_number)
+                    return
+                team_info = match_info[color]
+                for key in ("school", "code"):
+                    if key not in team_info:
+                        invalid_matches["match_number"].append(match_number)
+                        return
+                team_info["school_code"] = (
+                    team_info["school"],
+                    team_info["code"],
+                )
+            if (
+                match_info["blue_team"]["school_code"]
+                == match_info["red_team"]["school_code"]
+            ):
+                # teams are the same; invalid match
+                _add_status("ERROR", match_number, "Both teams are the same")
+                return
+
+            valid_matches[match_number] = match_info
+            for color in ("blue_team", "red_team"):
+                all_team_infos.add(match_info[color]["school_code"])
+
+        for i, match_info in enumerate(matches):
+            _check_valid_match(i, match_info)
+        if len(valid_matches) == 0:
+            errors["GENERAL"] = "No valid matches given"
+    if len(errors) > 0:
+        print(" ", "Error with request args:")
+        for key, msg in errors.items():
+            print(" ", " ", f"{key}: {msg}")
+        return {"success": False, "errors": errors}
+
+    print(" ", "Sending notification emails for matches")
+
+    # get Mailchimp audience
+    audience_id = db.global_state.get_mailchimp_audience_id()
+    if audience_id is None:
+        error_msg = "No selected Mailchimp audience"
+        print(" ", "Error:", error_msg)
+        return {"success": False, "errors": {"GENERAL": error_msg}}
+    # get TNS segment id
+    error_msg, tns_segment_id = mailchimp_utils.get_or_create_tns_segment(
+        audience_id
+    )
+    if error_msg is not None:
+        print(" ", "Error while getting TNS segment:", error_msg)
+        return {"success": False, "errors": {"GENERAL": "Mailchimp error"}}
+
+    # get the team info for all the match teams
+    print(" ", "Fetching info for all match teams")
+    team_infos = db.roster.get_teams(list(all_team_infos))
+
+    # get the emails for each team and combine with match info
+    print(" ", "Compiling match infos into emails to send")
+    email_args = []
+    for match_number, match_info in valid_matches.items():
+        team_emails = {}
+        missing_team = {}
+        missing_emails = []
+        for team_color in ("blue_team", "red_team"):
+            color = team_color.split("_", 1)[0]
+            team_school_code = match_info[team_color]["school_code"]
+            error_msg, team = team_infos[team_school_code]
+            if error_msg is not None:
+                # actual error message doesn't matter here, just that
+                # there was an error
+                missing_team[color] = team_school_code
+                continue
+            # just get the emails without any role information
+            valid_emails = team.valid_emails()
+            if len(valid_emails) == 0:
+                missing_emails.append(color)
+                continue
+            team_emails[team_color] = valid_emails
+        if len(missing_team) > 0:
+            team_names = " and ".join(
+                f'{color} team {" ".join(school_code)!r}'
+                for color, school_code in missing_team.items()
+            )
+            _add_status("ERROR", match_number, f"Could not find {team_names}")
+            continue
+        if len(missing_emails) == 2:
+            # both teams don't have any valid emails
+            _add_status(
+                "ERROR", match_number, "No valid emails for both teams"
+            )
+            continue
+        if len(missing_emails) == 1:
+            color = missing_emails[0]
+            _add_status(
+                "ERROR", match_number, f"No valid emails for {color} team"
+            )
+            continue
+
+        # TODO (stretch goal): get settings for who else to send the
+        #   notification to
+
+        team_subjects = _format_subject(subject, match_info)
+        if team_subjects["blue_team"] == team_subjects["red_team"]:
+            # same subject, so can send one big email to all of them
+            all_emails = team_emails["blue_team"] + team_emails["red_team"]
+            email_args.append(
+                {
+                    "description": f"Match {match_number}",
+                    "subject": team_subjects["blue_team"],
+                    "emails": all_emails,
+                }
+            )
+        else:
+            # send one email to each team
+            for team_color in ("blue_team", "red_team"):
+                color = team_color.split("_", 1)[0]
+                email_args.append(
+                    {
+                        "description": f"Match {match_number}, {color} team",
+                        "subject": team_subjects[team_color],
+                        "emails": team_emails[team_color],
+                    }
+                )
+
+    if len(email_args) == 0:
+        # all the teams were not found or invalid, so all matches were
+        # also invalid
+        print(
+            " ", "Error: No generated emails, so no valid matches were given"
+        )
+        return {
+            "success": False,
+            "errors": {"GENERAL": "No valid matches given"},
+        }
+
+    # send emails
+    print(" ", "Sending emails")
+    any_email_sent = False
+    for args in email_args:
+        print(" ", " ", f'Sending email for {args["description"]}:')
+        print(" ", " ", " ", "Subject:", args["subject"])
+        print(" ", " ", " ", "Recipients:", args["emails"])
+        error_msg, _ = mailchimp_utils.create_and_send_campaign(
+            audience_id,
+            template_id,
+            tns_segment_id,
+            args["subject"],
+            args["emails"],
+        )
+        if error_msg is not None:
+            print(" ", " ", " ", "Error while sending email:", error_msg)
+            _add_status("ERROR", args["description"], "Email send failed")
+            continue
+        any_email_sent = True
+    if not any_email_sent:
+        error_msg = "All emails failed to send"
+        print(" ", "Error:", error_msg)
+        return {"success": False, "errors": {"GENERAL": error_msg}}
+
+    # save Mailchimp template and subject
+    success = db.global_state.set_mailchimp_template_id(template_id)
+    if not success:
+        # it's okay if this fails
+        print(" ", "Database error while saving Mailchimp template id")
+    success = db.global_state.set_mailchimp_subject(subject)
+    if not success:
+        # it's okay if this fails
+        print(" ", "Database error while saving Mailchimp subject")
+
+    # flash messages
+    flash("Successfully sent email notifications", "send-notif.success")
+    for severity, matches_status in notification_status.items():
+        lines = []
+        if severity == "WARNING":
+            for index in invalid_matches["index"]:
+                lines.append(f"Invalid match info at index {index+1}")
+            for match_number in invalid_matches["match_number"]:
+                lines.append(f"Invalid match info for Match {match_number}")
+        for match_number, match_status in matches_status.items():
+            if isinstance(match_number, int):
+                description = f"Match {match_number}"
+            else:
+                description = match_number
+            for message in match_status["messages"]:
+                lines.append(f"{description}: {message}")
+        if len(lines) == 0:
+            continue
+        if len(lines) == 1:
+            message = f"<strong>{severity.capitalize()}</strong>: {lines[0]}"
+        else:
+            message = "\n".join(
+                [f"<strong>{severity.capitalize()}s</strong>:", *lines]
+            )
+        accent = severity
+        if accent == "ERROR":
+            accent = "danger"
+        elif accent == "WARNING":
+            accent = "warning"
+        flash(message, f"send-notif.{accent}")
+
+    return {"success": True}
 
 
 @app.route("/matches_status", methods=["GET"])

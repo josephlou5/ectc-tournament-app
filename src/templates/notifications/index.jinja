@@ -33,6 +33,7 @@ Notifications
 {% set email_subject_help_id = "email-subject-help" %}
 {% set send_notif_btn_id = "send-notification-btn" %}
 {% set send_notif_error_id = "send-notification-error" %}
+{% set send_notif_messages_id = "send-notification-messages" %}
 
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
@@ -269,6 +270,21 @@ Notifications
       <div class="row">
         <div class="col">
           <h4>Send Match Notifications</h4>
+        </div>
+      </div>
+      <div class="row">
+        <div id="{{ send_notif_messages_id }}" class="col-auto">
+          {% for accent, messages in flashed["send-notif"].items() %}
+          {% for message in messages %}
+          {% call macros.bs_alert(accent) %}
+          {{ message }}
+          {% endcall %}
+          {% endfor %}
+          {% endfor %}
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
           <div class="mb-2">
             Enter the match numbers below that you want to send notifications
             for. The matches will keep being added to the matches queue, which
@@ -470,8 +486,8 @@ Notifications
               <p>
                 The email subject can be customized on a per-match or per-team
                 basis by using placeholder variables. These placeholders will be
-                replaced in the actual emails that are sent. Here is a list of
-                the available placeholders:
+                replaced with their corresponding values in the subjects of the
+                sent emails. Here is a list of the available placeholders:
               </p>
               <div>
                 <table class="table table-bordered">
@@ -517,6 +533,10 @@ Notifications
                 </table>
               </div>
               <p>
+                Placeholders are case insensitive and may be given multiple
+                times. Invalid placeholders will be rejected.
+              </p>
+              <p>
                 For example, a simple subject could look like:
               </p>
               <p>
@@ -535,7 +555,7 @@ Notifications
                 <input
                   type="text"
                   class="form-control"
-                  value="Match {match} [{division}, {round}]: {blueteam} & {redteam}: Report to Holding"
+                  value="Match {match} [{division}, {round}]: {blueteam} & {redteam}: Report to Holding!"
                   disabled
                   readonly
                 />
@@ -543,7 +563,7 @@ Notifications
               <p>
                 Note that the character set for the subject is limited to
                 letters, digits, spaces, and any of the following:
-                <code>-_+.,!#&()[]{}|:;'"/?</code>.
+                <code>{{ EMAIL_SUBJECT_VALID_CHARS }}</code>.
               </p>
             </div>
           </div>
@@ -904,6 +924,10 @@ Notifications
   }
 
   function handleSendNotificationClicked() {
+    function generalError(msg) {
+      $('#{{ send_notif_error_id }}').html(msg);
+    }
+
     if (isButtonLoading('{{ send_notif_btn_id }}')) {
       // currently sending; ignore the click
       return;
@@ -911,16 +935,10 @@ Notifications
 
     resetSendNotificationErrors();
 
+    // server will validate match infos and return appropriate errors
     const matches = getCurrentMatchRows();
     if (matches.length === 0) {
-      $('#{{ send_notif_error_id }}').html('No matches.');
-      return;
-    }
-    const validMatches = matches.filter((matchData) =>
-      matchData['blue_team'] != null && matchData['red_team'] != null
-    );
-    if (validMatches.length === 0) {
-      $('#{{ send_notif_error_id }}').html('No valid matches.');
+      generalError('No matches.');
       return;
     }
 
@@ -943,6 +961,8 @@ Notifications
         'Missing "{match}" placeholder.'
       );
     } else if (!emailSubject.match(/^[A-Z0-9 \-_+.,!#&()[\]{}|:;'"/?]+$/i)) {
+      // regexp should also include curly braces for placeholders
+      // server will validate proper placeholders
       invalid = true;
       setInvalid(
         '{{ email_subject_input_id }}',
@@ -952,8 +972,53 @@ Notifications
 
     if (invalid) return;
 
-    // TODO
-    console.log(validMatches);
+    setButtonLoading('{{ send_notif_btn_id }}');
+    ajaxRequest('POST', '{{ url_for("send_notification") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({
+        templateId: selectedTemplateId,
+        subject: emailSubject,
+        matches: matches,
+      }),
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          // reload the page
+          location.reload();
+        } else {
+          // some failure(s)
+          stopButtonLoading('{{ send_notif_btn_id }}');
+
+          const errorMessages = response.errors ?? {};
+          let errorSomewhere = false;
+
+          const templateError = errorMessages['TEMPLATE'];
+          if (templateError != null) {
+            errorSomewhere = true;
+            setInvalid(TEMPLATE_SELECT_ID, templateError);
+          }
+
+          const subjectError = errorMessages['SUBJECT'];
+          if (subjectError != null) {
+            errorSomewhere = true;
+            setInvalid('{{ email_subject_input_id }}', subjectError);
+          }
+
+          const errorMessage = errorMessages['GENERAL'];
+          if (errorMessage != null) {
+            errorSomewhere = true;
+            generalError(errorMessage);
+          }
+
+          if (!errorSomewhere) {
+            generalError('Unknown error: please try again');
+          }
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        stopButtonLoading('{{ send_notif_btn_id }}');
+        generalError(jqXHR.statusText);
+      },
+    });
   }
 
   $(document).ready(() => {
@@ -996,6 +1061,8 @@ Notifications
     $('#{{ send_notif_btn_id }}').click((event) => {
       handleSendNotificationClicked();
     });
+    // clear the flashed text after 60 seconds
+    clearElementAfter('{{ send_notif_messages_id }}', 60);
     {% endif %}
   });
 </script>
