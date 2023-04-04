@@ -10,13 +10,50 @@ Full Roster
 
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
-{% macro users_table(label, users) %}
+{% macro _pagination_component(label, by_school) %}
+{% set pagination_btn_class = label ~ "-school-page-btn" %}
+{% set pagination_wrapper_class = pagination_btn_class ~ "-wrapper" %}
+<nav>
+  <ul class="pagination">
+    <li
+      id="{{ label }}-all-schools"
+      class="page-item {{ pagination_wrapper_class }}"
+    >
+      <a
+        class="page-link {{ pagination_btn_class }}"
+        role="button"
+        all-schools="true"
+      >
+        All
+      </a>
+    </li>
+    {% for school_name in by_school.keys() %}
+    <li
+      id="{{ label }}-school-{{ school_name }}-page-btn"
+      class="page-item {{ pagination_wrapper_class }}"
+    >
+      <a class="page-link {{ pagination_btn_class }}" role="button">
+        {{ school_name|e }}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</nav>
+{% endmacro %}
+
+{% macro users_table(label, users_by_school) %}
+{% set label_lower = label|lower %}
+{% set user_row_class = label_lower ~ "-user-row" %}
 <div class="row mb-2">
   <div class="col">
     <h4>{{ label }}</h4>
-    {% if users|length == 0 %}
-    <div>No {{ label|lower }}</div>
+    {% if users_by_school|length == 0 %}
+    <div>No {{ label_lower }}</div>
     {% else %}
+    {% if users_by_school|length > 1 %}
+    {# use a pagination component to filter by each school #}
+    {{ _pagination_component(label_lower, users_by_school) }}
+    {% endif %}
     <table class="table table-striped table-hover">
       <thead>
         <tr>
@@ -28,9 +65,13 @@ Full Roster
         </tr>
       </thead>
       <tbody>
-        {% for user in users %}
-        <tr>
-          <th class="table-sm-col">{{ loop.index }}</th>
+        {% for school_name, users_list in users_by_school.items() %}
+        {% set school_row_class =
+             label_lower ~ "-school-" ~ school_name ~ "-row"
+         %}
+        {% for user in users_list %}
+        <tr class="{{ user_row_class }} {{ school_row_class }}">
+          <th class="row-index table-sm-col"></th>
           <td>{{ user.first_name|e }}</td>
           <td>{{ user.last_name|e }}</td>
           {% if user.email_valid %}
@@ -40,8 +81,9 @@ Full Roster
             {{ user.email|e }} [invalid]
           </td>
           {% endif %}
-          <td>{{ user.school.name|e }}</td>
+          <td>{{ school_name|e }}</td>
         </tr>
+        {% endfor %}
         {% endfor %}
       </tbody>
     </table>
@@ -141,9 +183,15 @@ Full Roster
   <div class="row mb-2">
     <div class="col">
       <h4>Teams</h4>
-      {% if teams|length == 0 %}
+      {% if teams_by_school|length == 0 %}
       <div>No teams</div>
       {% else %}
+      {% with label = "teams" %}
+      {% with user_row_class = label ~ "-user-row" %}
+      {% if teams_by_school|length > 1 %}
+      {# use a pagination component to filter by each school #}
+      {{ _pagination_component(label, teams_by_school) }}
+      {% endif %}
       <table class="table table-striped table-hover">
         <thead>
           <tr>
@@ -157,10 +205,12 @@ Full Roster
           </tr>
         </thead>
         <tbody>
-          {% for team in teams %}
-          <tr>
-            <th class="table-sm-col">{{ loop.index }}</th>
-            <td>{{ team.school.name|e }}</td>
+          {% for school_name, teams_list in teams_by_school.items() %}
+          {% set school_row_class = label ~ "-school-" ~ school_name ~ "-row" %}
+          {% for team in teams_list %}
+          <tr class="{{ user_row_class }} {{ school_row_class }}">
+            <th class="row-index table-sm-col"></th>
+            <td>{{ school_name|e }}</td>
             <td>{{ team.code|e }}</td>
             <td>{{ team_member(team.light) }}</td>
             <td>{{ team_member(team.middle) }}</td>
@@ -176,8 +226,11 @@ Full Roster
             </td>
           </tr>
           {% endfor %}
+          {% endfor %}
         </tbody>
       </table>
+      {% endwith %}
+      {% endwith %}
       {% endif %}
     </div>
   </div>
@@ -220,6 +273,31 @@ Full Roster
     ajaxRequest('DELETE', '{{ url_for("fetch_roster") }}');
   }
 
+  function handlePaginationChanged(label, school = null) {
+    if (school == null) {
+      // deactivate all pagination buttons
+      $(`.${label}-school-page-btn-wrapper`).removeClass('active');
+      // make this pagination button active
+      $(`#${label}-all-schools`).addClass('active');
+      // show all rows
+      $(`.${label}-user-row`).removeClass('d-none');
+    } else {
+      school = school.trim();
+      if (school === '') return;
+      // deactivate all pagination buttons
+      $(`.${label}-school-page-btn-wrapper`).removeClass('active');
+      // make this pagination button active
+      $(`#${label}-school-${school}-page-btn`).addClass('active');
+      // show this school's rows
+      $(`.${label}-user-row`).addClass('d-none');
+      $(`.${label}-school-${school}-row`).removeClass('d-none');
+    }
+    // number all showing rows
+    $(`.${label}-user-row:not(.d-none) > .row-index`).each((index, element) => {
+      $(element).html(String(index + 1));
+    });
+  }
+
   $(document).ready(() => {
     $('#{{ refetch_roster_btn_id }}').click((event) => {
       handleFetchRosterClicked();
@@ -227,6 +305,20 @@ Full Roster
     $('#{{ clear_roster_btn_id }}').click((event) => {
       handleClearRosterClicked();
     });
+
+    // pagination buttons by school
+    for (const label of ['coaches', 'spectators', 'athletes', 'teams']) {
+      // initialize with everything showing
+      handlePaginationChanged(label);
+      $(`.${label}-school-page-btn`).click((event) => {
+        const $element = $(event.target);
+        if ($element.attr('all-schools') != null) {
+          handlePaginationChanged(label);
+        } else {
+          handlePaginationChanged(label, $element.html() ?? '');
+        }
+      });
+    }
   });
 </script>
 {% endblock %}

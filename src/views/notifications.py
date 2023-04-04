@@ -282,25 +282,61 @@ def view_full_roster():
     full_roster = db.roster.get_full_roster()
     has_fetch_logs = FETCH_ROSTER_LOGS_FILE.exists()
 
-    # split the users into coaches, athletes, and spectators
-    coaches = []
-    athletes = []
-    spectators = []
-    users = full_roster.pop("users")
-    for user in users:
+    # sort schools by name
+    full_roster["schools"].sort(key=lambda s: s.name)
+
+    # split the users into roles and schools
+    coaches = {}
+    athletes = {}
+    spectators = {}
+    for user in full_roster.pop("users"):
+        school_name = user.school.name
         if user.role == "COACH":
-            coaches.append(user)
+            role_dict = coaches
         elif user.role == "ATHLETE":
-            athletes.append(user)
+            role_dict = athletes
         elif user.role == "SPECTATOR":
-            spectators.append(user)
+            role_dict = spectators
+        else:
+            # invalid role; shouldn't happen
+            user_info = (
+                f"{user.full_name} <{user.email}> ({user.role} at "
+                f"{school_name})"
+            )
+            print(
+                " ",
+                f"Warning: got invalid role for user {user.id}:",
+                user_info,
+            )
+            continue
+        if school_name not in role_dict:
+            role_dict[school_name] = []
+        role_dict[school_name].append(user)
 
-    def sort_by_school(users):
-        return sorted(users, key=lambda user: user.school_id)
+    def sort_users_dict(user_role_dict):
+        return {
+            school: sorted(
+                user_list, key=lambda u: (u.last_name, u.first_name, u.email)
+            )
+            for school, user_list in sorted(user_role_dict.items())
+        }
 
-    full_roster["coaches"] = sort_by_school(coaches)
-    full_roster["athletes"] = sort_by_school(athletes)
-    full_roster["spectators"] = sort_by_school(spectators)
+    full_roster["coaches"] = sort_users_dict(coaches)
+    full_roster["athletes"] = sort_users_dict(athletes)
+    full_roster["spectators"] = sort_users_dict(spectators)
+
+    # organize teams by school
+    teams = {}
+    for team in full_roster.pop("teams"):
+        school_name = team.school.name
+        if school_name not in teams:
+            teams[school_name] = []
+        teams[school_name].append(team)
+    full_roster["teams_by_school"] = {
+        school: sorted(team_list, key=lambda t: t.code)
+        for school, team_list in sorted(teams.items())
+    }
+
     full_roster["is_roster_empty"] = all(
         len(objs) == 0 for objs in full_roster.values()
     )

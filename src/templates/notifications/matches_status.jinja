@@ -63,7 +63,11 @@ Matches Status
             id="{{ all_matches_btn_id }}"
             class="page-item {{ hundred_page_wrapper_class }}"
           >
-            <a class="page-link {{ hundred_page_btn_class }}" role="button">
+            <a
+              class="page-link {{ hundred_page_btn_class }}"
+              role="button"
+              all-matches="true"
+            >
               All
             </a>
           </li>
@@ -138,18 +142,19 @@ Matches Status
 
 {% block script %}
 <script>
-  function handlePaginationChanged(hundredStr) {
-    hundredStr = hundredStr.trim();
-    if (hundredStr === '') return;
-    // deactivate all pagination buttons
-    $('.{{ hundred_page_wrapper_class }}').removeClass('active');
-    // show the proper matches
-    if (hundredStr.toLowerCase() === 'all') {
+  function handlePaginationChanged(hundredStr = null) {
+    if (hundredStr == null) {
+      // deactivate all pagination buttons
+      $('.{{ hundred_page_wrapper_class }}').removeClass('active');
       // make this pagination button active
       $('#{{ all_matches_btn_id }}').addClass('active');
       // show all the match rows
       $('.{{ match_status_row_class }}').removeClass('d-none');
     } else {
+      hundredStr = hundredStr.trim();
+      if (hundredStr === '') return;
+      // deactivate all pagination buttons
+      $('.{{ hundred_page_wrapper_class }}').removeClass('active');
       // make this pagination button active
       $(`#hundred-${hundredStr}-page-wrapper`).addClass('active');
       // show the proper match rows
@@ -161,10 +166,16 @@ Matches Status
   $(document).ready(() => {
     enableBsTooltips();
 
+    // pagination for matches
     // initialize with everything showing
-    handlePaginationChanged('all');
+    handlePaginationChanged();
     $('.{{ hundred_page_btn_class }}').click((event) => {
-      handlePaginationChanged($(event.target).html());
+      const $element = $(event.target);
+      if ($element.attr('all-matches') != null) {
+        handlePaginationChanged();
+      } else {
+        handlePaginationChanged($element.html() ?? '');
+      }
     });
   });
 </script>
