@@ -59,6 +59,8 @@ def notifications():
     global_state = db.global_state.get()
     last_matches_query = global_state.last_matches_query
     last_subject = global_state.mailchimp_subject
+    send_to_coaches = global_state.send_to_coaches
+    send_to_spectators = global_state.send_to_spectators
     audience_tag = global_state.mailchimp_audience_tag
     return _render(
         "notifications/index.jinja",
@@ -73,6 +75,8 @@ def notifications():
         matches_worksheet_name=fetch_tms.MATCHES_WORKSHEET_NAME,
         last_matches_query=last_matches_query,
         last_subject=last_subject,
+        send_to_coaches=send_to_coaches,
+        send_to_spectators=send_to_spectators,
         EMAIL_SUBJECT_VALID_CHARS=EMAIL_SUBJECT_VALID_CHARS,
         audience_tag=audience_tag,
     )
@@ -946,7 +950,12 @@ def send_notification():
         return {"success": False, "errors": {"GENERAL": error_msg}}
 
     error_msg, request_args = get_request_json(
-        ("blast", bool), "templateId", "subject", ("matches", list)
+        ("blast", bool),
+        "templateId",
+        "subject",
+        ("sendToCoaches", bool),
+        ("sendToSpectators", bool),
+        ("matches", list),
     )
     if error_msg is not None:
         return {"success": False, "errors": {"GENERAL": error_msg}}
@@ -955,6 +964,8 @@ def send_notification():
     blast = request_args["blast"]
     template_id = request_args["templateId"].strip()
     subject = request_args["subject"].strip()
+    send_to_coaches = request_args["sendToCoaches"]
+    send_to_spectators = request_args["sendToSpectators"]
     matches = request_args["matches"]
 
     errors = {}
@@ -1143,6 +1154,12 @@ def send_notification():
 
     # get the emails for each team and combine with match info
     print(" ", "Compiling match infos into emails to send")
+    additional_recipient_roles = []
+    if send_to_coaches:
+        additional_recipient_roles.append("COACH")
+    if send_to_spectators:
+        additional_recipient_roles.append("SPECTATOR")
+
     email_args = []
     for match_number, match_info in valid_matches.items():
         team_emails = {}
@@ -1150,18 +1167,31 @@ def send_notification():
         missing_emails = []
         for team_color in ("blue_team", "red_team"):
             color = team_color.split("_", 1)[0]
-            team_school_code = match_info[team_color]["school_code"]
+            team_info = match_info[team_color]
+
+            team_school_code = team_info["school_code"]
             error_msg, team = team_infos[team_school_code]
             if error_msg is not None:
                 # actual error message doesn't matter here, just that
                 # there was an error
                 missing_team[color] = team_school_code
                 continue
+            
             # just get the emails without any role information
             valid_emails = team.valid_emails()
             if len(valid_emails) == 0:
                 missing_emails.append(color)
                 continue
+
+            # add other recipients
+            school_name = team_info["school"]
+            if len(additional_recipient_roles) > 0:
+                valid_emails.extend(
+                    db.roster.get_users_for_school(
+                        school_name, additional_recipient_roles
+                    )
+                )
+            
             team_emails[team_color] = valid_emails
         if len(missing_team) > 0:
             team_names = " and ".join(
@@ -1182,9 +1212,6 @@ def send_notification():
                 "ERROR", match_number, f"No valid emails for {color} team"
             )
             continue
-
-        # TODO (stretch goal): get settings for who else to send the
-        #   notification to
 
         team_subjects = _format_subject(subject, match_info)
         if team_subjects["blue_team"] == team_subjects["red_team"]:
@@ -1263,6 +1290,13 @@ def send_notification():
     if not success:
         # it's okay if this fails
         print(" ", "Database error while saving Mailchimp subject")
+    # save other recipient settings
+    success = db.global_state.set_other_recipients_settings(
+        send_to_coaches=send_to_coaches, send_to_spectators=send_to_spectators
+    )
+    if not success:
+        # it's okay if this fails
+        print(" ", "Database error while saving other recipient settings")
 
     # flash messages
     flash("Successfully sent match email notifications", "send-notif.success")

@@ -68,6 +68,10 @@ class GlobalState(db.Model):
     mailchimp_template_id = Column(String(), nullable=True)
     # The subject of the last sent Mailchimp email
     mailchimp_subject = Column(String(), nullable=True)
+    # Whether to also send notifications to coaches
+    send_to_coaches = Column(Boolean(), nullable=False, default=False)
+    # Whether to also send notifications to spectators
+    send_to_spectators = Column(Boolean(), nullable=False, default=False)
 
     @property
     def service_account_info(self):

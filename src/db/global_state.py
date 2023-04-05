@@ -60,6 +60,9 @@ def has_all_admin_settings():
 def clear_all_admin_settings():
     """Clears all the settings that can be set by a regular admin.
 
+    Also clears notification settings, such as the selected template id,
+    last sent subject, and other recipient settings.
+
     Returns:
         bool: Whether the operation was successful.
     """
@@ -73,7 +76,14 @@ def clear_all_admin_settings():
         "mailchimp_template_id",
         "mailchimp_subject",
     ]
-    _set_global(**{field: None for field in clear_fields})
+    false_fields = [
+        "send_to_coaches",
+        "send_to_spectators",
+    ]
+    _set_global(
+        **{field: None for field in clear_fields},
+        **{field: False for field in false_fields},
+    )
     return True
 
 
@@ -367,5 +377,18 @@ def clear_mailchimp_related_fields():
         mailchimp_audience_id=None,
         mailchimp_folder_id=None,
         mailchimp_template_id=None,
+    )
+    return True
+
+
+def set_other_recipients_settings(send_to_coaches, send_to_spectators):
+    """Sets the other recipient settings, which are whether to also send
+    notifications to coaches and spectators.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    _set_global(
+        send_to_coaches=send_to_coaches, send_to_spectators=send_to_spectators
     )
     return True

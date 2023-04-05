@@ -73,11 +73,11 @@ function setElementTextFor(elementId, text, seconds = 60) {
 /** FORMS **/
 
 function getInputValue(elementId) {
-  return (
-    $('#' + elementId)
-      .val()
-      ?.trim() ?? ''
-  );
+  const $element = $('#' + elementId);
+  if ($element.attr('type') === 'checkbox') {
+    return $element.prop('checked');
+  }
+  return $element.val()?.trim() ?? '';
 }
 
 function clearInvalid(elementId) {

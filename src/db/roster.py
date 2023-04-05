@@ -198,6 +198,29 @@ def get_all_user_emails(email_valid=None):
     return set(user.email for user in users if user.email_valid is email_valid)
 
 
+def get_users_for_school(school_name, roles):
+    """Gets the emails of the specified roles for the given school."""
+    valid_roles = []
+    for role in roles:
+        role = role.upper()
+        if role not in ("COACH", "SPECTATOR"):
+            continue
+        valid_roles.append(role)
+    if len(valid_roles) == 0:
+        return []
+
+    school = query(School, {"name": school_name}).first()
+    if school is None:
+        raise ValueError(f"School {school_name!r} not found in database")
+    school_id = school.id
+
+    role_filter = User.role == valid_roles[0]
+    for role in valid_roles[1:]:
+        role_filter = role_filter | (User.role == role)
+    users = query(User).filter(User.school_id == school_id, role_filter).all()
+    return [user.email for user in users]
+
+
 # =============================================================================
 
 

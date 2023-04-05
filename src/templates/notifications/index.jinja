@@ -26,11 +26,15 @@ Notifications
 {% set remove_all_matches_btn_id = "remove-all-matches-btn" %}
 {% set no_matches_row_id = "no-matches-row" %}
 
+{% set email_items_col_class = "email-items-col" %}
 {% set mc_templates_dropdown_wrapper_id = "mc-templates-dropdown-wrapper" %}
 {% set mc_fetch_templates_id = "mc-fetch-templates" %}
 {% set mc_templates_dropdown_id = "mc-templates-dropdown-id" %}
 {% set email_subject_input_id = "email-subject-input" %}
 {% set email_subject_help_id = "email-subject-help" %}
+{% set send_to_coaches_checkbox_id = "send-to-coaches-checkbox" %}
+{% set send_to_spectators_checkbox_id = "send-to-spectators-checkbox" %}
+
 {% set send_notif_btn_id = "send-notification-btn" %}
 {% set send_notif_error_id = "send-notification-error" %}
 {% set blast_notif_btn_id = "send-blast-notification-btn" %}
@@ -423,7 +427,7 @@ Notifications
               {% if has_all_admin_settings_error is none %}
               <td
                 id="{{ mc_templates_dropdown_wrapper_id }}"
-                class="email-items-col"
+                class="{{ email_items_col_class }}"
               >
                 <div id="{{ mc_fetch_templates_id }}" class="col-form-label">
                   {# will be replaced when templates are fetched #}
@@ -435,7 +439,7 @@ Notifications
                 </div>
               </td>
               {% else %}
-              <td class="email-items-col">
+              <td class="{{ email_items_col_class }}">
                 <em class="text-muted">Cannot fetch templates</em>
               </td>
               {% endif %}
@@ -444,7 +448,7 @@ Notifications
               <td class="table-sm-col">
                 <div class="col-form-label">Subject</div>
               </td>
-              <td class="email-items-col">
+              <td class="{{ email_items_col_class }}">
                 <input
                   type="text"
                   id="{{ email_subject_input_id }}"
@@ -465,6 +469,41 @@ Notifications
                     data-bs-toggle="offcanvas"
                     aria-controls="{{ email_subject_help_id }}"
                   >here</a>.
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="table-sm-col">
+                Also Send To
+              </td>
+              <td class="{{ email_items_col_class }}">
+                <div class="form-check">
+                  <input
+                    type="checkbox"
+                    id="{{ send_to_coaches_checkbox_id }}"
+                    class="form-check-input"
+                    {{ 'checked' if send_to_coaches }}
+                  >
+                  <label
+                    for="{{ send_to_coaches_checkbox_id }}"
+                    class="form-check-label"
+                  >
+                    School Coaches
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input
+                    type="checkbox"
+                    id="{{ send_to_spectators_checkbox_id }}"
+                    class="form-check-input"
+                    {{ 'checked' if send_to_spectators }}
+                  >
+                  <label
+                    for="{{ send_to_spectators_checkbox_id }}"
+                    class="form-check-label"
+                  >
+                    School Spectators
+                  </label>
                 </div>
               </td>
             </tr>
@@ -586,7 +625,7 @@ Notifications
                  "Sending...",
                  classes="ms-2",
                )
-            %}
+             %}
             data-bs-toggle="modal"
             data-bs-target="#{{ blast_notif_modal_id }}"
             {% endcall %}
@@ -1088,6 +1127,11 @@ Notifications
       );
     }
 
+    const sendToCoaches = getInputValue('{{ send_to_coaches_checkbox_id }}');
+    const sendToSpectators = getInputValue(
+      '{{ send_to_spectators_checkbox_id }}'
+    );
+
     if (invalid) return;
 
     const loadingButtonId = blast
@@ -1115,6 +1159,8 @@ Notifications
         blast: blast,
         templateId: selectedTemplateId,
         subject: emailSubject,
+        sendToCoaches: sendToCoaches,
+        sendToSpectators: sendToSpectators,
         matches: matches,
       }),
       success: (response, status, jqXHR) => {
