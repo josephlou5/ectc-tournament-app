@@ -88,14 +88,15 @@
 
 {# Creates a button that prompts a confirmation modal.
 
-   The button will have the id "{btn_id}", the class "btn-{accent}", and the
-     text "{title}". It will also receive additional classes from `classes`.
+   The button will have the id "confirm-{btn_id}", the class "btn-{accent}", and
+     the text "{title}". It will also receive additional classes from `classes`.
    The modal will have the id "{btn_id}-modal", the title "{title}?", and a body
      text with the `action`.
-   The modal will have a close button and a "Yes" confirmation button.
+   The modal will have a close button and a "Yes" confirmation button, which has
+     the id "{btn_id}".
    If `loading_text` is given, the confirmation button will be made into a
      loading button. It can receive additional classes from `loading_classes`.
-  
+
    The caller should handle closing the modal after any button presses.
  #}
 {% macro confirm_btn(
@@ -111,9 +112,11 @@
 {% set title_id = btn_id ~ "-confirmation-modal-title" %}
 <button
   type="button"
+  id="confirm-{{ btn_id }}"
   class="btn btn-{{ accent }} {{ classes }}"
   data-bs-toggle="modal"
-  data-bs-target="#{{ btn_id }}-modal">
+  data-bs-target="#{{ btn_id }}-modal"
+>
   {{ title }}
 </button>
 <div

@@ -33,6 +33,9 @@ Notifications
 {% set email_subject_help_id = "email-subject-help" %}
 {% set send_notif_btn_id = "send-notification-btn" %}
 {% set send_notif_error_id = "send-notification-error" %}
+{% set blast_notif_btn_id = "send-blast-notification-btn" %}
+{% set blast_notif_confirm_btn_id = "send-blast-notification-confirm-btn" %}
+{% set blast_notif_modal_id = "send-blast-notification-modal" %}
 {% set send_notif_messages_id = "send-notification-messages" %}
 
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
@@ -555,7 +558,7 @@ Notifications
                 <input
                   type="text"
                   class="form-control"
-                  value="Match {match} [{division}, {round}]: {blueteam} & {redteam}: Report to Holding!"
+                  value="Match #{match} [{division}, {round}]: {blueteam} & {redteam}: Report to Holding!"
                   disabled
                   readonly
                 />
@@ -565,18 +568,86 @@ Notifications
                 letters, digits, spaces, and any of the following:
                 <code>{{ EMAIL_SUBJECT_VALID_CHARS }}</code>.
               </p>
+              <p>
+                You cannot use placeholders for blast email subjects, since
+                there is no match data to populate the variables.
+              </p>
             </div>
           </div>
-          <div>
+          <div class="mb-1">
             {{ macros.loading_btn(
                  send_notif_btn_id, "primary", "Send Notification", "Sending..."
                )
             }}
-            <span
-              id="{{ send_notif_error_id }}"
-              class="text-danger ms-2"
-            ></span>
+            {% call macros.loading_btn(
+                 blast_notif_btn_id,
+                 "warning",
+                 "Send Blast Notification",
+                 "Sending...",
+                 classes="ms-2",
+               )
+            %}
+            data-bs-toggle="modal"
+            data-bs-target="#{{ blast_notif_modal_id }}"
+            {% endcall %}
           </div>
+          <div id="{{ send_notif_error_id }}" class="text-danger"></div>
+          {% if has_all_admin_settings_error is none %}
+          {% with modal_title = blast_notif_modal_id ~ "-title" %}
+          <div
+            id="{{ blast_notif_modal_id }}"
+            class="modal fade"
+            tabindex="-1"
+            aria-labelledby="{{ modal_title }}"
+            aria-hidden="true"
+          >
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 id="{{ modal_title }}" class="modal-title">
+                    Send Blast Notification
+                  </h5>
+                  {{ macros.bs_close_btn(dismiss="modal") }}
+                </div>
+                <div class="modal-body">
+                  {% if audience_tag is none %}
+                  <p>
+                    Are you sure you want to send a blast notification email to
+                    all contacts in the selected audience?
+                  </p>
+                  <p>
+                    If you specify the audience tag on the
+                    <a href="{{ url_for('admin_settings') }}">Admin Settings</a>
+                    page, this button will instead send a notification email
+                    only to the contacts with that tag.
+                  </p>
+                  {% else %}
+                  Are you sure you want to send a blast notification email to
+                  all contacts with the tag <code>{{ audience_tag }}</code>?
+                  {% endif %}
+                </div>
+                <div class="modal-footer">
+                  <button
+                    type="button"
+                    class="btn btn-danger"
+                    data-bs-dismiss="modal"
+                  >
+                    No
+                  </button>
+                  <button
+                    type="button"
+                    id="{{ blast_notif_confirm_btn_id }}"
+                    class="btn btn-success"
+                    data-bs-dismiss="modal"
+                  >
+                    Yes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endwith %}
+          {% endif %}
         </div>
       </div>
     </div>
@@ -587,6 +658,13 @@ Notifications
 {% block script %}
 <script>
   function handleFetchRosterClicked() {
+    if (
+      isButtonLoading('{{ send_notif_btn_id }}') ||
+      isButtonLoading('{{ blast_notif_btn_id }}')
+    ) {
+      // currently sending something; ignore this
+      return;
+    }
     if (isButtonLoading('{{ fetch_roster_btn_id }}')) {
       // currently fetching; ignore click
       return;
@@ -619,6 +697,13 @@ Notifications
   }
 
   function handleClearRosterClicked() {
+    if (
+      isButtonLoading('{{ send_notif_btn_id }}') ||
+      isButtonLoading('{{ blast_notif_btn_id }}')
+    ) {
+      // currently sending something; ignore this
+      return;
+    }
     if (isButtonLoading('{{ clear_roster_btn_id }}')) {
       // currently clearing; ignore click
       return;
@@ -655,6 +740,14 @@ Notifications
   }
 
   function handleSetLastMatchesQueryClicked() {
+    if (
+      isButtonLoading('{{ send_notif_btn_id }}') ||
+      isButtonLoading('{{ blast_notif_btn_id }}')
+    ) {
+      // currently sending something; ignore this
+      return;
+    }
+
     resetSendNotificationErrors();
 
     const lastMatchesQuery = getAttr(
@@ -669,6 +762,14 @@ Notifications
   }
 
   function resetMatchesTable({ clearWarnings = true } = {}) {
+    if (
+      isButtonLoading('{{ send_notif_btn_id }}') ||
+      isButtonLoading('{{ blast_notif_btn_id }}')
+    ) {
+      // currently sending something; ignore this
+      return;
+    }
+
     // disable the remove all button
     $('#{{ remove_all_matches_btn_id }}').prop('disabled', true);
     if (clearWarnings) {
@@ -733,12 +834,18 @@ Notifications
   }
 
   function handleFetchMatchInfoClicked() {
-    if (isButtonLoading('{{ fetch_matches_btn_id }}')) {
-      // currently fetching; ignore the click
+    if (
+      isButtonLoading('{{ send_notif_btn_id }}') ||
+      isButtonLoading('{{ blast_notif_btn_id }}')
+    ) {
+      // currently sending something; ignore this
       return;
     }
-    if (isButtonLoading('{{ refresh_matches_btn_id }}')) {
-      // currently refreshing; ignore the click
+    if (
+      isButtonLoading('{{ fetch_matches_btn_id }}') ||
+      isButtonLoading('{{ refresh_matches_btn_id }}')
+    ) {
+      // currently fetching; ignore the click
       return;
     }
 
@@ -786,11 +893,17 @@ Notifications
   }
 
   function refreshMatches() {
-    if (isButtonLoading('{{ refresh_matches_btn_id }}')) {
-      // currently refreshing; ignore the click
+    if (
+      isButtonLoading('{{ send_notif_btn_id }}') ||
+      isButtonLoading('{{ blast_notif_btn_id }}')
+    ) {
+      // currently sending something; ignore this
       return;
     }
-    if (isButtonLoading('{{ fetch_matches_btn_id }}')) {
+    if (
+      isButtonLoading('{{ refresh_matches_btn_id }}') ||
+      isButtonLoading('{{ fetch_matches_btn_id }}')
+    ) {
       // currently fetching; ignore the click
       return;
     }
@@ -842,6 +955,14 @@ Notifications
   }
 
   function removeMatchRow(matchNumber) {
+    if (
+      isButtonLoading('{{ send_notif_btn_id }}') ||
+      isButtonLoading('{{ blast_notif_btn_id }}')
+    ) {
+      // currently sending something; ignore this
+      return;
+    }
+
     resetSendNotificationErrors();
 
     const $matchRow = $('#match-' + matchNumber);
@@ -913,28 +1034,36 @@ Notifications
   const TEMPLATE_SELECT_ID = 'mc-template-select';
 
   function resetSendNotificationErrors() {
+    // clear messages
+    $('#{{ send_notif_messages_id }}').html('');
     clearInvalid(TEMPLATE_SELECT_ID);
     clearInvalid('{{ email_subject_input_id }}');
     $('#{{ send_notif_error_id }}').html('');
   }
 
-  function handleSendNotificationClicked() {
+  function handleSendNotificationClicked(blast = false) {
     function generalError(msg) {
       $('#{{ send_notif_error_id }}').html(msg);
     }
 
-    if (isButtonLoading('{{ send_notif_btn_id }}')) {
-      // currently sending; ignore the click
+    if (
+      isButtonLoading('{{ send_notif_btn_id }}') ||
+      isButtonLoading('{{ blast_notif_btn_id }}')
+    ) {
+      // currently sending something; ignore the click
       return;
     }
 
     resetSendNotificationErrors();
 
-    // server will validate match infos and return appropriate errors
-    const matches = getCurrentMatchRows();
-    if (matches.length === 0) {
-      generalError('No matches.');
-      return;
+    let matches = [];
+    if (!blast) {
+      // server will validate match infos and return appropriate errors
+      matches = getCurrentMatchRows();
+      if (matches.length === 0) {
+        generalError('No matches.');
+        return;
+      }
     }
 
     let invalid = false;
@@ -949,12 +1078,6 @@ Notifications
     if (emailSubject === '') {
       invalid = true;
       setInvalid('{{ email_subject_input_id }}', 'Please enter a subject.');
-    } else if (!emailSubject.includes('{match}')) {
-      invalid = true;
-      setInvalid(
-        '{{ email_subject_input_id }}',
-        'Missing "{match}" placeholder.'
-      );
     } else if (!emailSubject.match(/^[A-Z0-9 \-_+.,!#&()[\]{}|:;'"/?]+$/i)) {
       // regexp should also include curly braces for placeholders
       // server will validate proper placeholders
@@ -967,22 +1090,51 @@ Notifications
 
     if (invalid) return;
 
-    setButtonLoading('{{ send_notif_btn_id }}');
+    const loadingButtonId = blast
+      ? '{{ blast_notif_btn_id }}'
+      : '{{ send_notif_btn_id }}';
+    setButtonLoading(loadingButtonId);
+
+    // disable all the other buttons while sending a notification
+    const disabledButtonIds = [];
+    $('button').each((index, button) => {
+      const buttonId = button.id;
+      // if the button doesn't have an id, it likely doesn't do anything that
+      // would mess up the sending, so ignore it
+      if (buttonId === '') return;
+      if (buttonId === loadingButtonId) return;
+      const $button = $(button);
+      if ($button.prop('disabled')) return;
+      $button.prop('disabled', true);
+      disabledButtonIds.push(buttonId);
+    });
+
     ajaxRequest('POST', '{{ url_for("send_notification") }}', {
       contentType: 'application/json',
       data: JSON.stringify({
+        blast: blast,
         templateId: selectedTemplateId,
         subject: emailSubject,
         matches: matches,
       }),
       success: (response, status, jqXHR) => {
+        stopButtonLoading(loadingButtonId);
+        // re-enable all the other buttons again
+        for (const buttonId of disabledButtonIds) {
+          $('#' + buttonId).prop('disabled', false);
+        }
         if (response.success) {
-          // reload the page
-          location.reload();
+          if (blast) {
+            // success
+            $('#{{ send_notif_messages_id }}').html(
+              bsAlert(response.message, 'success')
+            );
+          } else {
+            // reload the page
+            location.reload();
+          }
         } else {
           // some failure(s)
-          stopButtonLoading('{{ send_notif_btn_id }}');
-
           const errorMessages = response.errors ?? {};
           let errorSomewhere = false;
 
@@ -1010,7 +1162,11 @@ Notifications
         }
       },
       error: (jqXHR, status, errorThrown) => {
-        stopButtonLoading('{{ send_notif_btn_id }}');
+        stopButtonLoading(loadingButtonId);
+        // re-enable all the other buttons again
+        for (const buttonId of disabledButtonIds) {
+          $('#' + buttonId).prop('disabled', false);
+        }
         generalError(jqXHR.statusText);
       },
     });
@@ -1058,6 +1214,10 @@ Notifications
     });
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ send_notif_messages_id }}', 60);
+    // Blast notifications
+    $('#{{ blast_notif_confirm_btn_id }}').click((event) => {
+      handleSendNotificationClicked(true);
+    });
     {% endif %}
   });
 </script>

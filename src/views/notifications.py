@@ -2,6 +2,7 @@
 The "notifications" view, which includes fetching the roster, fetching
 team info, and sending notifications.
 """
+# pylint: disable=too-many-lines
 
 # =============================================================================
 
@@ -54,8 +55,11 @@ def notifications():
 
     roster_last_fetched_time = get_roster_last_fetched_time_str()
     has_fetch_logs = FETCH_ROSTER_LOGS_FILE.exists()
-    last_matches_query = db.global_state.get_last_matches_query()
-    last_subject = db.global_state.get_mailchimp_subject()
+
+    global_state = db.global_state.get()
+    last_matches_query = global_state.last_matches_query
+    last_subject = global_state.mailchimp_subject
+    audience_tag = global_state.mailchimp_audience_tag
     return _render(
         "notifications/index.jinja",
         has_all_admin_settings_error=has_all_admin_settings_error,
@@ -70,6 +74,7 @@ def notifications():
         last_matches_query=last_matches_query,
         last_subject=last_subject,
         EMAIL_SUBJECT_VALID_CHARS=EMAIL_SUBJECT_VALID_CHARS,
+        audience_tag=audience_tag,
     )
 
 
@@ -816,10 +821,11 @@ def get_mailchimp_templates():
     return {"success": True, "templates_html": templates_html}
 
 
-def _validate_subject(subject):
+def _validate_subject(subject, blast=False):
     """Validates a given subject with optional placeholder values.
 
-    Returns the same subject with placeholders converted into lowercase.
+    If `blast` is True, placeholders are not allowed. Otherwise,
+    converts all placeholder names to lowercase.
 
     Returns:
         Union[Tuple[str, None], Tuple[None, str]]:
@@ -844,6 +850,11 @@ def _validate_subject(subject):
     has_match_number = False
     for i, c in enumerate(subject):
         if c == "{":
+            if blast:
+                return _error(
+                    f"Index {i+1}: invalid open bracket: no placeholders in "
+                    "blast email subject"
+                )
             if in_placeholder:
                 return _error(
                     f"Index {i+1}: invalid open bracket: cannot have a nested "
@@ -851,6 +862,8 @@ def _validate_subject(subject):
                 )
             in_placeholder = True
         elif c == "}":
+            if blast:
+                return _error(f"Index {i+1}: invalid character: {c}")
             if not in_placeholder:
                 return _error(
                     f"Index {i+1}: invalid close bracket: not in a placeholder"
@@ -890,7 +903,7 @@ def _validate_subject(subject):
     if in_placeholder:
         bracket_index = len(subject) - len(placeholder_chars)
         return _error(f"Index {bracket_index}: unclosed placeholder")
-    if not has_match_number:
+    if not blast and not has_match_number:
         return _error('Missing "{match}" placeholder')
     # valid!
     return None, "".join(subject_chars)
@@ -933,12 +946,13 @@ def send_notification():
         return {"success": False, "errors": {"GENERAL": error_msg}}
 
     error_msg, request_args = get_request_json(
-        "templateId", "subject", ("matches", list)
+        ("blast", bool), "templateId", "subject", ("matches", list)
     )
     if error_msg is not None:
         return {"success": False, "errors": {"GENERAL": error_msg}}
 
     # get and validate request args
+    blast = request_args["blast"]
     template_id = request_args["templateId"].strip()
     subject = request_args["subject"].strip()
     matches = request_args["matches"]
@@ -950,7 +964,7 @@ def send_notification():
     if subject == "":
         errors["SUBJECT"] = "Subject is empty"
     else:
-        error_msg, subject = _validate_subject(subject)
+        error_msg, subject = _validate_subject(subject, blast)
         if error_msg is not None:
             errors["SUBJECT"] = error_msg
 
@@ -975,7 +989,10 @@ def send_notification():
     valid_matches = {}
     # set of (school, code) tuples
     all_team_infos = set()
-    if len(matches) == 0:
+    if blast:
+        # ignore matches
+        pass
+    elif len(matches) == 0:
         errors["GENERAL"] = "No matches given"
     else:
         # filter out valid matches
@@ -1036,7 +1053,10 @@ def send_notification():
             print(" ", " ", f"{key}: {msg}")
         return {"success": False, "errors": errors}
 
-    print(" ", "Sending notification emails for matches")
+    if blast:
+        print(" ", "Sending blast notification email")
+    else:
+        print(" ", "Sending notification emails for matches")
 
     # get Mailchimp audience
     audience_id = db.global_state.get_mailchimp_audience_id()
@@ -1044,6 +1064,7 @@ def send_notification():
         error_msg = "No selected Mailchimp audience"
         print(" ", "Error:", error_msg)
         return {"success": False, "errors": {"GENERAL": error_msg}}
+
     # validate template exists (but doesn't have to be in audience or
     # folder)
     error_msg, template_info = mailchimp_utils.get_campaign(template_id)
@@ -1053,6 +1074,61 @@ def send_notification():
             "errors": {"TEMPLATE": "Invalid template id"},
         }
     mailchimp_template_name = template_info["title"]
+
+    if blast:
+        # get the audience tag
+        audience_tag = db.global_state.get_mailchimp_audience_tag()
+        if audience_tag is None:
+            audience_tag_id = None
+            recipients = "entire audience"
+            print(" ", " ", "Sending to entire audience")
+        else:
+            recipients = f"tag {audience_tag!r}"
+            print(" ", " ", "Sending to tag:", audience_tag)
+            error_msg, audience_tag_id = mailchimp_utils.get_segment_id(
+                audience_id, audience_tag
+            )
+            if error_msg is not None:
+                print(
+                    " ",
+                    f"Error while getting segment {audience_tag!r}:",
+                    error_msg,
+                )
+                return {
+                    "success": False,
+                    "errors": {"GENERAL": "Mailchimp error"},
+                }
+            if audience_tag_id is None:
+                error_msg = (
+                    f"Mailchimp audience tag {audience_tag!r} not found"
+                )
+                print(" ", "Error:", error_msg)
+                return {"success": False, "errors": {"GENERAL": error_msg}}
+
+        error_msg, campaign_info = mailchimp_utils.create_and_send_campaign(
+            audience_id, template_id, subject, audience_tag_id
+        )
+        if error_msg is not None:
+            print(" ", "Error while sending email:", error_msg)
+            return {
+                "success": False,
+                "errors": {"GENERAL": "Email send failed"},
+            }
+        print(" ", " ", "Created campaign id:", campaign_info["id"])
+
+        # save Mailchimp template and subject
+        success = db.global_state.set_mailchimp_template_id(template_id)
+        if not success:
+            # it's okay if this fails
+            print(" ", "Database error while saving Mailchimp template id")
+        success = db.global_state.set_mailchimp_subject(subject)
+        if not success:
+            # it's okay if this fails
+            print(" ", "Database error while saving Mailchimp subject")
+
+        success_msg = f"Successfully sent blast notification to {recipients}"
+        return {"success": True, "message": success_msg}
+
     # get TNS segment id
     error_msg, tns_segment_id = mailchimp_utils.get_or_create_tns_segment(
         audience_id
@@ -1153,11 +1229,11 @@ def send_notification():
         print(" ", " ", f'Sending email for {args["description"]}:')
         print(" ", " ", " ", "Subject:", args["subject"])
         print(" ", " ", " ", "Recipients:", args["emails"])
-        error_msg, _ = mailchimp_utils.create_and_send_campaign(
+        error_msg, _ = mailchimp_utils.create_and_send_match_campaign(
             audience_id,
             template_id,
-            tns_segment_id,
             args["subject"],
+            tns_segment_id,
             args["emails"],
         )
         if error_msg is not None:
@@ -1189,7 +1265,7 @@ def send_notification():
         print(" ", "Database error while saving Mailchimp subject")
 
     # flash messages
-    flash("Successfully sent email notifications", "send-notif.success")
+    flash("Successfully sent match email notifications", "send-notif.success")
     for severity, matches_status in notification_status.items():
         lines = []
         if severity == "WARNING":

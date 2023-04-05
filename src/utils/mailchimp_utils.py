@@ -439,6 +439,40 @@ SEGMENT_FIELDS = {
 }
 
 
+def get_segment_id(audience_id, segment_name):
+    """Gets the id of the segment with the given name.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, Optional[int]]]:
+            An error message, or the segment id if it exists (None
+            otherwise).
+    """
+
+    error_msg, client = get_client()
+    if error_msg is not None:
+        return error_msg, None
+
+    # get all static segments
+    try:
+        for segment_info in _yield_paginated_data(
+            client.lists.list_segments,
+            SEGMENT_FIELDS,
+            "segments",
+            audience_id,
+            type="static",
+        ):
+            if segment_info["name"] == segment_name:
+                # found the segment
+                return None, segment_info["id"]
+    except ApiClientError as ex:
+        error_msg = str(ex.text)
+        print("Mailchimp API error:", error_msg)
+        return error_msg, None
+
+    # didn't find the segment; return None for segment id
+    return None, None
+
+
 def get_or_create_tns_segment(audience_id):
     """Gets the TNS email segment, or creates it if it doesn't exist.
 
@@ -451,23 +485,8 @@ def get_or_create_tns_segment(audience_id):
     if error_msg is not None:
         return error_msg, None
 
-    # get all static segments
-    segment_id = None
-    try:
-        for segment_info in _yield_paginated_data(
-            client.lists.list_segments,
-            SEGMENT_FIELDS,
-            "segments",
-            audience_id,
-            type="static",
-        ):
-            if segment_info["name"] == TNS_SEGMENT_NAME:
-                # found the segment
-                segment_id = segment_info["id"]
-                break
-    except ApiClientError as ex:
-        error_msg = str(ex.text)
-        print("Mailchimp API error:", error_msg)
+    error_msg, segment_id = get_segment_id(audience_id, TNS_SEGMENT_NAME)
+    if error_msg is not None:
         return error_msg, None
 
     # create segment if not found
@@ -527,25 +546,20 @@ def update_tns_segment_emails(audience_id, segment_id, emails):
 
 
 def create_and_send_campaign(
-    audience_id, replicate_id, segment_id, subject, emails
+    audience_id, replicate_id, subject, segment_id=None
 ):
     """Creates and sends a campaign in the given audience.
 
     Replicates the given campaign, then sets the subject, preview, and
-    title, and sets the proper recipients in the given segment.
+    title, and sets the recipients to be the optionally given segment.
 
     Returns:
         Union[Tuple[str, None], Tuple[None, Dict]]:
-            An error message, or the info for the created campaign
+            An error message, or the info of the created campaign
             (before the send).
     """
 
     error_msg, client = get_client()
-    if error_msg is not None:
-        return error_msg, None
-
-    # update segment emails
-    error_msg = update_tns_segment_emails(audience_id, segment_id, emails)
     if error_msg is not None:
         return error_msg, None
 
@@ -562,20 +576,23 @@ def create_and_send_campaign(
     campaign_id = new_campaign["id"]
 
     # update campaign info
+    segment_args = {}
+    if segment_id is not None:
+        segment_args["saved_segment_id"] = segment_id
     try:
         campaign_info = client.campaigns.update(
             campaign_id,
             {
                 "recipients": {
                     "list_id": audience_id,
-                    # update to the TNS segment
-                    "segment_opts": {"saved_segment_id": segment_id},
+                    # attach optional segment (or clear the segment)
+                    "segment_opts": segment_args,
                 },
                 "settings": {
                     "subject_line": subject,
                     "preview_text": subject,
                     "title": f"[TNS] {subject}",
-                    # remove from template folder
+                    # don't leave this copy in the template folder
                     "folder_id": "",
                 },
             },
@@ -603,3 +620,27 @@ def create_and_send_campaign(
         return error_msg, None
 
     return None, campaign_info
+
+
+def create_and_send_match_campaign(
+    audience_id, replicate_id, subject, segment_id, emails
+):
+    """Creates and sends a campaign to the given emails.
+
+    Updates the given segment to be the given emails, then calls
+    `create_and_send_campaign()`.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, Dict]]:
+            An error message, or the info of the created campaign
+            (before the send).
+    """
+
+    # update segment emails
+    error_msg = update_tns_segment_emails(audience_id, segment_id, emails)
+    if error_msg is not None:
+        return error_msg, None
+
+    return create_and_send_campaign(
+        audience_id, replicate_id, subject, segment_id
+    )
