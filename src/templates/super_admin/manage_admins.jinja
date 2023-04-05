@@ -23,12 +23,17 @@ Manage Admins
       <div class="row mb-2">
         <div class="col">
           <h4>Super Admins</h4>
-          <div>
+          <div class="mb-2">
             Super Admins are the only ones with access to this page, where you
             can add or remove admin email addresses. You cannot edit Super
             Admins anywhere on the frontend; you will have to access the
             database manually and add a row with <code>is_super_admin</code> set
             to <code>true</code>.
+          </div>
+          <div>
+            Super Admins can access the
+            <a href="{{ url_for('global_settings') }}">Global Settings</a> page,
+            whereas normal admins cannot.
           </div>
         </div>
       </div>
@@ -70,40 +75,22 @@ Manage Admins
             Those with an Admin role will be able to access the
             <a href="{{ url_for('admin_settings') }}">Admin Settings</a> and
             <a href="{{ url_for('notifications') }}">Notifications</a> pages.
-            They will be able to change any of the global admin settings, fetch
-            or clear the roster, and send match notifications.
+            They will be able to change any of the admin settings, fetch or
+            clear the roster, and send match notifications. On the
+            <a href="{{ url_for('view_matches_status') }}">Matches Status</a>
+            page, they will be able to see the template and recipients for each
+            sent email.
           </div>
         </div>
       </div>
+      {{ macros.flashed_messages(
+           manage_admins_messages_id, flashed["manage-admins"], classes="mb-2"
+         )
+      }}
       <div class="row mb-2">
-        <div id="{{ manage_admins_messages_id }}" class="col">
-          {% for accent, messages in flashed["manage-admins"].items() %}
-          {% for message in messages %}
-          {% call macros.bs_alert(accent) %}
-          {{ message|e }}
-          {% endcall %}
-          {% endfor %}
-          {% endfor %}
-        </div>
-      </div>
-      <div class="row mb-2">
-        <label
-          for="{{ add_admin_input_id }}"
-          class="col-auto col-form-label pe-0"
-        >
-          Add Admin
-        </label>
+        {{ macros.form_input_label(add_admin_input_id, "Add Admin") }}
         <div class="col-4 pe-0">
-          <input
-            type="text"
-            id="{{ add_admin_input_id }}"
-            class="form-control"
-            placeholder="Admin email"
-          />
-          <div
-            id="{{ add_admin_input_id }}-invalid"
-            class="invalid-feedback"
-          ></div>
+          {{ macros.form_input(add_admin_input_id, placeholder="Admin email") }}
         </div>
         <div class="col-auto">
           {{ macros.loading_btn(

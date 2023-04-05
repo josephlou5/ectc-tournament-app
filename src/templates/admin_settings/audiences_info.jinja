@@ -1,3 +1,5 @@
+{% import "shared/macros.jinja" as macros %}
+
 {% set mc_audience_select_input_id = "mc-audience-select" %}
 
 {% macro _value_or_none(value) %}
@@ -22,7 +24,9 @@
 {% else %}
 <table class="table table-sm align-middle">
   <tr>
-    <th>Audience Name</th>
+    <th>
+      {{ macros.form_label(mc_audience_select_input_id, "Audience Name") }}
+    </th>
     <td>
       <select
         id="{{ mc_audience_select_input_id }}"

@@ -152,17 +152,12 @@ Please contact a
                  contain an entire spreadsheet url
                #}
               <div class="col col-lg-8 col-xl-7 col-xxl-6 pe-0">
-                <input
-                  type="text"
-                  id="{{ tms_url_input_id }}"
-                  class="form-control"
-                  value="{{ tms_spreadsheet_url or '' }}"
-                  placeholder="TMS Spreadsheet URL"
-                />
-                <div
-                  id="{{ tms_url_input_id }}-invalid"
-                  class="invalid-feedback"
-                ></div>
+                {{ macros.form_input(
+                     tms_url_input_id,
+                     value=tms_spreadsheet_url,
+                     placeholder="TMS Spreadsheet URL",
+                   )
+                }}
               </div>
               <div class="col-auto pe-0">
                 {{ macros.loading_btn(
@@ -182,17 +177,10 @@ Please contact a
               </div>
               {% endif %}
             </div>
-            <div class="row mb-2">
-              <div id="{{ tms_url_messages_id }}" class="col-auto">
-                {% for accent, messages in flashed["tms-spreadsheet"].items() %}
-                {% for message in messages %}
-                {% call macros.bs_alert(accent) %}
-                {{ message }}
-                {% endcall %}
-                {% endfor %}
-                {% endfor %}
-              </div>
-            </div>
+            {{ macros.flashed_messages(
+                 tms_url_messages_id, flashed["tms-spreadsheet"], classes="mb-2"
+               )
+            }}
           </div>
         </div>
       </div>
@@ -251,24 +239,15 @@ Please contact a
             imported into Mailchimp.
           </div>
           <div class="row">
-            <label
-              for="{{ mc_audience_tag_input_id }}"
-              class="col-form-label col-auto pe-0"
-            >
-              Audience Tag
-            </label>
+            {{ macros.form_input_label(mc_audience_tag_input_id, "Audience Tag")
+            }}
             <div class="col-xs col-sm-8 col-md-7 col-lg-4 pe-0 mb-2">
-              <input
-                type="text"
-                id="{{ mc_audience_tag_input_id }}"
-                class="form-control"
-                value="{{ mc_audience_tag or '' }}"
-                placeholder="e.g., 2023 Princeton Tournament"
-              />
-              <div
-                id="{{ mc_audience_tag_input_id }}-invalid"
-                class="invalid-feedback"
-              ></div>
+              {{ macros.form_input(
+                   mc_audience_tag_input_id,
+                   value=mc_audience_tag,
+                   placeholder="e.g., 2023 Princeton Tournament",
+                 )
+              }}
             </div>
             <div class="col-auto pe-0">
               {{ macros.loading_btn(
@@ -276,9 +255,10 @@ Please contact a
                  )
               }}
             </div>
+            {# alerts have weird spacing, so "mt-2" to vertically align it #}
             <div
               id="{{ mc_set_audience_tag_status_id }}"
-              class="col-form-label col-auto"
+              class="col-auto mt-2"
             ></div>
           </div>
           {% endif %}
@@ -481,7 +461,11 @@ Please contact a
         stopButtonLoading('{{ mc_set_audience_tag_btn_id }}');
         if (response.success) {
           // success
-          setElementTextFor('{{ mc_set_audience_tag_status_id }}', 'Success');
+          setElementTextFor(
+            '{{ mc_set_audience_tag_status_id }}',
+            bsAlertSm('Success', 'success'),
+            60
+          );
         } else {
           // some failure
           setInvalid(

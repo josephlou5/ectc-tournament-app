@@ -1,16 +1,31 @@
 {% extends "shared/layout.jinja" %}
 
 {% block title %}
-{{ APP_NAME }}
+{{ NAVBAR_APP_NAME }}
 {% endblock %}
 
 {% block body %}
 <div id="index-body" class="container-fluid">
-  <h2>{{ APP_NAME }}</h2>
-  <div>
-    Welcome to the ECTC Notifications App, which is aimed to provide better
-    communication between the league and its participants, namely the
-    competitors and their coaches.
+  <div class="row mb-2">
+    <div class="col">
+      <h2>{{ APP_NAME }}</h2>
+      <div>
+        Welcome to the ECTC Tournament Notification System (TNS), which is aimed
+        to provide better communication between the league and its participants,
+        namely the competitors and their coaches.
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <h4>About</h4>
+      <div>
+        This system was created by Joseph Lou in Spring 2023 as an independent
+        work project at Princeton University, with lots of help from
+        representatives of the ECTC, such as William Estey, Carissa Fu, and Tara
+        Sarathi (many thanks!).
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

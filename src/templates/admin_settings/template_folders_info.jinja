@@ -1,12 +1,9 @@
+{% import "shared/macros.jinja" as macros %}
+
 {% set mc_folder_select_input_id = "mc-template-folder-select" %}
 
 <div class="row">
-  <label
-    for="{{ mc_folder_select_input_id }}"
-    class="col-form-label col-auto pe-0"
-  >
-    Folder Name
-  </label>
+  {{ macros.form_input_label(mc_folder_select_input_id, "Folder Name") }}
   <div class="col">
     <select
       id="{{ mc_folder_select_input_id }}"

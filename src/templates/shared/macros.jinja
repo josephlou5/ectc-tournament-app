@@ -1,3 +1,5 @@
+{# Bootstrap components #}
+
 {% macro bs_close_btn(classes="", dismiss=none) %}
 <button
   type="button"
@@ -44,6 +46,22 @@
 {% endcall %}
 {% endwith %}
 {% endmacro %}
+
+{% macro flashed_messages(messages_id, messages, classes="", small=true) %}
+<div class="row {{ classes }}">
+  <div id="{{ messages_id }}" class="{{ 'col-auto' if small else 'col' }}">
+    {% for accent, messages in messages.items() %}
+    {% for message in messages %}
+    {% call bs_alert(accent) %}
+    {{ message|e }}
+    {% endcall %}
+    {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
+
+{# Buttons #}
 
 {# Creates a button with a loading spinner.
 
@@ -163,5 +181,71 @@
       </div>
     </div>
   </div>
+</div>
+{% endmacro %}
+
+{# Forms #}
+
+{% macro form_label(input_id, label, classes=none) %}
+<label
+  for="{{ input_id }}"
+  {% if classes is not none %} class="{{ classes }}" {% endif %}
+>
+  {{ label }}
+</label>
+{% endmacro %}
+
+{# Adds a label with the classes .col-form-label.col-auto.pe-0 which is mostly
+   consistent throughout the entire app.
+ #}
+{% macro form_input_label(input_id, label, classes="") %}
+{{ form_label(input_id, label, "col-form-label col-auto pe-0 " ~ classes) }}
+{% endmacro %}
+
+{% macro _input(
+     input_type,
+     input_id,
+     classes,
+     value=none,
+     placeholder=none,
+     checked=false,
+     feedback=true
+   )
+ %}
+<input
+  type="{{ input_type }}"
+  id="{{ input_id }}"
+  class="{{ classes }}"
+  {% if value is not none %} value="{{ value }}" {% endif %}
+  {% if placeholder is not none %} placeholder="{{ placeholder }}" {% endif %}
+  {% if checked %} checked {% endif %}
+/>
+{% if feedback %}
+<div id="{{ input_id }}-invalid" class="invalid-feedback"></div>
+{% endif %}
+{% endmacro %}
+
+{% macro form_input(
+     input_id, value=none, placeholder=none, feedback=true
+   )
+ %}
+{{ _input(
+     "text",
+     input_id,
+     "form-control",
+     value=value,
+     placeholder=placeholder,
+     feedback=feedback,
+   )
+}}
+{% endmacro %}
+
+{% macro form_checkbox(input_id, label, checked=false) %}
+<div class="form-check">
+  {{ _input(
+       "checkbox", input_id, "form-check-input", checked=checked, feedback=false
+     )
+  }}
+  {{ form_label(input_id, label, "form-check-label") }}
 </div>
 {% endmacro %}

@@ -134,17 +134,10 @@ Full Roster
     </div>
   </div>
   {% endif %}
-  <div class="row mb-2">
-    <div id="{{ fetch_roster_messages_id }}" class="col-auto">
-      {% for accent, messages in flashed["fetch-roster"].items() %}
-      {% for message in messages %}
-      {% call macros.bs_alert(accent) %}
-      {{ message }}
-      {% endcall %}
-      {% endfor %}
-      {% endfor %}
-    </div>
-  </div>
+  {{ macros.flashed_messages(
+       fetch_roster_messages_id, flashed["fetch-roster"], classes="mb-2"
+     )
+  }}
   {% if is_roster_empty %}
   <div class="row mb-2">
     <div class="col">

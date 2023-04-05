@@ -112,17 +112,10 @@ Notifications
             ></div>
           </div>
         </div>
-        <div class="row">
-          <div id="{{ fetch_roster_messages_id }}" class="col-auto">
-            {% for accent, messages in flashed["fetch-roster"].items() %}
-            {% for message in messages %}
-            {% call macros.bs_alert(accent) %}
-            {{ message }}
-            {% endcall %}
-            {% endfor %}
-            {% endfor %}
-          </div>
-        </div>
+        {{ macros.flashed_messages(
+             fetch_roster_messages_id, flashed["fetch-roster"]
+           )
+        }}
         {% if roster_last_fetched_time is not none %}
         <div class="row mb-2">
           <div class="col-auto">
@@ -279,17 +272,8 @@ Notifications
           <h4>Send Match Notifications</h4>
         </div>
       </div>
-      <div class="row">
-        <div id="{{ send_notif_messages_id }}" class="col-auto">
-          {% for accent, messages in flashed["send-notif"].items() %}
-          {% for message in messages %}
-          {% call macros.bs_alert(accent) %}
-          {{ message }}
-          {% endcall %}
-          {% endfor %}
-          {% endfor %}
-        </div>
-      </div>
+      {{ macros.flashed_messages(send_notif_messages_id, flashed["send-notif"])
+      }}
       <div class="row">
         <div class="col">
           <div class="mb-2">
@@ -312,23 +296,12 @@ Notifications
          #}
         <div class="col-xs-auto col-md col-xl-auto">
           <div class="row">
-            <label
-              for="{{ match_numbers_input_id }}"
-              class="col-auto col-form-label pe-0"
-            >
-              Add Matches
-            </label>
+            {{ macros.form_input_label(match_numbers_input_id, "Add Matches") }}
             <div class="col pe-0">
-              <input
-                type="text"
-                id="{{ match_numbers_input_id }}"
-                class="form-control"
-                placeholder="e.g., 101-104"
-              />
-              <div
-                id="{{ match_numbers_input_id }}-invalid"
-                class="invalid-feedback"
-              ></div>
+              {{ macros.form_input(
+                   match_numbers_input_id, placeholder="e.g., 101-104"
+                 )
+              }}
               <div class="form-text">
                 The match numbers should be separated by spaces or commas. You
                 may use dashes for match number ranges.
@@ -422,7 +395,13 @@ Notifications
           <table class="table table-sm table-borderless">
             <tr>
               <td class="table-sm-col">
-                <div class="col-form-label">Template</div>
+                {# the id of the select is from
+                   `src/templates/notifications/templates_info.jinja`
+                 #}
+                {{ macros.form_label(
+                     "mc-template-select", "Template", "col-form-label"
+                   )
+                }}
               </td>
               {% if has_all_admin_settings_error is none %}
               <td
@@ -446,20 +425,18 @@ Notifications
             </tr>
             <tr>
               <td class="table-sm-col">
-                <div class="col-form-label">Subject</div>
+                {{ macros.form_label(
+                     email_subject_input_id, "Subject", "col-form-label"
+                   )
+                }}
               </td>
               <td class="{{ email_items_col_class }}">
-                <input
-                  type="text"
-                  id="{{ email_subject_input_id }}"
-                  class="form-control"
-                  value="{{ last_subject or '' }}"
-                  placeholder="e.g., Match {match}: Report to Holding"
-                />
-                <div
-                  id="{{ email_subject_input_id }}-invalid"
-                  class="invalid-feedback"
-                ></div>
+                {{ macros.form_input(
+                     email_subject_input_id,
+                     value=last_subject,
+                     placeholder="e.g., Match {match}: Report to Holding"
+                   )
+                }}
                 <div class="form-text">
                   You must use the placeholder <code>{match}</code> to indicate
                   the match number. For the full placeholder list and subject
@@ -477,34 +454,18 @@ Notifications
                 Also Send To
               </td>
               <td class="{{ email_items_col_class }}">
-                <div class="form-check">
-                  <input
-                    type="checkbox"
-                    id="{{ send_to_coaches_checkbox_id }}"
-                    class="form-check-input"
-                    {{ 'checked' if send_to_coaches }}
-                  >
-                  <label
-                    for="{{ send_to_coaches_checkbox_id }}"
-                    class="form-check-label"
-                  >
-                    School Coaches
-                  </label>
-                </div>
-                <div class="form-check">
-                  <input
-                    type="checkbox"
-                    id="{{ send_to_spectators_checkbox_id }}"
-                    class="form-check-input"
-                    {{ 'checked' if send_to_spectators }}
-                  >
-                  <label
-                    for="{{ send_to_spectators_checkbox_id }}"
-                    class="form-check-label"
-                  >
-                    School Spectators
-                  </label>
-                </div>
+                {{ macros.form_checkbox(
+                     send_to_coaches_checkbox_id,
+                     "School Coaches",
+                     checked=send_to_coaches,
+                   )
+                }}
+                {{ macros.form_checkbox(
+                     send_to_spectators_checkbox_id,
+                     "School Spectators",
+                     checked=send_to_spectators,
+                   )
+                }}
                 <div class="form-text">
                   Note that if there are multiple matches with the same school
                   being sent, these people will receive multiple notifications
@@ -1257,9 +1218,6 @@ Notifications
 
     // Send notifications
     populateMailchimpTemplateDropdown();
-    $('#{{ email_subject_input_id }}').onEnterKeyPress((event) => {
-      $('#{{ send_notif_btn_id }}').click();
-    });
     $('#{{ send_notif_btn_id }}').click((event) => {
       handleSendNotificationClicked();
     });

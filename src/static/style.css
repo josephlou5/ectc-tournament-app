@@ -1,3 +1,17 @@
+/* Use some width to try to keep the navbar in one line. */
+@media (max-width: 1400.98px) {
+  /* When smaller, hide the large brand. */
+  #navbar-brand-large {
+    display: none;
+  }
+}
+@media (min-width: 1401px) {
+  /* When larger, hide the small brand. */
+  #navbar-brand-small {
+    display: none;
+  }
+}
+
 .text-monospace {
   font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas,
     Liberation Mono, monospace;

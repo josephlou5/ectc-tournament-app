@@ -109,17 +109,10 @@ Global Settings
               }}
             </div>
           </div>
-          <div class="row">
-            <div id="{{ service_account_messages_id }}" class="col-auto">
-              {% for accent, messages in flashed["service-account"].items() %}
-              {% for message in messages %}
-              {% call macros.bs_alert(accent) %}
-              {{ message }}
-              {% endcall %}
-              {% endfor %}
-              {% endfor %}
-            </div>
-          </div>
+          {{ macros.flashed_messages(
+               service_account_messages_id, flashed["service-account"]
+             )
+          }}
         </div>
       </div>
     </div>
@@ -173,18 +166,14 @@ Global Settings
             <div class="col-xs col-sm-8 col-md-7 col-lg-4">
               <div class="row">
                 <div class="col pe-0">
-                  <input
-                    type="text"
-                    id="{{ mc_api_key_input_id }}"
-                    class="form-control"
-                    {% with action = "Edit" if has_mc_api_key else "Set" %}
-                    placeholder="{{ action }} Mailchimp API Key"
-                    {% endwith %}
-                  />
-                  <div
-                    id="{{ mc_api_key_input_id }}-invalid"
-                    class="invalid-feedback"
-                  ></div>
+                  {{ macros.form_input(
+                       mc_api_key_input_id,
+                       placeholder=(
+                         ("Edit" if has_mc_api_key else "Set")
+                         ~ " Mailchimp API Key"
+                       ),
+                     )
+                  }}
                 </div>
                 <div class="col-auto">
                   {{ macros.loading_btn(
@@ -195,17 +184,10 @@ Global Settings
               </div>
             </div>
           </div>
-          <div class="row">
-            <div id="{{ mc_api_key_messages_id }}" class="col-auto">
-              {% for accent, messages in flashed["mailchimp-api-key"].items() %}
-              {% for message in messages %}
-              {% call macros.bs_alert(accent) %}
-              {{ message }}
-              {% endcall %}
-              {% endfor %}
-              {% endfor %}
-            </div>
-          </div>
+          {{ macros.flashed_messages(
+               mc_api_key_messages_id, flashed["mailchimp-api-key"]
+             )
+          }}
         </div>
       </div>
     </div>
@@ -213,17 +195,10 @@ Global Settings
   <div class="row border border-2 border-danger rounded py-2">
     <div class="col">
       <h2>Danger Zone</h2>
-      <div class="row">
-        <div id="{{ clear_everything_messages_id }}" class="col-auto">
-          {% for accent, messages in flashed["clear-everything"].items() %}
-          {% for message in messages %}
-          {% call macros.bs_alert(accent) %}
-          {{ message }}
-          {% endcall %}
-          {% endfor %}
-          {% endfor %}
-        </div>
-      </div>
+      {{ macros.flashed_messages(
+           clear_everything_messages_id, flashed["clear-everything"]
+         )
+      }}
       <div class="row mb-2">
         <div class="col">
           As a Super Admin, you have the ability to clear all the data currently
@@ -414,6 +389,8 @@ Global Settings
       console.log('clear clicked');
       handleClearEverythingClicked();
     });
+    // clear the flashed text after 60 seconds
+    clearElementAfter('{{ clear_everything_messages_id }}', 60);
   });
 </script>
 {% endblock %}
