@@ -235,19 +235,22 @@ class EmailSent(db.Model):
     __tablename__ = "EmailsSent"
 
     id = Column(Integer, primary_key=True)
+    match_number = Column(Integer, nullable=False)
+    subject = Column(String(), nullable=False)
+    # A semicolon-separated list of recipient email addresses
+    recipients = Column(String(), nullable=False)
+    # The name of the Mailchimp template used for this email
+    template_name = Column(String(), nullable=False)
     time_sent = Column(DateTime(timezone=False), nullable=False)
-    # A comma-separated list of match numbers
-    matches = Column(String(), nullable=False)
 
-    def __init__(self, time_sent, match_numbers):
+    def __init__(
+        self, match_number, subject, recipients, template_name, time_sent
+    ):
+        self.match_number = match_number
+        self.subject = subject
+        self.recipients = ";".join(sorted(recipients))
+        self.template_name = template_name
         self.time_sent = time_sent
-        for match_number in match_numbers:
-            if not isinstance(match_number, int):
-                raise TypeError("non-int value in match numbers")
-        self.matches = ",".join(map(str, match_numbers))
 
-    def iter_match_numbers(self):
-        return map(int, self.matches.split(","))
-
-    def get_match_numbers(self):
-        return list(self.iter_match_numbers())
+    def email_recipients(self):
+        return self.recipients.split(";")

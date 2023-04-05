@@ -76,8 +76,12 @@ def get_matches_status(match_numbers=None, tz=utils.EASTERN_TZ):
                 'tms_status': the match status from the TMS spreadsheet
                 'tms_status_last_updated':
                     when the TMS status was last updated
-                'emails':
-                    a list of emails sent for this match in the format:
+                'emails': a list of emails sent for this match, sorted
+                    by time sent, in the format:
+                        'match_number': the target match number
+                        'subject': the email subject
+                        'recipients': a list of recipient emails
+                        'template_name': the Mailchimp template used
                         'time_sent': when the email was sent
     """
 
@@ -96,12 +100,12 @@ def get_matches_status(match_numbers=None, tz=utils.EASTERN_TZ):
     # maps: match number -> list of email objects
     emails_sent = {}
     for email_sent in query(EmailSent).all():
-        for match_number in email_sent.iter_match_numbers():
-            if match_number not in match_numbers:
-                continue
-            if match_number not in emails_sent:
-                emails_sent[match_number] = []
-            emails_sent[match_number].append(email_sent)
+        match_number = email_sent.match_number
+        if match_number not in match_numbers:
+            continue
+        if match_number not in emails_sent:
+            emails_sent[match_number] = []
+        emails_sent[match_number].append(email_sent)
 
     # combine into a single status for each seen match
     match_status_infos = {}
@@ -129,11 +133,17 @@ def get_matches_status(match_numbers=None, tz=utils.EASTERN_TZ):
         else:
             status_info["emails"] = [
                 {
+                    "match_number": email_sent.match_number,
+                    "subject": email_sent.subject,
+                    "recipients": email_sent.email_recipients(),
+                    "template_name": email_sent.template_name,
                     "time_sent": utils.dt_str(
                         utils.dt_to_timezone(email_sent.time_sent, tz)
-                    )
+                    ),
                 }
-                for email_sent in match_emails_sent
+                for email_sent in sorted(
+                    match_emails_sent, key=lambda e: e.time_sent
+                )
             ]
         match_status_infos[match_number] = status_info
 
@@ -183,19 +193,14 @@ def set_matches_tms_status(matches_info):
     return True
 
 
-def add_email_sent(time_sent, to_matches):
-    """Stores a new email being sent at the given time to the given
-    match numbers.
+def add_emails_sent(emails_sent):
+    """Stores the given emails as being sent.
 
     Returns:
         bool: Whether the operation was successful.
     """
-    # TODO: after notifications are sent
-    try:
-        email_sent = EmailSent(time_sent, to_matches)
-    except TypeError:
-        # the match numbers weren't all integers
-        return False
-    db.session.add(email_sent)
+    for email_sent_info in emails_sent:
+        email_sent = EmailSent(**email_sent_info)
+        db.session.add(email_sent)
     db.session.commit()
     return True

@@ -78,3 +78,13 @@ code {
     min-width: 700px;
   }
 }
+
+#matches-status-table tbody:nth-child(even) {
+  /* Bootstrap .table-striped color */
+  background: rgb(33, 37, 41, 0.05);
+}
+
+#matches-status-table tbody:hover {
+  /* Bootstrap .table-hover color */
+  background: rgb(33, 37, 41, 0.075);
+}

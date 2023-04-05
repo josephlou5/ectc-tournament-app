@@ -13,10 +13,16 @@ Matches Status
 
 {% set match_status_row_class = "status-row" %}
 
-{% macro _match_status_col(status, last_updated) %}
+{% set toggle_all_recipients_btn_id = "toggle-all-recipients-btn" %}
+{% set recipients_div_class = "email-recipients" %}
+
+{% macro _match_status_col(status, last_updated, row_span=none) %}
 {% set accent = status_accents.get(status, none) %}
-<td {% if accent is not none %} class="table-{{ accent }}" {% endif %}>
-  {% if status == "" %}
+<td
+  {% if row_span is not none %} rowspan="{{ row_span }}" {% endif %}
+  {% if accent is not none %} class="table-{{ accent }}" {% endif %}
+>
+  {% if status is none or status == "" %}
   <em class="text-muted">None</em>
   {% else %}
   <span
@@ -29,6 +35,36 @@ Matches Status
   </span>
   {% endif %}
 </td>
+{% endmacro %}
+
+{% set ns = namespace(email_index=0) %}
+{% macro _sent_email_cols(sent_email) %}
+{% set ns.email_index = ns.email_index + 1 %}
+{% set recipients_div_id = "email-" ~ ns.email_index ~ "-recipients" %}
+{% if user_is_admin %}
+<td>{{ sent_email["template_name"]|e }}</td>
+{% endif %}
+<td>{{ sent_email["subject"]|e }}</td>
+{% if user_is_admin %}
+<td>
+  <div>
+    <button
+      type="button"
+      id="toggle-{{ recipients_div_id }}"
+      class="btn btn-sm btn-secondary"
+      onclick="toggleEmailRecipients('{{ recipients_div_id }}')"
+    >
+      Show
+    </button>
+  </div>
+  <div id="{{ recipients_div_id }}" class="{{ recipients_div_class }} d-none">
+    {% for email_address in sent_email["recipients"] %}
+    <div>{{ email_address|e }}</div>
+    {% endfor %}
+  </div>
+</td>
+{% endif %}
+<td>{{ sent_email["time_sent"] }}</td>
 {% endmacro %}
 
 {% block body %}
@@ -92,18 +128,39 @@ Matches Status
       <div>No match statuses</div>
       {% else %}
       <div class="table-responsive">
-        <table class="table table-striped table-hover align-middle">
+        {# implemented my own equivalents to .table-striped and .table-hover but
+           with `tbody` elements instead of `tr` elements (see `style.css`)
+         #}
+        <table id="matches-status-table" class="table align-middle">
           <thead>
-            <tr>
+            <tr class="align-middle">
               <th class="table-sm-col">Match</th>
               <th>TMS Status</th>
-              <th>Emails Sent</th>
+              {% if user_is_admin %}
+              <th>Mailchimp Template</th>
+              {% endif %}
+              <th>Email Subject</th>
+              {% if user_is_admin %}
+              <th>
+                Recipients
+                <button
+                  type="button"
+                  id="{{ toggle_all_recipients_btn_id }}"
+                  class="btn btn-sm btn-secondary ms-2"
+                >
+                  Toggle All
+                </button>
+              </th>
+              {% endif %}
+              <th>Email Time Sent</th>
               <th class="table-sm-col">Any Email Sent</th>
             </tr>
           </thead>
+          {% for status_info in statuses %}
+          {% set hundred_cls = "hundred-" ~ status_info["hundred_str"] %}
+          {% with emails = status_info["emails"] %}
           <tbody>
-            {% for status_info in statuses %}
-            {% set hundred_cls = "hundred-" ~ status_info["hundred_str"] %}
+            {% if emails|length == 0 %}
             <tr class="{{ match_status_row_class }} {{ hundred_cls }}">
               <th class="table-sm-col">{{ status_info["number"] }}</th>
               {{ _match_status_col(
@@ -111,27 +168,49 @@ Matches Status
                    status_info["tms_status_last_updated"],
                  )
               }}
-              {% with emails = status_info["emails"] %}
-              <td>
-                {% if emails|length == 0 %}
+              <td colspan="{{ '4' if user_is_admin else '2' }}">
                 <em class="text-muted">None</em>
-                {% else %}
-                {% for email in emails %}
-                <div>{{ email["time_sent"] }}</div>
-                {% endfor %}
-                {% endif %}
               </td>
-              <td
-                class="table-sm-col {{ 'table-success' if emails|length > 0 }}"
-              >
-                {% if emails|length > 0 %}
+              <td class="table-sm-col">No</td>
+            </tr>
+            {% else %}
+            {% set row_span = none if emails|length == 1 else emails|length %}
+            {% set row_span_attr =
+                 "" if row_span is none else ('rowspan="' ~ row_span ~ '"')
+             %}
+            {% for sent_email in emails %}
+            <tr class="{{ match_status_row_class }} {{ hundred_cls }}">
+              {% if loop.first %}
+              <th {{ row_span_attr }} class="table-sm-col">
+                {{ status_info["number"] }}
+              </th>
+              {{ _match_status_col(
+                  status_info["tms_status"],
+                  status_info["tms_status_last_updated"],
+                  row_span,
+                )
+              }}
+              {% endif %}
+              {{ _sent_email_cols(sent_email) }}
+              {% if loop.first %}
+              <td {{ row_span_attr }} class="table-sm-col table-success">
                 Yes
-                {% endif %}
               </td>
-              {% endwith %}
+              {% endif %}
             </tr>
             {% endfor %}
+            {% endif %}
+            <tr class="{{ match_status_row_class }} {{ hundred_cls }}">
+              {# include a dummy row that doesn't do anything so that each
+                 `tbody` element does not have a black line after the last row
+                 (i didn't like it anyway, but it looked extra bad because it
+                 was only doing the last row, which doesn't include any
+                 potential "rowspan" rows)
+               #}
+            </tr>
           </tbody>
+          {% endwith %}
+          {% endfor %}
         </table>
       </div>
       {% endif %}
@@ -160,7 +239,39 @@ Matches Status
       // show the proper match rows
       $('.{{ match_status_row_class }}').addClass('d-none');
       $('.hundred-' + hundredStr).removeClass('d-none');
+      // hide the recipients for all the hidden rows
+      $(
+        '.{{ match_status_row_class }}.d-none ' +
+          '.{{ recipients_div_class }}:not(.d-none)'
+      ).each((index, element) => {
+        toggleEmailRecipients(element.id, false);
+      });
     }
+  }
+
+  function toggleEmailRecipients(elementId, forceShow = null) {
+    const $recipientsDiv = $('#' + elementId);
+    const $toggleButton = $('#toggle-' + elementId);
+    toggleDisplay($recipientsDiv, $toggleButton, { forceShow });
+  }
+
+  function handleToggleAllRecipientsClicked() {
+    // get recipient divs that are currently being shown in the table
+    const $recipientDivs = $(
+      '.{{ match_status_row_class }}:not(.d-none) .{{ recipients_div_class }}'
+    );
+    if ($recipientDivs.length === 0) return;
+    let allShowing = true;
+    $recipientDivs.each((index, element) => {
+      if ($(element).hasClass('d-none')) {
+        allShowing = false;
+        return false;
+      }
+    });
+    $recipientDivs.each((index, element) => {
+      // if everything is showing, hide everything. otherwise, show everything.
+      toggleEmailRecipients(element.id, !allShowing);
+    });
   }
 
   $(document).ready(() => {
@@ -177,6 +288,13 @@ Matches Status
         handlePaginationChanged($element.html() ?? '');
       }
     });
+
+    {% if user_is_admin %}
+    // toggle all recipients button
+    $('#{{ toggle_all_recipients_btn_id }}').click((event) => {
+      handleToggleAllRecipientsClicked();
+    });
+    {% endif %}
   });
 </script>
 {% endblock %}

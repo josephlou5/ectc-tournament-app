@@ -7,6 +7,7 @@ team info, and sending notifications.
 
 import json
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 
 from flask import flash, render_template, request
@@ -1043,6 +1044,15 @@ def send_notification():
         error_msg = "No selected Mailchimp audience"
         print(" ", "Error:", error_msg)
         return {"success": False, "errors": {"GENERAL": error_msg}}
+    # validate template exists (but doesn't have to be in audience or
+    # folder)
+    error_msg, template_info = mailchimp_utils.get_campaign(template_id)
+    if error_msg is not None:
+        return {
+            "success": False,
+            "errors": {"TEMPLATE": "Invalid template id"},
+        }
+    mailchimp_template_name = template_info["title"]
     # get TNS segment id
     error_msg, tns_segment_id = mailchimp_utils.get_or_create_tns_segment(
         audience_id
@@ -1106,6 +1116,7 @@ def send_notification():
             all_emails = team_emails["blue_team"] + team_emails["red_team"]
             email_args.append(
                 {
+                    "match_number": match_number,
                     "description": f"Match {match_number}",
                     "subject": team_subjects["blue_team"],
                     "emails": all_emails,
@@ -1117,6 +1128,7 @@ def send_notification():
                 color = team_color.split("_", 1)[0]
                 email_args.append(
                     {
+                        "match_number": match_number,
                         "description": f"Match {match_number}, {color} team",
                         "subject": team_subjects[team_color],
                         "emails": team_emails[team_color],
@@ -1136,7 +1148,7 @@ def send_notification():
 
     # send emails
     print(" ", "Sending emails")
-    any_email_sent = False
+    emails_sent = []
     for args in email_args:
         print(" ", " ", f'Sending email for {args["description"]}:')
         print(" ", " ", " ", "Subject:", args["subject"])
@@ -1152,8 +1164,16 @@ def send_notification():
             print(" ", " ", " ", "Error while sending email:", error_msg)
             _add_status("ERROR", args["description"], "Email send failed")
             continue
-        any_email_sent = True
-    if not any_email_sent:
+        emails_sent.append(
+            {
+                "match_number": args["match_number"],
+                "subject": args["subject"],
+                "recipients": args["emails"],
+                "template_name": mailchimp_template_name,
+                "time_sent": datetime.utcnow(),
+            }
+        )
+    if len(emails_sent) == 0:
         error_msg = "All emails failed to send"
         print(" ", "Error:", error_msg)
         return {"success": False, "errors": {"GENERAL": error_msg}}
@@ -1198,6 +1218,12 @@ def send_notification():
         elif accent == "WARNING":
             accent = "warning"
         flash(message, f"send-notif.{accent}")
+
+    success = db.match_status.add_emails_sent(emails_sent)
+    if not success:
+        error_msg = "Database error while saving sent emails"
+        print(" ", "Error:", error_msg)
+        flash(error_msg, "send-notif.danger")
 
     return {"success": True}
 

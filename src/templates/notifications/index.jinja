@@ -835,15 +835,10 @@ Notifications
   function toggleMatchTeamMembers(elementId) {
     const $membersDiv = $('#' + elementId);
     const $toggleButton = $('#toggle-' + elementId);
-    if ($membersDiv.hasClass('d-none')) {
-      // show
-      $membersDiv.removeClass('d-none');
-      $toggleButton.html('Hide Members');
-    } else {
-      // hide
-      $membersDiv.addClass('d-none');
-      $toggleButton.html('Show Members');
-    }
+    toggleDisplay($membersDiv, $toggleButton, {
+      show: 'Show Members',
+      hide: 'Hide Members',
+    });
   }
 
   function removeMatchRow(matchNumber) {

@@ -142,6 +142,33 @@ function copyElementContent(elementId, callback = null) {
   });
 }
 
+function toggleDisplay(
+  $toggleElement,
+  $toggleButton,
+  { show = 'Show', hide = 'Hide', forceShow = null }
+) {
+  const isHidden = $toggleElement.hasClass('d-none');
+  if (isHidden) {
+    if (forceShow === false) {
+      // stay hidden
+    } else {
+      // show
+      $toggleElement.removeClass('d-none');
+      $toggleButton.html(hide);
+    }
+  } else {
+    if (forceShow === true) {
+      // stay shown
+    } else {
+      // hide
+      $toggleElement.addClass('d-none');
+      $toggleButton.html(show);
+    }
+  }
+}
+
+/** BOOTSTRAP **/
+
 function enableBsTooltips() {
   $('[data-bs-toggle="tooltip"]').each((index, element) => {
     const tooltip = new bootstrap.Tooltip(element);

@@ -382,6 +382,8 @@ def get_campaign_folder(folder_id):
 CAMPAIGN_FIELDS = {
     "id": {"path": "id"},
     "title": {"path": ["settings", "title"]},
+    "audience_id": {"path": ["recipients", "list_id"]},
+    "folder_id": {"path": ["settings", "folder_id"]},
 }
 
 
@@ -394,6 +396,10 @@ def get_campaigns_in_folder(folder_id):
             format:
                 'id': campaign id
                 'title': campaign title
+                'audience_id': the audience the campaign belongs to
+                    (could be blank)
+                'folder_id': the campaign folder the campaign belongs to
+                    (could be blank)
     """
     error_msg, client = get_client()
     if error_msg is not None:
@@ -404,6 +410,25 @@ def get_campaigns_in_folder(folder_id):
         "campaigns",
         folder_id=folder_id,
     )
+
+
+def get_campaign(campaign_id):
+    """Gets a campaign.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, Dict]]:
+            An error message, or the campaign info in the format:
+                'id': campaign id
+                'title': campaign title
+                'audience_id': the audience the campaign belongs to
+                    (could be blank)
+                'folder_id': the campaign folder the campaign belongs to
+                    (could be blank)
+    """
+    error_msg, client = get_client()
+    if error_msg is not None:
+        return error_msg, None
+    return _get_resource(client.campaigns.get, campaign_id, CAMPAIGN_FIELDS)
 
 
 # =============================================================================
