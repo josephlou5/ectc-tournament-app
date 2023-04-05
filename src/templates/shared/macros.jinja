@@ -106,6 +106,8 @@
      loading_text=none,
      accent="danger",
      classes="",
+     confirm_accent="success",
+     confirm_btn_text="Yes",
      loading_classes=""
    )
  %}
@@ -141,12 +143,20 @@
         </button>
         {% if loading_text is none %}
         {# regular button #}
-        <button type="button" id="{{ btn_id }}" class="btn btn-success">
-          Yes
+        <button
+          type="button"
+          id="{{ btn_id }}"
+          class="btn btn-{{ confirm_accent }}"
+        >
+          {{ confirm_btn_text }}
         </button>
         {% else %}
         {{ loading_btn(
-             btn_id, "success", "Yes", loading_text, classes=loading_classes
+             btn_id,
+             confirm_accent,
+             confirm_btn_text,
+             loading_text,
+             classes=loading_classes,
            )
         }}
         {% endif %}

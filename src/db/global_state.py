@@ -57,6 +57,26 @@ def has_all_admin_settings():
     return f"Missing: {missing_str}"
 
 
+def clear_all_admin_settings():
+    """Clears all the settings that can be set by a regular admin.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    clear_fields = [
+        "tms_spreadsheet_id",
+        "roster_last_fetched_time",
+        "last_matches_query",
+        "mailchimp_audience_id",
+        "mailchimp_audience_tag",
+        "mailchimp_folder_id",
+        "mailchimp_template_id",
+        "mailchimp_subject",
+    ]
+    _set_global(**{field: None for field in clear_fields})
+    return True
+
+
 # =============================================================================
 
 # TMS fields

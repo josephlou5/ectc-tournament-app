@@ -10,6 +10,7 @@ import db
 from utils import fetch_tms, mailchimp_utils
 from utils.auth import login_required
 from utils.server import AppRoutes, _render, get_request_json, unsuccessful
+from views import notifications
 
 # =============================================================================
 
@@ -206,4 +207,36 @@ def set_mailchimp_api_key():
     print(" ", success_msg)
     flash(success_msg, "mailchimp-api-key.success")
 
+    return {"success": True}
+
+
+# =============================================================================
+
+
+@app.route("/super_admin/clear_everything", methods=["DELETE"])
+@login_required(super_admin=True, save_redirect=False)
+def clear_everything():
+    def _db_error(error_while):
+        print(" ", " ", " ", "Database error while", error_while)
+        flash("Database error", "clear-everything.danger")
+        return {"success": False}
+
+    print(" ", "Clearing all saved data")
+
+    print(" ", " ", "Clearing admin settings")
+    success = db.global_state.clear_all_admin_settings()
+    if not success:
+        return _db_error("clearing admin settings")
+
+    print(" ", " ", "Clearing roster and emails")
+    success = db.roster.clear_roster()
+    if not success:
+        return _db_error("clearing roster and emails")
+
+    print(" ", " ", "Deleting fetch roster logs")
+    logs_file = notifications.FETCH_ROSTER_LOGS_FILE
+    if logs_file.exists():
+        logs_file.unlink()
+
+    flash("Successfully cleared all data", "clear-everything.success")
     return {"success": True}
