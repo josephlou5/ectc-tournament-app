@@ -6,6 +6,11 @@
 
 # Private keys
 keys.py
+cert.pem
+key.pem
+
+# Run development server (has sensitive environment variables)
+runserver.sh
 
 # Generated static files
 src/static/fetch_roster_logs.json
