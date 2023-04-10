@@ -227,6 +227,7 @@ def get_audiences():
     error_msg, client = get_client()
     if error_msg is not None:
         return error_msg, None
+    # https://mailchimp.com/developer/marketing/api/lists/get-lists-info/
     return _get_paginated_data(
         client.lists.get_all_lists, AUDIENCE_FIELDS, "lists"
     )
@@ -249,6 +250,7 @@ def get_audience(audience_id):
     error_msg, client = get_client()
     if error_msg is not None:
         return error_msg, None
+    # https://mailchimp.com/developer/marketing/api/lists/get-list-info/
     return _get_resource(client.lists.get_list, audience_id, AUDIENCE_FIELDS)
 
 
@@ -285,6 +287,7 @@ def add_members(audience_id, emails, tournament_tag=None, remove_emails=None):
             # remove the tournament tag
             subscriber_hash = _get_subscriber_hash(email)
             try:
+                # https://mailchimp.com/developer/marketing/api/list-member-tags/add-or-remove-member-tags/
                 client.lists.update_list_member_tags(
                     audience_id,
                     subscriber_hash,
@@ -306,6 +309,7 @@ def add_members(audience_id, emails, tournament_tag=None, remove_emails=None):
     for email in emails:
         # add user and tag if doesn't exist
         try:
+            # https://mailchimp.com/developer/marketing/api/list-members/add-or-update-list-member/
             client.lists.set_list_member(
                 audience_id,
                 email,
@@ -354,6 +358,7 @@ def get_campaign_folders():
     error_msg, client = get_client()
     if error_msg is not None:
         return error_msg, None
+    # https://mailchimp.com/developer/marketing/api/campaign-folders/list-campaign-folders/
     return _get_paginated_data(
         client.campaignFolders.list, CAMPAIGN_FOLDER_FIELDS, "folders"
     )
@@ -372,6 +377,7 @@ def get_campaign_folder(folder_id):
     error_msg, client = get_client()
     if error_msg is not None:
         return error_msg, None
+    # https://mailchimp.com/developer/marketing/api/campaign-folders/get-campaign-folder/
     return _get_resource(
         client.campaignFolders.get, folder_id, CAMPAIGN_FOLDER_FIELDS
     )
@@ -404,6 +410,7 @@ def get_campaigns_in_folder(folder_id):
     error_msg, client = get_client()
     if error_msg is not None:
         return error_msg, None
+    # https://mailchimp.com/developer/marketing/api/campaigns/list-campaigns/
     return _get_paginated_data(
         client.campaigns.list,
         CAMPAIGN_FIELDS,
@@ -428,6 +435,7 @@ def get_campaign(campaign_id):
     error_msg, client = get_client()
     if error_msg is not None:
         return error_msg, None
+    # https://mailchimp.com/developer/marketing/api/campaigns/get-campaign-info/
     return _get_resource(client.campaigns.get, campaign_id, CAMPAIGN_FIELDS)
 
 
@@ -454,6 +462,7 @@ def get_segment_id(audience_id, segment_name):
 
     # get all static segments
     try:
+        # https://mailchimp.com/developer/marketing/api/list-segments/list-segments/
         for segment_info in _yield_paginated_data(
             client.lists.list_segments,
             SEGMENT_FIELDS,
@@ -492,6 +501,7 @@ def get_or_create_tns_segment(audience_id):
     # create segment if not found
     if segment_id is None:
         try:
+            # https://mailchimp.com/developer/marketing/api/list-segments/add-segment/
             created_segment = client.lists.create_segment(
                 audience_id,
                 {"name": TNS_SEGMENT_NAME, "static_segment": []},
@@ -523,7 +533,11 @@ def update_tns_segment_emails(audience_id, segment_id, emails):
 
     # edit the emails in the segment
     try:
+        # https://mailchimp.com/developer/marketing/api/list-segments/update-segment/
         # this call with REPLACE the emails in the segment
+        # there is also a "batch add/remove members" endpoint, but you
+        # would have to specify which emails to remove, so this call is
+        # better because we want to start from a clean slate
         response = client.lists.update_segment(
             audience_id, segment_id, {"static_segment": emails}
         )
@@ -565,6 +579,7 @@ def create_and_send_campaign(
 
     # replicate campaign
     try:
+        # https://mailchimp.com/developer/marketing/api/campaigns/replicate-campaign/
         new_campaign = client.campaigns.replicate(replicate_id)
     except ApiClientError as ex:
         error_msg = str(ex.text)
@@ -580,6 +595,7 @@ def create_and_send_campaign(
     if segment_id is not None:
         segment_args["saved_segment_id"] = segment_id
     try:
+        # https://mailchimp.com/developer/marketing/api/campaigns/update-campaign-settings/
         campaign_info = client.campaigns.update(
             campaign_id,
             {
@@ -601,7 +617,7 @@ def create_and_send_campaign(
         error_msg = str(ex.text)
         print(
             (
-                "Mailchimp API error while updating campaign settings for "
+                "Mailchimp API error while updating settings for campaign "
                 f"{campaign_id}:"
             ),
             error_msg,
@@ -610,6 +626,7 @@ def create_and_send_campaign(
 
     # send campaign
     try:
+        # https://mailchimp.com/developer/marketing/api/campaigns/send-campaign/
         client.campaigns.send(campaign_id)
     except ApiClientError as ex:
         error_msg = str(ex.text)

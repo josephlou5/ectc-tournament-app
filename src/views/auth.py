@@ -107,7 +107,8 @@ def login_callback():
     if user_info.get("email", None) is None:
         return "User email could not be found.", 400
 
-    session["email"] = user_info["email"]
+    # convert email to lowercase to be consistent with Mailchimp
+    session["email"] = user_info["email"].lower()
     session["user_info"] = user_info
 
     return _redirect_last()

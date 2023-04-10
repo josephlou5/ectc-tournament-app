@@ -384,7 +384,9 @@ Notifications
             </thead>
             <tbody id="{{ matches_info_table_id }}">
               <tr id="{{ no_matches_row_id }}">
-                <td colspan="7">No matches</td>
+                <td colspan="8">
+                  <em>No matches</em>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -394,6 +396,7 @@ Notifications
         <div class="col-md-auto">
           <table class="table table-sm table-borderless">
             <tr>
+              {% if has_all_admin_settings_error is none %}
               <td class="table-sm-col">
                 {# the id of the select is from
                    `src/templates/notifications/templates_info.jinja`
@@ -403,7 +406,6 @@ Notifications
                    )
                 }}
               </td>
-              {% if has_all_admin_settings_error is none %}
               <td
                 id="{{ mc_templates_dropdown_wrapper_id }}"
                 class="{{ email_items_col_class }}"
@@ -418,6 +420,7 @@ Notifications
                 </div>
               </td>
               {% else %}
+              <td class="table-sm-col">Template</td>
               <td class="{{ email_items_col_class }}">
                 <em class="text-muted">Cannot fetch templates</em>
               </td>

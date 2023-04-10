@@ -1176,7 +1176,7 @@ def send_notification():
                 # there was an error
                 missing_team[color] = team_school_code
                 continue
-            
+
             # just get the emails without any role information
             valid_emails = team.valid_emails()
             if len(valid_emails) == 0:
@@ -1191,7 +1191,7 @@ def send_notification():
                         school_name, additional_recipient_roles
                     )
                 )
-            
+
             team_emails[team_color] = valid_emails
         if len(missing_team) > 0:
             team_names = " and ".join(
