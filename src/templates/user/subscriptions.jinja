@@ -1,0 +1,233 @@
+{% extends "shared/layout.jinja" %}
+
+{% block title %}
+Subscriptions
+{% endblock %}
+
+{% set save_subscriptions_status_id = "save-subscriptions-status" %}
+
+{% set all_schools_btn_wrapper_id = "all-schools-btn-wrapper" %}
+{% set school_page_btn_class = "school-page-btn" %}
+{% set school_page_wrapper_class = school_page_btn_class ~ "-wrapper" %}
+{% set school_checkboxes_class = "school-checkboxes" %}
+{% set toggle_school_btn_class = "toggle-school-btn" %}
+
+{% block body %}
+<div id="subscriptions-body" class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <h2>Subscriptions</h2>
+    </div>
+    <div class="col-auto">
+      <span id="{{ save_subscriptions_status_id }}"></span>
+    </div>
+  </div>
+  <div class="row mb-2">
+    <div class="col">
+      Here, you may subscribe to the notifications for a team. You will receive
+      any and all notifications that they receive.
+    </div>
+  </div>
+  {% if subscriptions|length > 1 %}
+  {# allow filtering by school #}
+  <div class="row">
+    <div class="col">
+      <nav>
+        <ul class="pagination">
+          <li
+            id="{{ all_schools_btn_wrapper_id }}"
+            class="page-item {{ school_page_wrapper_class }}"
+          >
+            <a
+              class="page-link {{ school_page_btn_class }}"
+              role="button"
+              all-schools="true"
+            >
+              All
+            </a>
+          </li>
+          {% for school_name in subscriptions.keys() %}
+          <li
+            id="school-{{ school_name|e }}-page-btn"
+            class="page-item {{ school_page_wrapper_class }}"
+          >
+            <a class="page-link {{ school_page_btn_class }}" role="button">
+              {{ school_name|e }}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+    </div>
+  </div>
+  {% endif %}
+  <div class="row row-cols-auto">
+    {% for school, school_teams in subscriptions.items() %}
+    {% set school_checkboxes_id = "school-" ~ school ~ "-checkboxes" %}
+    <div
+      id="{{ school_checkboxes_id }}"
+      class="col {{ school_checkboxes_class }}"
+    >
+      <div class="row mb-2">
+        <div class="col">
+          <button
+            type="button"
+            id="toggle-{{ school }}-btn"
+            class="btn btn-sm btn-secondary {{ toggle_school_btn_class }}"
+            school="{{ school }}"
+          >
+            Toggle {{ school|e }}
+          </button>
+        </div>
+      </div>
+      {% for team_code, is_subscribed in school_teams.items() %}
+      {% set school_team = school ~ " " ~ team_code %}
+      {% set checkbox_id = school ~ "-" ~ team_code ~ "-subscribe-checkbox" %}
+      <div class="row">
+        <div class="col">
+          {% call macros.form_checkbox(
+               checkbox_id, school_team, checked=is_subscribed
+             )
+           %}
+          school="{{ school }}"
+          code="{{ team_code }}"
+          {% endcall %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+  function handlePaginationChanged(school = null) {
+    if (school == null) {
+      // deactivate all pagination buttons
+      $('.{{ school_page_wrapper_class }}').removeClass('active');
+      // make the "all schools" button active
+      $('#{{ all_schools_btn_wrapper_id }}').addClass('active');
+      // show all proper checkboxes
+      $('.{{ school_checkboxes_class }}').removeClass('d-none');
+    } else {
+      school = school.trim();
+      if (school === '') return;
+      // deactivate all pagination buttons
+      $('.{{ school_page_wrapper_class }}').removeClass('active');
+      // make this pagination button active
+      $(`#school-${school}-page-btn`).addClass('active');
+      // show the proper checkboxes
+      $('.{{ school_checkboxes_class }}').addClass('d-none');
+      $(`#school-${school}-checkboxes`).removeClass('d-none');
+    }
+  }
+
+  function updateSavingStatus() {
+    const $status = $('#{{ save_subscriptions_status_id }}');
+    $status.removeClass('text-danger');
+    $status.addClass('fst-italic');
+    $status.html('Saving...');
+  }
+
+  function setSavingError(errorMessage) {
+    const $status = $('#{{ save_subscriptions_status_id }}');
+    $status.removeClass('fst-italic');
+    $status.addClass('text-danger');
+    $status.html(errorMessage);
+  }
+
+  function toggleSchoolCheckboxes(school) {
+    $('#{{ save_subscriptions_status_id }}').html('');
+
+    const $checkboxes = $(`input[type="checkbox"][school="${school}"]`);
+    if ($checkboxes.length === 0) return;
+    let allChecked = true;
+    $checkboxes.each((index, element) => {
+      if (!$(element).prop('checked')) {
+        allChecked = false;
+        return false;
+      }
+    });
+    // toggle all checkboxes
+    $checkboxes.each((index, element) => {
+      const $element = $(element);
+      // if everything is checked, uncheck everything. otherwise, check
+      // everything.
+      $element.prop('checked', !allChecked);
+    });
+
+    // save checked
+    updateSavingStatus();
+    const method = allChecked ? 'DELETE' : 'POST';
+    ajaxRequest(method, '{{ url_for("subscriptions") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({ school: school, all: true }),
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          setElementTextFor('{{ save_subscriptions_status_id }}', 'Saved.', 5);
+        } else {
+          setSavingError(response.reason ?? 'Unknown error: please try again');
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        setSavingError(jqXHR.statusText);
+      },
+    });
+  }
+
+  function subscribeToSchool(elementId) {
+    $('#{{ save_subscriptions_status_id }}').html('');
+
+    const school = getAttr(elementId, 'school');
+    const code = getAttr(elementId, 'code');
+    if (school === '' || code === '') return;
+    const checked = $('#' + elementId).prop('checked');
+
+    updateSavingStatus();
+    const method = checked ? 'POST' : 'DELETE';
+    ajaxRequest(method, '{{ url_for("subscriptions") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({ school: school, code: code }),
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          setElementTextFor('{{ save_subscriptions_status_id }}', 'Saved.', 5);
+        } else {
+          setSavingError(response.reason ?? 'Unknown error: please try again');
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        setSavingError(jqXHR.statusText);
+      },
+    });
+  }
+
+  $(document).ready(() => {
+    // pagination of schools
+    // initialize with everything showing
+    handlePaginationChanged();
+    $('.{{ school_page_btn_class }}').click((event) => {
+      const $element = $(event.target);
+      if ($element.attr('all-schools') != null) {
+        handlePaginationChanged();
+      } else {
+        handlePaginationChanged($element.html() ?? '');
+      }
+    });
+
+    // toggling an entire school
+    $('.{{ toggle_school_btn_class }}').click((event) => {
+      const school = getAttr(event.target.id, 'school');
+      if (school === '') return;
+      toggleSchoolCheckboxes(school);
+    });
+
+    // selecting a school
+    $('input[type=checkbox]').on('input', (event) => {
+      const elementId = event.target.id;
+      subscribeToSchool(elementId);
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "shared/layout.jinja" %}
+
+{% block title %}
+Subscriptions
+{% endblock %}
+
+{% block body %}
+<div id="subscriptions-body" class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <h2>Subscriptions</h2>
+      <div>
+        Sorry, you cannot subscribe to notifications for a team because your
+        email (<code>{{ logged_in_email|e }}</code>) is not in the tournament
+        roster.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

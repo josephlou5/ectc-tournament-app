@@ -61,6 +61,7 @@ def notifications():
     last_subject = global_state.mailchimp_subject
     send_to_coaches = global_state.send_to_coaches
     send_to_spectators = global_state.send_to_spectators
+    send_to_subscribers = global_state.send_to_subscribers
     audience_tag = global_state.mailchimp_audience_tag
     return _render(
         "notifications/index.jinja",
@@ -77,6 +78,7 @@ def notifications():
         last_subject=last_subject,
         send_to_coaches=send_to_coaches,
         send_to_spectators=send_to_spectators,
+        send_to_subscribers=send_to_subscribers,
         EMAIL_SUBJECT_VALID_CHARS=EMAIL_SUBJECT_VALID_CHARS,
         audience_tag=audience_tag,
     )
@@ -950,23 +952,32 @@ def send_notification():
         return {"success": False, "errors": {"GENERAL": error_msg}}
 
     error_msg, request_args = get_request_json(
-        ("blast", bool),
         "templateId",
         "subject",
-        ("sendToCoaches", bool),
-        ("sendToSpectators", bool),
-        ("matches", list),
+        {"key": "blast", "type": bool, "required": False},
     )
     if error_msg is not None:
         return {"success": False, "errors": {"GENERAL": error_msg}}
 
     # get and validate request args
-    blast = request_args["blast"]
     template_id = request_args["templateId"].strip()
     subject = request_args["subject"].strip()
-    send_to_coaches = request_args["sendToCoaches"]
-    send_to_spectators = request_args["sendToSpectators"]
-    matches = request_args["matches"]
+    if request_args.get("blast", False):
+        blast = True
+    else:
+        blast = False
+        error_msg, other_args = get_request_json(
+            {"key": "sendToCoaches", "type": bool},
+            {"key": "sendToSpectators", "type": bool},
+            {"key": "sendToSubscribers", "type": bool},
+            {"key": "matches", "type": list},
+        )
+        if error_msg is not None:
+            return {"success": False, "errors": {"GENERAL": error_msg}}
+        send_to_coaches = other_args["sendToCoaches"]
+        send_to_spectators = other_args["sendToSpectators"]
+        send_to_subscribers = other_args["sendToSubscribers"]
+        matches = other_args["matches"]
 
     errors = {}
 
@@ -999,7 +1010,7 @@ def send_notification():
     # maps: match number -> match info
     valid_matches = {}
     # set of (school, code) tuples
-    all_team_infos = set()
+    all_team_names = set()
     if blast:
         # ignore matches
         pass
@@ -1008,7 +1019,7 @@ def send_notification():
     else:
         # filter out valid matches
         def _check_valid_match(index, match_info):
-            nonlocal notification_status, valid_matches, all_team_infos
+            nonlocal notification_status, valid_matches, all_team_names
 
             match_number = match_info.get("number", None)
             if match_number is None:
@@ -1052,7 +1063,7 @@ def send_notification():
 
             valid_matches[match_number] = match_info
             for color in ("blue_team", "red_team"):
-                all_team_infos.add(match_info[color]["school_code"])
+                all_team_names.add(match_info[color]["school_code"])
 
         for i, match_info in enumerate(matches):
             _check_valid_match(i, match_info)
@@ -1150,7 +1161,7 @@ def send_notification():
 
     # get the team info for all the match teams
     print(" ", "Fetching info for all match teams")
-    team_infos = db.roster.get_teams(list(all_team_infos))
+    team_infos = db.roster.get_teams(list(all_team_names))
 
     # get the emails for each team and combine with match info
     print(" ", "Compiling match infos into emails to send")
@@ -1159,6 +1170,11 @@ def send_notification():
         additional_recipient_roles.append("COACH")
     if send_to_spectators:
         additional_recipient_roles.append("SPECTATOR")
+
+    if send_to_subscribers:
+        teams_subscribers = db.subscriptions.get_subscribers(all_team_names)
+    else:
+        teams_subscribers = {}
 
     email_args = []
     for match_number, match_info in valid_matches.items():
@@ -1169,12 +1185,12 @@ def send_notification():
             color = team_color.split("_", 1)[0]
             team_info = match_info[team_color]
 
-            team_school_code = team_info["school_code"]
-            error_msg, team = team_infos[team_school_code]
+            school_team_code = team_info["school_code"]
+            error_msg, team = team_infos[school_team_code]
             if error_msg is not None:
                 # actual error message doesn't matter here, just that
                 # there was an error
-                missing_team[color] = team_school_code
+                missing_team[color] = school_team_code
                 continue
 
             # just get the emails without any role information
@@ -1191,6 +1207,8 @@ def send_notification():
                         school_name, additional_recipient_roles
                     )
                 )
+            # add subscribers
+            valid_emails.extend(teams_subscribers.get(school_team_code, []))
 
             team_emails[team_color] = valid_emails
         if len(missing_team) > 0:
@@ -1216,7 +1234,9 @@ def send_notification():
         team_subjects = _format_subject(subject, match_info)
         if team_subjects["blue_team"] == team_subjects["red_team"]:
             # same subject, so can send one big email to all of them
-            all_emails = team_emails["blue_team"] + team_emails["red_team"]
+            all_emails = list(
+                set(team_emails["blue_team"] + team_emails["red_team"])
+            )
             email_args.append(
                 {
                     "match_number": match_number,
@@ -1234,7 +1254,7 @@ def send_notification():
                         "match_number": match_number,
                         "description": f"Match {match_number}, {color} team",
                         "subject": team_subjects[team_color],
-                        "emails": team_emails[team_color],
+                        "emails": list(set(team_emails[team_color])),
                     }
                 )
 
@@ -1292,7 +1312,9 @@ def send_notification():
         print(" ", "Database error while saving Mailchimp subject")
     # save other recipient settings
     success = db.global_state.set_other_recipients_settings(
-        send_to_coaches=send_to_coaches, send_to_spectators=send_to_spectators
+        send_to_coaches=send_to_coaches,
+        send_to_spectators=send_to_spectators,
+        send_to_subscribers=send_to_subscribers,
     )
     if not success:
         # it's okay if this fails

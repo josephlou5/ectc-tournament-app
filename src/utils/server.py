@@ -88,6 +88,15 @@ def unsuccessful(error_msg, error_while=None, **kwargs):
 def get_request_json(*keys, top_level=dict):
     """Gets the values for the given keys in the request JSON data.
 
+    Args:
+        keys (Sequence[Union[str, Dict]]): The keys to get in the JSON
+            data. Each one should be a dict defining the key name, the
+            expected type, and whether the key is required. Providing
+            just a string instead of a dict will default to a required
+            string value.
+        top_level (type): The type of the top level JSON data. Must be
+            `dict` or `list`.
+
     Returns:
         Union[Tuple[str, None], Tuple[None, Any]]:
             An error message, or the JSON data for the requested keys.
@@ -104,15 +113,22 @@ def get_request_json(*keys, top_level=dict):
         return f"Invalid JSON data: expected {expected[top_level]}", None
     if len(keys) == 0:
         return None, json_data
+
     result = {}
     missing = []
     wrong_type = {}
-    for key in keys:
+    for key_args in keys:
         expect_type = str
-        if isinstance(key, tuple):
-            key, expect_type = key
+        required = True
+        if isinstance(key_args, dict):
+            key = key_args["key"]
+            expect_type = key_args.get("type", expect_type)
+            required = key_args.get("required", required)
+        else:
+            key = key_args
         if key not in json_data:
-            missing.append(f'"{key}"')
+            if required:
+                missing.append(f'"{key}"')
             continue
         try:
             value = expect_type(json_data[key])

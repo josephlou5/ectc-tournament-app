@@ -80,9 +80,13 @@ def clear_all_admin_settings():
         "send_to_coaches",
         "send_to_spectators",
     ]
+    true_fields = [
+        "send_to_subscribers",
+    ]
     _set_global(
         **{field: None for field in clear_fields},
         **{field: False for field in false_fields},
+        **{field: True for field in true_fields},
     )
     return True
 
@@ -381,14 +385,18 @@ def clear_mailchimp_related_fields():
     return True
 
 
-def set_other_recipients_settings(send_to_coaches, send_to_spectators):
+def set_other_recipients_settings(
+    send_to_coaches, send_to_spectators, send_to_subscribers
+):
     """Sets the other recipient settings, which are whether to also send
-    notifications to coaches and spectators.
+    notifications to coaches, spectators, and subscribers.
 
     Returns:
         bool: Whether the operation was successful.
     """
     _set_global(
-        send_to_coaches=send_to_coaches, send_to_spectators=send_to_spectators
+        send_to_coaches=send_to_coaches,
+        send_to_spectators=send_to_spectators,
+        send_to_subscribers=send_to_subscribers,
     )
     return True

@@ -29,7 +29,7 @@ Full Roster
     </li>
     {% for school_name in by_school.keys() %}
     <li
-      id="{{ label }}-school-{{ school_name }}-page-btn"
+      id="{{ label }}-school-{{ school_name|e }}-page-btn"
       class="page-item {{ pagination_wrapper_class }}"
     >
       <a class="page-link {{ pagination_btn_class }}" role="button">
@@ -270,7 +270,7 @@ Full Roster
     if (school == null) {
       // deactivate all pagination buttons
       $(`.${label}-school-page-btn-wrapper`).removeClass('active');
-      // make this pagination button active
+      // make the "all schools" button active
       $(`#${label}-all-schools`).addClass('active');
       // show all rows
       $(`.${label}-user-row`).removeClass('d-none');

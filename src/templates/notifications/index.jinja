@@ -34,6 +34,10 @@ Notifications
 {% set email_subject_help_id = "email-subject-help" %}
 {% set send_to_coaches_checkbox_id = "send-to-coaches-checkbox" %}
 {% set send_to_spectators_checkbox_id = "send-to-spectators-checkbox" %}
+{% set send_to_subscribers_checkbox_id = "send-to-subscribers-checkbox" %}
+{% set send_to_subscribers_checkbox_label_id =
+     send_to_subscribers_checkbox_id ~ "-label"
+ %}
 
 {% set send_notif_btn_id = "send-notification-btn" %}
 {% set send_notif_error_id = "send-notification-error" %}
@@ -469,10 +473,17 @@ Notifications
                      checked=send_to_spectators,
                    )
                 }}
+                {{ macros.form_checkbox(
+                     send_to_subscribers_checkbox_id,
+                     "Team Subscribers",
+                     checked=send_to_subscribers,
+                     label_id=send_to_subscribers_checkbox_label_id,
+                   )
+                }}
                 <div class="form-text">
                   Note that if there are multiple matches with the same school
-                  being sent, these people will receive multiple notifications
-                  as well.
+                  or team being sent, these people will receive multiple
+                  notifications as well.
                 </div>
               </td>
             </tr>
@@ -537,8 +548,16 @@ Notifications
                       <code>{team}</code>
                     </td>
                     <td>
-                      The name of the team receiving the email (will be
-                      different for both teams).
+                      <div class="mb-2">
+                        The name of the team receiving the email (will be
+                        different for both teams).
+                      </div>
+                      <div>
+                        Note that this will cause two campaigns to be sent for
+                        each match, which may add up quickly if you also send
+                        notifications to coaches, spectators, and/or
+                        subscribers.
+                      </div>
                     </td>
                   </tr>
                 </table>
@@ -1038,6 +1057,16 @@ Notifications
     });
   }
 
+  function handleTeamSubscribersChecked() {
+    // make the label red if unchecked because the users subscribed to these
+    // notifications and expect to receive them
+    const checked = $('#{{ send_to_subscribers_checkbox_id }}').prop('checked');
+    $('#{{ send_to_subscribers_checkbox_label_id }}').toggleClass(
+      'text-danger',
+      !checked
+    );
+  }
+
   {# this id is from `src/templates/notifications/templates_info.jinja` #}
   const TEMPLATE_SELECT_ID = 'mc-template-select';
 
@@ -1100,6 +1129,9 @@ Notifications
     const sendToSpectators = getInputValue(
       '{{ send_to_spectators_checkbox_id }}'
     );
+    const sendToSubscribers = getInputValue(
+      '{{ send_to_subscribers_checkbox_id }}'
+    );
 
     if (invalid) return;
 
@@ -1122,16 +1154,25 @@ Notifications
       disabledButtonIds.push(buttonId);
     });
 
-    ajaxRequest('POST', '{{ url_for("send_notification") }}', {
-      contentType: 'application/json',
-      data: JSON.stringify({
-        blast: blast,
-        templateId: selectedTemplateId,
-        subject: emailSubject,
+    const requestData = {
+      templateId: selectedTemplateId,
+      subject: emailSubject,
+    };
+
+    if (blast) {
+      requestData.blast = true;
+    } else {
+      Object.assign(requestData, {
+        matches: matches,
         sendToCoaches: sendToCoaches,
         sendToSpectators: sendToSpectators,
-        matches: matches,
-      }),
+        sendToSubscribers: sendToSubscribers,
+      });
+    }
+
+    ajaxRequest('POST', '{{ url_for("send_notification") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify(requestData),
       success: (response, status, jqXHR) => {
         stopButtonLoading(loadingButtonId);
         // re-enable all the other buttons again
@@ -1221,6 +1262,10 @@ Notifications
 
     // Send notifications
     populateMailchimpTemplateDropdown();
+    handleTeamSubscribersChecked();
+    $('#{{ send_to_subscribers_checkbox_id }}').on('input', (event) => {
+      handleTeamSubscribersChecked();
+    });
     $('#{{ send_notif_btn_id }}').click((event) => {
       handleSendNotificationClicked();
     });

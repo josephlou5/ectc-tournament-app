@@ -72,6 +72,8 @@ class GlobalState(db.Model):
     send_to_coaches = Column(Boolean(), nullable=False, default=False)
     # Whether to also send notifications to spectators
     send_to_spectators = Column(Boolean(), nullable=False, default=False)
+    # Whether to also send notifications to team subscribers
+    send_to_subscribers = Column(Boolean(), nullable=False, default=True)
 
     @property
     def service_account_info(self):
@@ -114,6 +116,29 @@ class Admin(db.Model):
     def __init__(self, email, is_super_admin=False):
         self.email = email
         self.is_super_admin = is_super_admin
+
+
+class UserSubscription(db.Model):
+    """Model for a user's subscription to a team."""
+
+    __tablename__ = "UserSubscriptions"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(), nullable=False)
+    school = Column(String(), nullable=False)
+    code = Column(String(), nullable=False)
+
+    __table_args__ = (
+        # basically, each row should be unique
+        UniqueConstraint(
+            "email", "school", "code", name="_email_school_team_code"
+        ),
+    )
+
+    def __init__(self, email, school, team_code):
+        self.email = email
+        self.school = school
+        self.code = team_code
 
 
 # =============================================================================

@@ -198,6 +198,12 @@ def get_all_user_emails(email_valid=None):
     return set(user.email for user in users if user.email_valid is email_valid)
 
 
+def is_email_in_roster(email):
+    """Returns if the given email is in the roster."""
+    user = query(User, {"email": email}).first()
+    return user is not None
+
+
 def get_users_for_school(school_name, roles):
     """Gets the emails of the specified roles for the given school."""
     valid_roles = []
@@ -222,6 +228,27 @@ def get_users_for_school(school_name, roles):
 
 
 # =============================================================================
+
+
+def get_all_team_names(school=None):
+    """Returns all the team names as tuples of the school and team code.
+
+    If a school name is given, the teams will be filtered by the given
+    school. Otherwise, all schools will be returned.
+
+    The teams are returned in sorted order (by school, then by code).
+    """
+    if school is None:
+        teams = query(Team).all()
+        return sorted((team.school.name, team.code) for team in teams)
+    else:
+        school_obj = query(School, {"name": school}).first()
+        if school_obj is None:
+            # school doesn't exist
+            raise ValueError(f"School {school!r} not found")
+        school_id = school_obj.id
+        teams = query(Team, {"school_id": school_id}).all()
+        return sorted(team.code for team in teams)
 
 
 def get_team(school, team_code):

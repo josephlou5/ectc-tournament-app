@@ -186,9 +186,10 @@
 
 {# Forms #}
 
-{% macro form_label(input_id, label, classes=none) %}
+{% macro form_label(input_id, label, classes=none, label_id=none) %}
 <label
   for="{{ input_id }}"
+  {% if label_id is not none %} id="{{ label_id }}" {% endif %}
   {% if classes is not none %} class="{{ classes }}" {% endif %}
 >
   {{ label }}
@@ -219,6 +220,9 @@
   {% if value is not none %} value="{{ value }}" {% endif %}
   {% if placeholder is not none %} placeholder="{{ placeholder }}" {% endif %}
   {% if checked %} checked {% endif %}
+  {% if caller %}
+  {{ caller() }}
+  {% endif %}
 />
 {% if feedback %}
 <div id="{{ input_id }}-invalid" class="invalid-feedback"></div>
@@ -240,12 +244,19 @@
 }}
 {% endmacro %}
 
-{% macro form_checkbox(input_id, label, checked=false) %}
+{% macro form_checkbox(input_id, label, checked=false, label_id=none) %}
 <div class="form-check">
-  {{ _input(
+  {% if caller %}
+  {% set contents = caller() %}
+  {% else %}
+  {% set contents = "" %}
+  {% endif %}
+  {% call _input(
        "checkbox", input_id, "form-check-input", checked=checked, feedback=false
      )
-  }}
-  {{ form_label(input_id, label, "form-check-label") }}
+   %}
+  {{ contents }}
+  {% endcall %}
+  {{ form_label(input_id, label, "form-check-label", label_id=label_id) }}
 </div>
 {% endmacro %}

@@ -5,10 +5,9 @@ Matches Status
 {% endblock %}
 
 {# Pagination #}
+{% set all_matches_btn_wrapper_id = "all-matches-btn-wrapper" %}
 {% set hundred_page_btn_class = "hundred-page-btn" %}
 {% set hundred_page_wrapper_class = hundred_page_btn_class ~ "-wrapper" %}
-{% set all_matches_btn_id = "all-matches-btn" %}
-
 {% set match_status_row_class = "status-row" %}
 
 {% set toggle_all_recipients_btn_id = "toggle-all-recipients-btn" %}
@@ -94,7 +93,7 @@ Matches Status
       <nav>
         <ul class="pagination">
           <li
-            id="{{ all_matches_btn_id }}"
+            id="{{ all_matches_btn_wrapper_id }}"
             class="page-item {{ hundred_page_wrapper_class }}"
           >
             <a
@@ -223,8 +222,8 @@ Matches Status
     if (hundredStr == null) {
       // deactivate all pagination buttons
       $('.{{ hundred_page_wrapper_class }}').removeClass('active');
-      // make this pagination button active
-      $('#{{ all_matches_btn_id }}').addClass('active');
+      // make the "all matches" button active
+      $('#{{ all_matches_btn_wrapper_id }}').addClass('active');
       // show all the match rows
       $('.{{ match_status_row_class }}').removeClass('d-none');
     } else {
