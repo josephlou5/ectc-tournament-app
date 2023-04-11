@@ -8,7 +8,7 @@ EmailSent tables.
 from datetime import datetime
 
 import utils
-from db._utils import _set, query
+from db._utils import _set, clear_tables, query
 from db.models import EmailSent, TMSMatchStatus, db
 
 # =============================================================================
@@ -148,6 +148,19 @@ def get_matches_status(match_numbers=None, tz=utils.EASTERN_TZ):
         match_status_infos[match_number] = status_info
 
     return match_status_infos
+
+
+# =============================================================================
+
+
+def clear_matches_status():
+    """Clears the TMS match statuses and the sent emails.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    clear_tables(TMSMatchStatus, EmailSent)
+    return True
 
 
 # =============================================================================

@@ -228,10 +228,15 @@ def clear_everything():
     if not success:
         return _db_error("clearing admin settings")
 
-    print(" ", " ", "Clearing roster and emails")
+    print(" ", " ", "Clearing roster")
     success = db.roster.clear_roster()
     if not success:
-        return _db_error("clearing roster and emails")
+        return _db_error("clearing roster")
+
+    print(" ", " ", "Clearing matches status info")
+    success = db.match_status.clear_matches_status()
+    if not success:
+        return _db_error("clearing matches status")
 
     print(" ", " ", "Deleting fetch roster logs")
     logs_file = notifications.FETCH_ROSTER_LOGS_FILE

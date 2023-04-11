@@ -5,8 +5,8 @@ Teams tables.
 
 # =============================================================================
 
-from db._utils import query
-from db.models import EmailSent, School, Team, TMSMatchStatus, User, db
+from db._utils import clear_tables, query
+from db.models import School, Team, User, db
 
 # =============================================================================
 
@@ -76,18 +76,7 @@ def clear_roster():
     Returns:
         bool: Whether the operation was successful.
     """
-    # rollback so that dropping the tables work after possibly using the
-    # session before this
-    db.session.rollback()
-    # delete all the tables and add them again (resets id counters)
-    # https://stackoverflow.com/a/49644099
-    # in this particular order due to foreign key constraints
-    tables = [
-        table.__table__
-        for table in (Team, User, School, TMSMatchStatus, EmailSent)
-    ]
-    db.metadata.drop_all(bind=db.engine, tables=tables, checkfirst=True)
-    db.metadata.create_all(bind=db.engine, tables=tables)
+    clear_tables(Team, User, School)
     return True
 
 

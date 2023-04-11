@@ -9,6 +9,20 @@ from db.models import db
 # =============================================================================
 
 
+def clear_tables(*models):
+    # rollback so that dropping the tables work after possibly using the
+    # session before this
+    db.session.rollback()
+    # delete all the tables and add them again
+    # https://stackoverflow.com/a/49644099
+    tables = [model.__table__ for model in models]
+    db.metadata.drop_all(bind=db.engine, tables=tables, checkfirst=True)
+    db.metadata.create_all(bind=db.engine, tables=tables)
+
+
+# =============================================================================
+
+
 def query(model, filters=None):
     result = db.session.query(model)
     if filters is not None:
