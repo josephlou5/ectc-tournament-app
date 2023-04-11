@@ -218,7 +218,7 @@ def set_mailchimp_api_key():
 def clear_everything():
     def _db_error(error_while):
         print(" ", " ", " ", "Database error while", error_while)
-        flash("Database error", "clear-everything.danger")
+        flash("Database error", "danger-zone.danger")
         return {"success": False}
 
     print(" ", "Clearing all saved data")
@@ -243,5 +243,19 @@ def clear_everything():
     if logs_file.exists():
         logs_file.unlink()
 
-    flash("Successfully cleared all data", "clear-everything.success")
+    flash("Successfully cleared all data", "danger-zone.success")
+    return {"success": True}
+
+
+@app.route("/super_admin/clear_subscriptions", methods=["DELETE"])
+@login_required(super_admin=True, save_redirect=False)
+def clear_subscriptions():
+    print(" ", "Clearing all subscriptions")
+    success = db.subscriptions.clear_all_subscriptions()
+    if not success:
+        print(" ", " ", "Database error while clearing all subscriptions")
+        flash("Database error", "danger-zone.danger")
+        return {"success": False}
+
+    flash("Successfully cleared all subscriptions", "danger-zone.success")
     return {"success": True}

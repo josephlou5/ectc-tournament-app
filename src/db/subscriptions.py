@@ -4,7 +4,7 @@ Helper methods for the UserSubscriptions table.
 
 # =============================================================================
 
-from db._utils import query
+from db._utils import clear_tables, query
 from db.models import UserSubscription, db
 
 # =============================================================================
@@ -27,6 +27,19 @@ def get_subscribers(teams):
             continue
         teams_subscribers[school_team_code].add(subscription.email)
     return teams_subscribers
+
+
+# =============================================================================
+
+
+def clear_all_subscriptions():
+    """Clears all the user subscriptions.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    clear_tables(UserSubscription)
+    return True
 
 
 # =============================================================================

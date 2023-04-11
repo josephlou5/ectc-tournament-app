@@ -20,8 +20,9 @@ Global Settings
 {% set mc_set_api_key_btn_id = "mc-set-api-key-btn" %}
 {% set mc_clear_api_key_btn_id = "mc-clear-api-key-btn" %}
 
-{% set clear_everything_messages_id = "clear-everything-messages" %}
+{% set danger_zone_messages_id = "danger-zone-messages" %}
 {% set clear_everything_btn_id = "clear-everything-btn" %}
+{% set clear_all_subscriptions_btn_id = "clear-all-subscriptions-btn" %}
 
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
@@ -196,7 +197,7 @@ Global Settings
     <div class="col">
       <h2>Danger Zone</h2>
       {{ macros.flashed_messages(
-           clear_everything_messages_id, flashed["clear-everything"]
+           danger_zone_messages_id, flashed["danger-zone"]
          )
       }}
       <div class="row mb-2">
@@ -208,12 +209,25 @@ Global Settings
           the service account and Mailchimp API key, see the sections above.)
         </div>
       </div>
-      <div class="row">
+      <div class="row mb-2">
         <div class="col-auto">
           {{ macros.confirm_btn(
                clear_everything_btn_id,
                "Clear All Data",
                "<strong>clear all data</strong>",
+               loading_text="Clearing...",
+               confirm_accent="danger",
+               confirm_btn_text="Clear",
+             )
+          }}
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-auto">
+          {{ macros.confirm_btn(
+               clear_all_subscriptions_btn_id,
+               "Clear All Subscriptions",
+               "clear all subscriptions",
                loading_text="Clearing...",
                confirm_accent="danger",
                confirm_btn_text="Clear",
@@ -350,6 +364,17 @@ Global Settings
     ajaxRequest('DELETE', '{{ url_for("clear_everything") }}');
   }
 
+  function handleClearSubscriptionsClicked() {
+    if (isButtonLoading('{{ clear_all_subscriptions_btn_id }}')) {
+      // currently clearing; ignore the click
+      return;
+    }
+
+    setButtonLoading('{{ clear_all_subscriptions_btn_id }}');
+    // just reload once the clearing is done
+    ajaxRequest('DELETE', '{{ url_for("clear_subscriptions") }}');
+  }
+
   $(document).ready(() => {
     // Service account
     $('#{{ copy_email_btn_id }}').click((event) => {
@@ -384,13 +409,15 @@ Global Settings
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ mc_api_key_messages_id }}', 60);
 
-    // Clear everything
+    // Danger zone
     $('#{{ clear_everything_btn_id }}').click((event) => {
-      console.log('clear clicked');
       handleClearEverythingClicked();
     });
+    $('#{{ clear_all_subscriptions_btn_id }}').click((event) => {
+      handleClearSubscriptionsClicked();
+    });
     // clear the flashed text after 60 seconds
-    clearElementAfter('{{ clear_everything_messages_id }}', 60);
+    clearElementAfter('{{ danger_zone_messages_id }}', 60);
   });
 </script>
 {% endblock %}
