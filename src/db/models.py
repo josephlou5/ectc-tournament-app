@@ -24,6 +24,8 @@ import utils
 __all__ = (
     "db",
     "GlobalState",
+    "Admin",
+    "UserSubscription",
     "School",
     "User",
     "Team",
