@@ -74,6 +74,17 @@ def is_logged_in_super_admin():
     return db.admin.is_super_admin(email)
 
 
+def is_logged_in_in_roster():
+    """Returns True if the currently logged in user is in the roster.
+
+    If no user is logged in, returns False.
+    """
+    email = get_email()
+    if email is None:
+        return False
+    return db.roster.is_email_in_roster(email)
+
+
 # =============================================================================
 
 

@@ -308,3 +308,29 @@ def get_teams(team_infos):
             TeamJoined(teams[school_id_team_code]),
         )
     return results
+
+
+def get_user_teams(email):
+    """Returns the team objects that the given email belongs to."""
+
+    # get user
+    user = query(User, {"email": email}).first()
+    if user is None:
+        # user doesn't exist, so no teams
+        return []
+    if user.role != "ATHLETE":
+        # not an athlete, so won't be on any teams
+        return []
+    user_id = user.id
+
+    # get all teams (because we also need to check alternates)
+    all_teams = query(Team).all()
+
+    user_teams = []
+    for team in all_teams:
+        if (
+            user_id in (team.light_id, team.middle_id, team.heavy_id)
+            or user_id in team.get_alternate_ids()
+        ):
+            user_teams.append(TeamJoined(team))
+    return user_teams

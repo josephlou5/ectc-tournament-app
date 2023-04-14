@@ -7,7 +7,12 @@ Views for a (non-admin) user.
 from flask import request
 
 import db
-from utils.auth import get_email, is_logged_in_admin, login_required
+from utils.auth import (
+    get_email,
+    is_logged_in_admin,
+    is_logged_in_in_roster,
+    login_required,
+)
 from utils.server import AppRoutes, _render, get_request_json, unsuccessful
 
 # =============================================================================
@@ -20,12 +25,12 @@ app = AppRoutes()
 @app.route("/subscriptions", methods=["GET", "POST", "DELETE"])
 @login_required()
 def subscriptions():
-    user_email = get_email()
-
     # a user can view this page only if they are an admin (includes
     # super admin) or are in the roster
-    if not (is_logged_in_admin() or db.roster.is_email_in_roster(user_email)):
+    if not (is_logged_in_admin() or is_logged_in_in_roster()):
         return _render("user/subscriptions_not_in_roster.jinja")
+
+    user_email = get_email()
 
     if request.method in ("POST", "DELETE"):
         error_msg, request_args = get_request_json(
@@ -102,6 +107,14 @@ def subscriptions():
         is_subscribed = (school, team_code) in user_subscriptions
         team_subscriptions[school][team_code] = is_subscribed
 
+    # get all user team codes
+    user_team_codes = set(
+        (team.school.name, team.code)
+        for team in db.roster.get_user_teams(user_email)
+    )
+
     return _render(
-        "user/subscriptions.jinja", subscriptions=team_subscriptions
+        "user/subscriptions.jinja",
+        subscriptions=team_subscriptions,
+        user_team_codes=user_team_codes,
     )

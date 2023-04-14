@@ -81,16 +81,23 @@ Subscriptions
         </div>
       </div>
       {% for team_code, is_subscribed in school_teams.items() %}
+      {% set is_user_on_team = (school, team_code) in user_team_codes %}
       {% set school_team = school ~ " " ~ team_code %}
       {% set checkbox_id = school ~ "-" ~ team_code ~ "-subscribe-checkbox" %}
       <div class="row">
         <div class="col">
           {% call macros.form_checkbox(
-               checkbox_id, school_team, checked=is_subscribed
+               checkbox_id,
+               school_team,
+               checked=(is_subscribed or is_user_on_team),
              )
            %}
           school="{{ school }}"
           code="{{ team_code }}"
+          {% if is_user_on_team %}
+          onteam="true"
+          disabled
+          {% endif %}
           {% endcall %}
         </div>
       </div>
@@ -143,15 +150,29 @@ Subscriptions
 
     const $checkboxes = $(`input[type="checkbox"][school="${school}"]`);
     if ($checkboxes.length === 0) return;
+    let hasOtherTeams = false;
     let allChecked = true;
     $checkboxes.each((index, element) => {
+      if (getAttr(element.id, 'onteam') !== '') {
+        // user is on this team, so ignore it
+        return;
+      }
+      hasOtherTeams = true;
       if (!$(element).prop('checked')) {
         allChecked = false;
         return false;
       }
     });
+    if (!hasOtherTeams) {
+      // essentially the same as no teams
+      return;
+    }
     // toggle all checkboxes
     $checkboxes.each((index, element) => {
+      if (getAttr(element.id, 'onteam') !== '') {
+        // user is on this team, so ignore it
+        return;
+      }
       const $element = $(element);
       // if everything is checked, uncheck everything. otherwise, check
       // everything.
@@ -179,6 +200,13 @@ Subscriptions
 
   function subscribeToSchool(elementId) {
     $('#{{ save_subscriptions_status_id }}').html('');
+
+    // if the user is on this team, don't do anything
+    if (getAttr(elementId, 'onteam') !== '') {
+      // always make sure it's checked
+      $('#' + elementId).prop('checked', true);
+      return;
+    }
 
     const school = getAttr(elementId, 'school');
     const code = getAttr(elementId, 'code');
