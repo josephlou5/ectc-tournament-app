@@ -54,7 +54,10 @@ def subscriptions():
 
             if request.method == "POST":
                 # add all teams
-                school_team_codes = db.roster.get_all_team_names(school=school)
+                school_team_codes = [
+                    team.code
+                    for team in db.roster.get_all_teams(school=school)
+                ]
                 success = db.subscriptions.add_school_teams(
                     user_email, school, school_team_codes
                 )
@@ -101,7 +104,9 @@ def subscriptions():
     user_subscriptions = db.subscriptions.get_all_teams(user_email)
 
     team_subscriptions = {}
-    for school, team_code in db.roster.get_all_team_names():
+    for team in db.roster.get_all_teams():
+        school = team.school.name
+        team_code = team.code
         if school not in team_subscriptions:
             team_subscriptions[school] = {}
         is_subscribed = (school, team_code) in user_subscriptions

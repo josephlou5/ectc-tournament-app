@@ -10,7 +10,7 @@ from views import (
     notifications,
     shared,
     super_admin,
-    users,
+    user,
 )
 
 # =============================================================================
@@ -25,6 +25,6 @@ def register_all(app):
         super_admin,
         admin_settings,
         notifications,
-        users,
+        user,
     ):
         module.app.register(app)

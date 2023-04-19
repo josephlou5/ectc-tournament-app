@@ -219,8 +219,8 @@ def get_users_for_school(school_name, roles):
 # =============================================================================
 
 
-def get_all_team_names(school=None):
-    """Returns all the team names as tuples of the school and team code.
+def get_all_teams(school=None):
+    """Returns all the teams.
 
     If a school name is given, the teams will be filtered by the given
     school. Otherwise, all schools will be returned.
@@ -229,7 +229,6 @@ def get_all_team_names(school=None):
     """
     if school is None:
         teams = query(Team).all()
-        return sorted((team.school.name, team.code) for team in teams)
     else:
         school_obj = query(School, {"name": school}).first()
         if school_obj is None:
@@ -237,7 +236,9 @@ def get_all_team_names(school=None):
             raise ValueError(f"School {school!r} not found")
         school_id = school_obj.id
         teams = query(Team, {"school_id": school_id}).all()
-        return sorted(team.code for team in teams)
+    return sorted(
+        map(TeamJoined, teams), key=lambda t: (t.school.name, t.code)
+    )
 
 
 def get_team(school, team_code):
@@ -333,4 +334,4 @@ def get_user_teams(email):
             or user_id in team.get_alternate_ids()
         ):
             user_teams.append(TeamJoined(team))
-    return user_teams
+    return sorted(user_teams, key=lambda t: (t.school.name, t.code))

@@ -16,6 +16,7 @@ from utils.auth import (
     get_email,
     is_logged_in,
     is_logged_in_admin,
+    is_logged_in_in_roster,
     is_logged_in_super_admin,
 )
 from utils.server import _render
@@ -49,6 +50,7 @@ def inject_template_variables():
                 "logged_in_email": get_email(),
                 "user_is_admin": is_logged_in_admin(),
                 "user_is_super_admin": is_logged_in_super_admin(),
+                "user_is_in_roster": is_logged_in_in_roster(),
             }
         )
     return variables
