@@ -153,10 +153,8 @@ def get_request_json(*keys, top_level=dict):
             wrong_type_list.append(
                 f"{expect_type.__class__.__name__} for {key_list(wrong_keys)}"
             )
-        return (
-            f"Invalid JSON data: expected {'; '.join(wrong_type_list)}",
-            None,
-        )
+        wrong_type_list_str = "; ".join(wrong_type_list)
+        return f"Invalid JSON data: expected {wrong_type_list_str}", None
     return None, result
 
 

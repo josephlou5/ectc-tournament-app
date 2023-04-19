@@ -12,6 +12,7 @@ import gspread
 import requests.exceptions
 
 import db
+from utils import list_of_items
 
 # =============================================================================
 
@@ -79,19 +80,6 @@ MATCH_STATUS_TABLE_ACCENTS = {
     "Done": "primary",
     "Canceled": "danger",  # in TMS, looks more like secondary
 }
-
-# =============================================================================
-
-
-def _list_of_items(items, sep="and"):
-    if len(items) == 0:
-        return None
-    if len(items) == 1:
-        return str(items[0])
-    if len(items) == 2:
-        return (f" {sep} ").join(map(str, items))
-    return ", ".join(map(str, items[:-1])) + f", {sep} " + str(items[-1])
-
 
 # =============================================================================
 
@@ -413,7 +401,7 @@ def fetch_roster():
         if len(roster[key]) == 0:
             invalid_parts.append(key)
     if len(invalid_parts) > 0:
-        invalid_str = _list_of_items(invalid_parts, sep="or")
+        invalid_str = list_of_items(invalid_parts, sep="or")
         return _fetch_error(f"Empty roster (no valid {invalid_str} found)")
 
     # save the last fetched time
@@ -567,7 +555,7 @@ def process_roster(row_generator):
             if len(different) > 0:
                 _log_error(
                     f'Repeated email "{email}" with different '
-                    f"{_list_of_items(different)} (skipped)"
+                    f"{list_of_items(different)} (skipped)"
                 )
                 continue
 
@@ -594,7 +582,7 @@ def process_roster(row_generator):
                     has_data.append(key)
             if len(has_data) > 0:
                 _log_warning(
-                    f"Unnecessary data for {_list_of_items(has_data)} "
+                    f"Unnecessary data for {list_of_items(has_data)} "
                     '(not "ATHLETE" role)'
                 )
             continue
@@ -700,7 +688,7 @@ def process_roster(row_generator):
             if num == 0:
                 missing.append(key)
         if len(missing) > 0:
-            missing_str = _list_of_items(missing, sep="or")
+            missing_str = list_of_items(missing, sep="or")
             _log(
                 "WARNING",
                 f"School {school!r} does not have any {missing_str}",
@@ -858,7 +846,7 @@ def fetch_match_teams(match_numbers):
         if len(possible_header_rows) == 1:
             row_str = f"Row {possible_header_rows[0]}"
         else:
-            row_str = f"Rows {_list_of_items(possible_header_rows)}"
+            row_str = f"Rows {list_of_items(possible_header_rows)}"
         return _fetch_error(
             f"{row_str} had all required headers, but some were repeated "
             "(ambiguous choices)"

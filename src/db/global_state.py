@@ -53,8 +53,7 @@ def has_all_admin_settings():
         missing.append("Mailchimp template folder")
     if len(missing) == 0:
         return None
-    missing_str = ", ".join(missing)
-    return f"Missing: {missing_str}"
+    return f"Missing: {utils.list_of_items(missing)}"
 
 
 def clear_all_admin_settings():

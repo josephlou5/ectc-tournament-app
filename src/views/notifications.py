@@ -594,9 +594,10 @@ def fetch_matches_info():
     for (school, team_code), team_matches in all_team_infos.items():
         if len(team_matches) <= 1:
             continue
-        matches_list_str = ", ".join(map(str, team_matches))
+        matches_list_str = utils.list_of_items(team_matches)
+        team_school_code = " ".join((school, team_code))
         warnings.append(
-            f'Matches {matches_list_str} all have team "{school} {team_code}"'
+            f"Matches {matches_list_str} all have team {team_school_code!r}"
         )
 
     # get the actual team infos from the database

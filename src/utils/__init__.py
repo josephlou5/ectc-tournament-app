@@ -24,6 +24,9 @@ def json_dump_compact(data, **kwargs):
     return json.dumps(data, separators=(",", ":"), **kwargs)
 
 
+# =============================================================================
+
+
 def dt_to_timezone(dt, tz=EASTERN_TZ):
     """Converts a UTC datetime object into the given timezone."""
     if dt is None:
@@ -40,3 +43,16 @@ def dt_str(dt, fmt=DATETIME_FMT):
     if dt is None:
         return None
     return dt.strftime(fmt)
+
+
+# =============================================================================
+
+
+def list_of_items(items, sep="and"):
+    if len(items) == 0:
+        return None
+    if len(items) == 1:
+        return str(items[0])
+    if len(items) == 2:
+        return (f" {sep} ").join(map(str, items))
+    return ", ".join(map(str, items[:-1])) + f", {sep} " + str(items[-1])
