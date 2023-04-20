@@ -159,7 +159,9 @@ def _yield_paginated_data(api_call, fields, data_key, *args, **kwargs):
             break
 
 
-def _get_paginated_data(api_call, fields, data_key, *args, **kwargs):
+def _get_paginated_data(
+    api_call, fields, data_key, *args, sort_fields=None, **kwargs
+):
     try:
         all_data = list(
             _yield_paginated_data(api_call, fields, data_key, *args, **kwargs)
@@ -168,6 +170,8 @@ def _get_paginated_data(api_call, fields, data_key, *args, **kwargs):
         error_msg = str(ex.text)
         print("Mailchimp API error:", error_msg)
         return error_msg, None
+    if sort_fields is not None:
+        all_data.sort(key=lambda x: tuple(x[field] for field in sort_fields))
     return None, all_data
 
 
@@ -222,14 +226,17 @@ def get_audiences():
                 'from_email': the default from email
                 'subject': the default subject
                 'num_members': the number of members
-                'last_sent': the time of the last sent campaign
+                'last_sent': the datetime of the last sent campaign
     """
     error_msg, client = get_client()
     if error_msg is not None:
         return error_msg, None
     # https://mailchimp.com/developer/marketing/api/lists/get-lists-info/
     return _get_paginated_data(
-        client.lists.get_all_lists, AUDIENCE_FIELDS, "lists"
+        client.lists.get_all_lists,
+        AUDIENCE_FIELDS,
+        "lists",
+        sort_fields=("name", "last_sent", "id"),
     )
 
 
@@ -245,7 +252,7 @@ def get_audience(audience_id):
                 'from_email': the default from email
                 'subject': the default subject
                 'num_members': the number of members
-                'last_sent': the time of the last sent campaign
+                'last_sent': the datetime of the last sent campaign
     """
     error_msg, client = get_client()
     if error_msg is not None:
@@ -360,7 +367,10 @@ def get_campaign_folders():
         return error_msg, None
     # https://mailchimp.com/developer/marketing/api/campaign-folders/list-campaign-folders/
     return _get_paginated_data(
-        client.campaignFolders.list, CAMPAIGN_FOLDER_FIELDS, "folders"
+        client.campaignFolders.list,
+        CAMPAIGN_FOLDER_FIELDS,
+        "folders",
+        sort_fields=("name", "num_campaigns", "id"),
     )
 
 
@@ -416,6 +426,7 @@ def get_campaigns_in_folder(folder_id):
         CAMPAIGN_FIELDS,
         "campaigns",
         folder_id=folder_id,
+        sort_fields=("title", "audience_id", "folder_id", "id"),
     )
 
 
