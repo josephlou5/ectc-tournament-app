@@ -16,7 +16,7 @@
       </div>
     </div>
   </div>
-  <div class="row">
+  <div class="row mb-2">
     <div class="col">
       <h4>About</h4>
       <div>
@@ -27,5 +27,16 @@
       </div>
     </div>
   </div>
+  {% if user_is_logged_in and user_is_admin %}
+  <div class="row">
+    <div class="col">
+      <h5>Contact</h5>
+      <div>
+        I (Joseph) can be reached at <code>josephlou@princeton.edu</code> or
+        <code>714-225-7367</code>.
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
