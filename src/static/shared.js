@@ -74,7 +74,7 @@ function setElementTextFor(elementId, text, seconds = 60) {
 
 function getInputValue(elementId) {
   const $element = $('#' + elementId);
-  if ($element.attr('type') === 'checkbox') {
+  if (getElementAttr($element, 'type') === 'checkbox') {
     return $element.prop('checked');
   }
   return $element.val()?.trim() ?? '';
@@ -105,7 +105,7 @@ function setButtonLoading(elementId) {
   // set the button text, if possible
   const $buttonText = $('#' + elementId + '-text');
   if ($buttonText.length > 0) {
-    $buttonText.html($buttonText.attr('loading'));
+    $buttonText.html(getElementAttr($buttonText, 'loading'));
   }
   // show the spinner
   $('#' + elementId + '-spinner').removeClass('d-none');
@@ -117,7 +117,7 @@ function stopButtonLoading(elementId) {
   // set the button text, if possible
   const $buttonText = $('#' + elementId + '-text');
   if ($buttonText.length > 0) {
-    $buttonText.html($buttonText.attr('waiting'));
+    $buttonText.html(getElementAttr($buttonText, 'waiting'));
   }
   // enable the button
   $('#' + elementId).prop('disabled', false);
@@ -125,12 +125,16 @@ function stopButtonLoading(elementId) {
 
 /** MISC **/
 
+function getElementAttr($element, attrName) {
+  return $element.attr(attrName)?.trim() ?? '';
+}
+
 function getAttr(elementId, attrName) {
-  return (
-    $('#' + elementId)
-      .attr(attrName)
-      ?.trim() ?? ''
-  );
+  return getElementAttr($('#' + elementId), attrName);
+}
+
+function elementHasAttr($element, attrName) {
+  return $element.attr(attrName) != null;
 }
 
 function copyElementContent(elementId, callback = null) {
@@ -212,4 +216,80 @@ function bsAlertSm(
   { textId = null, tag = 'span', dismissible = true } = {}
 ) {
   return _bsAlert(text, accent, textId, tag, true, dismissible);
+}
+
+function handleBsPagination(
+  allBtnId,
+  pageBtnClass,
+  pageBtnWrapperClass,
+  attr,
+  itemClass,
+  {
+    startCallback = null,
+    shouldShowItemCallback = null,
+    hideItemCallback = null,
+    doneCallback = null,
+  } = {}
+) {
+  if (shouldShowItemCallback == null) {
+    shouldShowItemCallback = (selected, $element, environ, defaultShow) =>
+      defaultShow;
+  }
+
+  function handlePagination(selected = null) {
+    if (selected != null && selected === '') return;
+    const allBtnClicked = selected == null;
+    const environ = {
+      allBtnId,
+      pageBtnClass,
+      pageBtnWrapperClass,
+      attr,
+      itemClass,
+      allBtnClicked,
+    };
+    startCallback?.(environ);
+
+    if (allBtnClicked) {
+      // deactivate all pagination buttons
+      $('.' + pageBtnWrapperClass).removeClass('active');
+      // activate the "all" pagination button
+      $('#' + allBtnId).addClass('active');
+    } else {
+      // activate only the proper pagination button
+      $('.' + pageBtnWrapperClass).each((index, element) => {
+        const $btnWrapper = $(element);
+        if (getElementAttr($btnWrapper, attr) === selected) {
+          $btnWrapper.addClass('active');
+        } else {
+          $btnWrapper.removeClass('active');
+        }
+      });
+    }
+    // show only the proper items
+    $('.' + itemClass).each((index, element) => {
+      const $element = $(element);
+      const defaultShow =
+        allBtnClicked || getElementAttr($element, attr) === selected;
+      if (shouldShowItemCallback(selected, $element, environ, defaultShow)) {
+        $element.removeClass('d-none');
+      } else {
+        $element.addClass('d-none');
+        hideItemCallback?.($element, environ);
+      }
+    });
+
+    doneCallback?.(environ);
+  }
+
+  // initialize with everything showing
+  handlePagination();
+  $('.' + pageBtnClass).click((event) => {
+    const $pageBtn = $(event.target);
+    if (elementHasAttr($pageBtn, 'all-' + attr)) {
+      // "all" button clicked
+      handlePagination();
+    } else {
+      handlePagination($pageBtn.html()?.trim() ?? '');
+    }
+  });
 }

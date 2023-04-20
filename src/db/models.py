@@ -128,19 +128,25 @@ class UserSubscription(db.Model):
     id = Column(Integer, primary_key=True)
     email = Column(String(), nullable=False)
     school = Column(String(), nullable=False)
-    code = Column(String(), nullable=False)
+    division = Column(String(), nullable=False)
+    number = Column(Integer, nullable=False)
 
     __table_args__ = (
         # basically, each row should be unique
         UniqueConstraint(
-            "email", "school", "code", name="_email_school_team_code"
+            "email",
+            "school",
+            "division",
+            "number",
+            name="_email_school_team_code",
         ),
     )
 
-    def __init__(self, email, school, team_code):
+    def __init__(self, email, school, division, team_number):
         self.email = email
         self.school = school
-        self.code = team_code
+        self.division = division
+        self.number = team_number
 
 
 # =============================================================================
@@ -198,7 +204,8 @@ class Team(db.Model):
 
     id = Column(Integer, primary_key=True)
     school_id = Column(Integer, ForeignKey(School.id), nullable=False)
-    code = Column(String(), nullable=False)
+    division = Column(String(), nullable=False)
+    number = Column(Integer, nullable=False)
 
     # Team members
     light_id = Column(Integer, ForeignKey(User.id), nullable=True)
@@ -210,20 +217,24 @@ class Team(db.Model):
 
     __table_args__ = (
         # could also be multi primary key, but want id for each team
-        UniqueConstraint("school_id", "code", name="_school_team_code"),
+        UniqueConstraint(
+            "school_id", "division", "number", name="_school_team_code"
+        ),
     )
 
     def __init__(
         self,
         school_id,
-        team_code,
+        division,
+        team_number,
         light_id=None,
         middle_id=None,
         heavy_id=None,
         alternate_ids=None,
     ):
         self.school_id = school_id
-        self.code = team_code
+        self.division = division
+        self.number = team_number
         # assume the given team members have the "ATHLETE" role
         self.light_id = light_id
         self.middle_id = middle_id

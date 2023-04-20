@@ -61,6 +61,39 @@
 </div>
 {% endmacro %}
 
+{% macro pagination(
+     all_btn_id, page_btn_class, page_wrapper_class, attr, items
+   )
+ %}
+<nav>
+  <ul class="pagination">
+    <li
+      id="{{ all_btn_id }}"
+      class="page-item {{ page_wrapper_class }}"
+    >
+      <a
+        id="{{ all_btn_id }}-btn"
+        class="page-link {{ page_btn_class }}"
+        role="button"
+        all-{{ attr }}="true"
+      >
+        All
+      </a>
+    </li>
+    {% for item in items %}
+    <li
+      class="page-item {{ page_wrapper_class }}"
+      {{ attr }}="{{ item|e }}"
+    >
+      <a class="page-link {{ page_btn_class }}" role="button">
+        {{ item|e }}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+</nav>
+{% endmacro %}
+
 {# Buttons #}
 
 {# Creates a button with a loading spinner.

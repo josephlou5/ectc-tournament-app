@@ -1,134 +1,126 @@
-{% extends "shared/layout.jinja" %}
-
-{% block title %}
-Subscriptions
-{% endblock %}
-
-{% set save_subscriptions_status_id = "save-subscriptions-status" %}
+{% extends "user/subscriptions_base.jinja" %}
 
 {% set all_schools_btn_wrapper_id = "all-schools-btn-wrapper" %}
 {% set school_page_btn_class = "school-page-btn" %}
 {% set school_page_wrapper_class = school_page_btn_class ~ "-wrapper" %}
-{% set school_checkboxes_class = "school-checkboxes" %}
+{% set school_checkboxes_row_class = "school-checkboxes" %}
 {% set toggle_school_btn_class = "toggle-school-btn" %}
 
-{% block body %}
-<div id="subscriptions-body" class="container-fluid">
-  <div class="row">
-    <div class="col">
-      <h2>Subscriptions</h2>
-    </div>
-    <div class="col-auto">
-      <span id="{{ save_subscriptions_status_id }}"></span>
-    </div>
+{% set all_divisions_btn_wrapper_id = "all-divisions-btn-wrapper" %}
+{% set division_page_btn_class = "division-page-btn" %}
+{% set division_page_wrapper_class = division_page_btn_class ~ "-wrapper" %}
+{% set division_checkboxes_column_class = "division-checkboxes" %}
+{% set toggle_division_btn_class = "toggle-division-btn" %}
+
+{% block teams %}
+{% if subscriptions|length > 1 %}
+{# allow filtering by school #}
+<div class="row">
+  <div class="col">
+    {% with school_names = subscriptions.keys() %}
+    {{ macros.pagination(
+         all_schools_btn_wrapper_id,
+         school_page_btn_class,
+         school_page_wrapper_class,
+         "school",
+         school_names,
+       )
+    }}
+    {% endwith %}
   </div>
-  <div class="row mb-2">
-    <div class="col">
-      Here, you may subscribe to the notifications for a team. You will receive
-      any and all notifications that they receive.
-    </div>
+</div>
+{% endif %}
+{% if divisions|length > 1 %}
+{# allow filtering by division #}
+<div class="row">
+  <div class="col">
+    {{ macros.pagination(
+         all_divisions_btn_wrapper_id,
+         division_page_btn_class,
+         division_page_wrapper_class,
+         "division",
+         divisions,
+       )
+    }}
   </div>
-  {% if subscriptions|length > 1 %}
-  {# allow filtering by school #}
-  <div class="row">
-    <div class="col">
-      <nav>
-        <ul class="pagination">
-          <li
-            id="{{ all_schools_btn_wrapper_id }}"
-            class="page-item {{ school_page_wrapper_class }}"
-          >
-            <a
-              class="page-link {{ school_page_btn_class }}"
-              role="button"
-              all-schools="true"
+</div>
+{% endif %}
+<div class="table-responsive">
+  <table class="table table-borderless w-auto">
+    <thead>
+      <th></th>
+      {% for division in divisions %}
+      <th
+        class="{{ division_checkboxes_column_class }}"
+        scope="col"
+        division="{{ division|e }}"
+      >
+        {{ division|e }}
+        <button
+          type="button"
+          class="btn btn-sm btn-secondary {{ toggle_division_btn_class }} ms-1"
+          division="{{ division|e }}"
+        >
+          Toggle {{ division|e }}
+        </button>
+      </th>
+      {% endfor %}
+    </thead>
+    <tbody>
+      {% for school, school_teams in subscriptions.items() %}
+      <tr class="{{ school_checkboxes_row_class }}" school="{{ school|e }}">
+        <th scope="row">
+          <div>{{ school|e }}</div>
+          <div>
+            <button
+              type="button"
+              class="btn btn-sm btn-secondary {{ toggle_school_btn_class }}"
+              school="{{ school|e }}"
             >
-              All
-            </a>
-          </li>
-          {% for school_name in subscriptions.keys() %}
-          <li
-            id="school-{{ school_name|e }}-page-btn"
-            class="page-item {{ school_page_wrapper_class }}"
-          >
-            <a class="page-link {{ school_page_btn_class }}" role="button">
-              {{ school_name|e }}
-            </a>
-          </li>
-          {% endfor %}
-        </ul>
-      </nav>
-    </div>
-  </div>
-  {% endif %}
-  <div class="row row-cols-auto">
-    {% for school, school_teams in subscriptions.items() %}
-    {% set school_checkboxes_id = "school-" ~ school ~ "-checkboxes" %}
-    <div
-      id="{{ school_checkboxes_id }}"
-      class="col {{ school_checkboxes_class }}"
-    >
-      <div class="row mb-2">
-        <div class="col">
-          <button
-            type="button"
-            id="toggle-{{ school }}-btn"
-            class="btn btn-sm btn-secondary {{ toggle_school_btn_class }}"
-            school="{{ school }}"
-          >
-            Toggle {{ school|e }}
-          </button>
-        </div>
-      </div>
-      {% for team_code, is_subscribed in school_teams.items() %}
-      {% set is_user_on_team = (school, team_code) in user_team_codes %}
-      {% set school_team = school ~ " " ~ team_code %}
-      {% set checkbox_id = school ~ "-" ~ team_code ~ "-subscribe-checkbox" %}
-      <div class="row">
-        <div class="col">
+              Toggle {{ school|e }}
+            </button>
+          </div>
+        </th>
+        {% for division in divisions %}
+        <td
+          class="{{ division_checkboxes_column_class }}"
+          division="{{ division|e }}"
+        >
+          {% set division_teams = school_teams.get(division, {}) %}
+          {% for team_number, team_info in division_teams.items() %}
+          {% set team_name = team_info["name"] %}
+          {% set is_user_on_team = team_info["is_user_on_team"] %}
+          {% set checkbox_id =
+               team_name|replace(" ", "-") ~ "-subscribe-checkbox"
+           %}
           {% call macros.form_checkbox(
                checkbox_id,
-               school_team,
-               checked=(is_subscribed or is_user_on_team),
+               team_name,
+               checked=(is_user_on_team or team_info["is_subscribed"]),
              )
            %}
           school="{{ school }}"
-          code="{{ team_code }}"
+          division="{{ division }}"
+          number="{{ team_number }}"
           {% if is_user_on_team %}
           onteam="true"
           disabled
           {% endif %}
           {% endcall %}
-        </div>
-      </div>
+          {% endfor %}
+        </td>
+        {% endfor %}
+      </tr>
       {% endfor %}
-    </div>
-    {% endfor %}
-  </div>
+    </tbody>
+  </table>
 </div>
 {% endblock %}
 
 {% block script %}
 <script>
-  function handlePaginationChanged(school = null) {
-    if (school == null) {
-      // deactivate all pagination buttons
-      $('.{{ school_page_wrapper_class }}').removeClass('active');
-      // make the "all schools" button active
-      $('#{{ all_schools_btn_wrapper_id }}').addClass('active');
-      // show all proper checkboxes
-      $('.{{ school_checkboxes_class }}').removeClass('d-none');
-    } else {
-      school = school.trim();
-      if (school === '') return;
-      // deactivate all pagination buttons
-      $('.{{ school_page_wrapper_class }}').removeClass('active');
-      // make this pagination button active
-      $(`#school-${school}-page-btn`).addClass('active');
-      // show the proper checkboxes
-      $('.{{ school_checkboxes_class }}').addClass('d-none');
-      $(`#school-${school}-checkboxes`).removeClass('d-none');
-    }
+  function clearSavingStatus() {
+    $('#{{ save_subscriptions_status_id }}').html('');
   }
 
   function updateSavingStatus() {
@@ -145,38 +137,52 @@ Subscriptions
     $status.html(errorMessage);
   }
 
-  function toggleSchoolCheckboxes(school) {
-    $('#{{ save_subscriptions_status_id }}').html('');
+  function toggleAllCheckboxes({ school, division } = {}) {
+    if (school == null && division == null) return;
 
-    const $checkboxes = $(`input[type="checkbox"][school="${school}"]`);
+    clearSavingStatus();
+
+    let attrQuery;
+    const requestData = { all: true };
+    if (school != null) {
+      attrQuery = `[school="${school}"]`;
+      requestData.school = school;
+    } else {
+      attrQuery = `[division="${division}"]`;
+      requestData.division = division;
+    }
+
+    const $checkboxes = $(`input[type="checkbox"]${attrQuery}`);
     if ($checkboxes.length === 0) return;
+
     let hasOtherTeams = false;
     let allChecked = true;
     $checkboxes.each((index, element) => {
-      if (getAttr(element.id, 'onteam') !== '') {
+      const $checkbox = $(element);
+      if (getElementAttr($checkbox, 'onteam') !== '') {
         // user is on this team, so ignore it
         return;
       }
       hasOtherTeams = true;
-      if (!$(element).prop('checked')) {
+      if (!$checkbox.prop('checked')) {
         allChecked = false;
         return false;
       }
     });
     if (!hasOtherTeams) {
-      // essentially the same as no teams
+      // toggle button has no effect
       return;
     }
     // toggle all checkboxes
     $checkboxes.each((index, element) => {
-      if (getAttr(element.id, 'onteam') !== '') {
+      const $checkbox = $(element);
+      if (getElementAttr($checkbox, 'onteam') !== '') {
         // user is on this team, so ignore it
         return;
       }
-      const $element = $(element);
       // if everything is checked, uncheck everything. otherwise, check
       // everything.
-      $element.prop('checked', !allChecked);
+      $checkbox.prop('checked', !allChecked);
     });
 
     // save checked
@@ -184,7 +190,7 @@ Subscriptions
     const method = allChecked ? 'DELETE' : 'POST';
     ajaxRequest(method, '{{ url_for("subscriptions") }}', {
       contentType: 'application/json',
-      data: JSON.stringify({ school: school, all: true }),
+      data: JSON.stringify(requestData),
       success: (response, status, jqXHR) => {
         if (response.success) {
           setElementTextFor('{{ save_subscriptions_status_id }}', 'Saved.', 5);
@@ -198,26 +204,31 @@ Subscriptions
     });
   }
 
-  function subscribeToSchool(elementId) {
-    $('#{{ save_subscriptions_status_id }}').html('');
+  function subscribeToTeam($checkbox) {
+    clearSavingStatus();
 
     // if the user is on this team, don't do anything
-    if (getAttr(elementId, 'onteam') !== '') {
+    if (getElementAttr($checkbox, 'onteam') !== '') {
       // always make sure it's checked
-      $('#' + elementId).prop('checked', true);
+      $checkbox.prop('checked', true);
       return;
     }
 
-    const school = getAttr(elementId, 'school');
-    const code = getAttr(elementId, 'code');
-    if (school === '' || code === '') return;
-    const checked = $('#' + elementId).prop('checked');
+    const school = getElementAttr($checkbox, 'school');
+    const division = getElementAttr($checkbox, 'division');
+    const teamNumber = getElementAttr($checkbox, 'number');
+    if (school === '' || division === '' || teamNumber === '') return;
+    const checked = $checkbox.prop('checked');
 
     updateSavingStatus();
     const method = checked ? 'POST' : 'DELETE';
     ajaxRequest(method, '{{ url_for("subscriptions") }}', {
       contentType: 'application/json',
-      data: JSON.stringify({ school: school, code: code }),
+      data: JSON.stringify({
+        school: school,
+        division: division,
+        number: teamNumber,
+      }),
       success: (response, status, jqXHR) => {
         if (response.success) {
           setElementTextFor('{{ save_subscriptions_status_id }}', 'Saved.', 5);
@@ -233,28 +244,38 @@ Subscriptions
 
   $(document).ready(() => {
     // pagination of schools
-    // initialize with everything showing
-    handlePaginationChanged();
-    $('.{{ school_page_btn_class }}').click((event) => {
-      const $element = $(event.target);
-      if ($element.attr('all-schools') != null) {
-        handlePaginationChanged();
-      } else {
-        handlePaginationChanged($element.html() ?? '');
-      }
-    });
+    handleBsPagination(
+      '{{ all_schools_btn_wrapper_id }}',
+      '{{ school_page_btn_class }}',
+      '{{ school_page_wrapper_class }}',
+      'school',
+      '{{ school_checkboxes_row_class }}'
+    );
+    // pagination of divisions
+    handleBsPagination(
+      '{{ all_divisions_btn_wrapper_id }}',
+      '{{ division_page_btn_class }}',
+      '{{ division_page_wrapper_class }}',
+      'division',
+      '{{ division_checkboxes_column_class }}'
+    );
 
     // toggling an entire school
     $('.{{ toggle_school_btn_class }}').click((event) => {
-      const school = getAttr(event.target.id, 'school');
+      const school = getElementAttr($(event.target), 'school');
       if (school === '') return;
-      toggleSchoolCheckboxes(school);
+      toggleAllCheckboxes({ school: school });
+    });
+    // toggling an entire division
+    $('.{{ toggle_division_btn_class }}').click((event) => {
+      const division = getElementAttr($(event.target), 'division');
+      if (division === '') return;
+      toggleAllCheckboxes({ division: division });
     });
 
-    // selecting a school
-    $('input[type=checkbox]').on('input', (event) => {
-      const elementId = event.target.id;
-      subscribeToSchool(elementId);
+    // toggling a team
+    $('input[type="checkbox"]').on('input', (event) => {
+      subscribeToTeam($(event.target));
     });
   });
 </script>

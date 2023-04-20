@@ -1,0 +1,33 @@
+{% extends "shared/layout.jinja" %}
+
+{% block title %}
+Subscriptions
+{% endblock %}
+
+{% set save_subscriptions_status_id = "save-subscriptions-status" %}
+
+{% block body %}
+<div id="subscriptions-body" class="container-fluid">
+  <div class="row">
+    <div class="col">
+      <h2>Subscriptions</h2>
+    </div>
+    <div class="col-auto">
+      <span id="{{ save_subscriptions_status_id }}"></span>
+    </div>
+  </div>
+  <div class="row mb-2">
+    <div class="col">
+      Here, you may subscribe to the notifications for a team. You will receive
+      any and all notifications that they receive.
+    </div>
+  </div>
+  {% block teams %}
+  <div class="row">
+    <div class="col">
+      There are currently no teams in the roster.
+    </div>
+  </div>
+  {% endblock %}
+</div>
+{% endblock %}

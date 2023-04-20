@@ -337,17 +337,22 @@ def view_full_roster():
     full_roster["athletes"] = sort_users_dict(athletes)
     full_roster["spectators"] = sort_users_dict(spectators)
 
-    # organize teams by school
+    # organize teams by school and division
     teams = {}
+    divisions = set()
     for team in full_roster.pop("teams"):
         school_name = team.school.name
         if school_name not in teams:
             teams[school_name] = []
         teams[school_name].append(team)
+        divisions.add(team.division)
     full_roster["teams_by_school"] = {
-        school: sorted(team_list, key=lambda t: t.code)
+        school: sorted(team_list, key=fetch_tms.team_sort_key)
         for school, team_list in sorted(teams.items())
     }
+    full_roster["divisions"] = sorted(
+        divisions, key=fetch_tms.division_sort_key
+    )
 
     full_roster["is_roster_empty"] = all(
         len(objs) == 0 for objs in full_roster.values()
@@ -559,45 +564,43 @@ def fetch_matches_info():
     print(" ", "Fetching info for all match teams")
     # maps: match number -> team code
     match_same_teams = {}
-    # maps: (school, code) -> list of match numbers
+    # maps: (school, division, team number) -> set of match numbers
     all_team_infos = {}
     for match_team in match_teams:
         match_number = match_team["number"]
         if not match_team["found"]:
             warnings.append(f"Match {match_number} not found")
             continue
-        team_code = match_team["blue_team"].get("school_code", None)
-        has_same_team = team_code == match_team["red_team"].get(
-            "school_code", None
-        )
-        if team_code is not None and has_same_team:
-            match_same_teams[match_number] = team_code
-            if team_code not in all_team_infos:
-                all_team_infos[team_code] = []
-            all_team_infos[team_code].append(match_number)
-            continue
+        school_team_codes = []
         for color in ("blue_team", "red_team"):
             team_info = match_team[color]
             if not team_info["valid"]:
                 continue
-            school_team_code = team_info["school_code"]
+            school_team_codes.append(team_info["school_team_code"])
+        if (
+            len(school_team_codes) == 2
+            and school_team_codes[0] == school_team_codes[1]
+        ):
+            # same teams
+            match_same_teams[match_number] = school_team_codes[0]
+        for school_team_code in set(school_team_codes):
             if school_team_code not in all_team_infos:
-                all_team_infos[school_team_code] = []
-            all_team_infos[school_team_code].append(match_number)
+                all_team_infos[school_team_code] = set()
+            all_team_infos[school_team_code].add(match_number)
     # check if some matches have the same teams
-    for match_number, (school, team_code) in match_same_teams.items():
+    for match_number, school_team_code in match_same_teams.items():
+        team_name = fetch_tms.school_team_code_to_str(*school_team_code)
         warnings.append(
-            f'Match {match_number} has team "{school} {team_code}" '
-            "for both blue and red"
+            f"Match {match_number} has same blue and red team: {team_name}"
         )
     # check if some teams have multiple matches
-    for (school, team_code), team_matches in all_team_infos.items():
+    for school_team_code, team_matches in all_team_infos.items():
         if len(team_matches) <= 1:
             continue
-        matches_list_str = utils.list_of_items(team_matches)
-        team_school_code = " ".join((school, team_code))
+        matches_list_str = utils.list_of_items(sorted(team_matches))
         warnings.append(
-            f"Matches {matches_list_str} all have team {team_school_code!r}"
+            f"Matches {matches_list_str} all have team "
+            f"{fetch_tms.school_team_code_to_str(*school_team_code)!r}"
         )
 
     # get the actual team infos from the database
@@ -647,36 +650,44 @@ def fetch_matches_info():
             missing_str = ", ".join(missing_keys)
             _invalid_match(f"Missing {missing_str}")
 
+        match_division = match_info["division"] or None
+
         invalid_teams = []
         invalid_team_emails = []
-        for color in ("blue_team", "red_team"):
-            team_color = color.split("_", 1)[0].capitalize()
-            team_info = match_team[color]
+        invalid_team_divisions = []
+        for color in ("Blue", "Red"):
+            team_color = f"{color.lower()}_team"
+            team_info = match_team[team_color]
             if not team_info["valid"]:
-                invalid_teams.append(team_color)
-                match_info[color] = {
+                invalid_teams.append(color)
+                match_info[team_color] = {
                     "valid": False,
                     "name": team_info["name"],
                 }
                 continue
-            error_msg, team = team_infos[team_info["school_code"]]
+            school_team_code = team_info["school_team_code"]
+            _, team_division, _ = school_team_code
+            error_msg, team = team_infos[school_team_code]
             if error_msg is not None:
-                invalid_teams.append(team_color)
-                match_info[color] = {
+                invalid_teams.append(color)
+                match_info[team_color] = {
                     "valid": False,
                     "name": team_info["name"],
                     "error": error_msg,
                 }
                 continue
-            match_info[color] = {
+            match_info[team_color] = {
                 "valid": True,
-                "name": team.school_code,
+                "name": team.name,
                 "team": team,
             }
-            compact_info[color] = {
+            compact_info[team_color] = {
                 "school": team.school.name,
-                "code": team.code,
+                # don't need to include division because if valid it is
+                # the same as the match division
+                "number": team.number,
             }
+
             team_has_valid_email = False
             for weight in ("light", "middle", "heavy"):
                 user = getattr(team, weight)
@@ -690,7 +701,10 @@ def fetch_matches_info():
                         break
             if not team_has_valid_email:
                 # at least one person on the team must receive the email
-                invalid_team_emails.append(team_color)
+                invalid_team_emails.append(color)
+
+            if team_division != match_division:
+                invalid_team_divisions.append(color)
 
         if len(invalid_teams) == 0:
             pass
@@ -707,6 +721,15 @@ def fetch_matches_info():
             )
         else:  # len(invalid_team_emails) == 2
             _invalid_match("No teams have valid emails")
+
+        if len(invalid_team_divisions) == 0:
+            pass
+        elif len(invalid_team_divisions) == 1:
+            _invalid_match(
+                f"{invalid_team_divisions[0]} team in wrong division"
+            )
+        else:  # len(invalid_team_divisions) == 2
+            _invalid_match("Both teams in wrong division")
 
         match_info["valid"] = match_valid
         match_info["invalid_msg"] = match_invalid_msg
@@ -927,7 +950,9 @@ def _format_subject(subject, match_info):
     """
 
     def _team_name(team_info):
-        return " ".join(team_info["school_code"])
+        return fetch_tms.school_team_code_to_str(
+            *team_info["school_team_code"]
+        )
 
     blue_team = _team_name(match_info["blue_team"])
     red_team = _team_name(match_info["red_team"])
@@ -1031,6 +1056,8 @@ def send_notification():
                 if key not in match_info:
                     invalid_matches["match_number"].append(match_number)
                     return
+            match_division = match_info["division"]
+
             if match_number in valid_matches:
                 # repeated match number; assume same
                 _add_status(
@@ -1041,30 +1068,30 @@ def send_notification():
                 )
                 return
 
+            school_team_codes = set()
             for color in ("blue_team", "red_team"):
                 if color not in match_info:
                     invalid_matches["match_number"].append(match_number)
                     return
                 team_info = match_info[color]
-                for key in ("school", "code"):
+                for key in ("school", "number"):
                     if key not in team_info:
                         invalid_matches["match_number"].append(match_number)
                         return
-                team_info["school_code"] = (
+                school_team_code = (
                     team_info["school"],
-                    team_info["code"],
+                    match_division,
+                    team_info["number"],
                 )
-            if (
-                match_info["blue_team"]["school_code"]
-                == match_info["red_team"]["school_code"]
-            ):
+                team_info["school_team_code"] = school_team_code
+                school_team_codes.add(school_team_code)
+            if len(school_team_codes) == 1:
                 # teams are the same; invalid match
                 _add_status("ERROR", match_number, "Both teams are the same")
                 return
 
             valid_matches[match_number] = match_info
-            for color in ("blue_team", "red_team"):
-                all_team_names.add(match_info[color]["school_code"])
+            all_team_names.update(school_team_codes)
 
         for i, match_info in enumerate(matches):
             _check_valid_match(i, match_info)
@@ -1171,27 +1198,33 @@ def send_notification():
         additional_recipient_roles.append("COACH")
     if send_to_spectators:
         additional_recipient_roles.append("SPECTATOR")
-
     if send_to_subscribers:
-        teams_subscribers = db.subscriptions.get_subscribers(all_team_names)
+        teams_subscribers = db.subscriptions.get_all_subscribers(
+            all_team_names
+        )
     else:
         teams_subscribers = {}
 
     email_args = []
     for match_number, match_info in valid_matches.items():
+        # maps: team color -> list of emails
         team_emails = {}
+        # maps: color -> name of missing team
         missing_team = {}
+        # colors of the teams that are missing valid emails
         missing_emails = []
-        for team_color in ("blue_team", "red_team"):
-            color = team_color.split("_", 1)[0]
+        for color in ("blue", "red"):
+            team_color = f"{color}_team"
             team_info = match_info[team_color]
 
-            school_team_code = team_info["school_code"]
+            school_team_code = team_info["school_team_code"]
             error_msg, team = team_infos[school_team_code]
             if error_msg is not None:
                 # actual error message doesn't matter here, just that
                 # there was an error
-                missing_team[color] = school_team_code
+                missing_team[color] = fetch_tms.school_team_code_to_str(
+                    *school_team_code
+                )
                 continue
 
             # just get the emails without any role information
@@ -1214,22 +1247,19 @@ def send_notification():
             team_emails[team_color] = valid_emails
         if len(missing_team) > 0:
             team_names = " and ".join(
-                f'{color} team {" ".join(school_code)!r}'
-                for color, school_code in missing_team.items()
+                f"{color} team {team_name!r}"
+                for color, team_name in missing_team.items()
             )
             _add_status("ERROR", match_number, f"Could not find {team_names}")
             continue
-        if len(missing_emails) == 2:
-            # both teams don't have any valid emails
-            _add_status(
-                "ERROR", match_number, "No valid emails for both teams"
-            )
-            continue
-        if len(missing_emails) == 1:
-            color = missing_emails[0]
-            _add_status(
-                "ERROR", match_number, f"No valid emails for {color} team"
-            )
+        if len(missing_emails) > 0:
+            if len(missing_emails) == 1:
+                color = missing_emails[0]
+                error_msg = f"No valid emails for {color} team"
+            else:  # len(missing_emails) == 2
+                # both teams don't have any valid emails
+                error_msg = "No valid emails for both teams"
+            _add_status("ERROR", match_number, error_msg)
             continue
 
         team_subjects = _format_subject(subject, match_info)
@@ -1248,8 +1278,8 @@ def send_notification():
             )
         else:
             # send one email to each team
-            for team_color in ("blue_team", "red_team"):
-                color = team_color.split("_", 1)[0]
+            for color in ("blue", "red"):
+                team_color = f"{color}_team"
                 email_args.append(
                     {
                         "match_number": match_number,

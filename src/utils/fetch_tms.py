@@ -45,7 +45,16 @@ POSSIBLE_WEIGHT_CLASSES = [
     "alternate",
 ]
 
-TEAM_CODE_PATTERN = re.compile(r"(P|((Men|Women)'s ))[ABC]\d+")
+# These divisions are also in the order they should be sorted in.
+DIVISIONS = [
+    f"{prefix}{suffix}"
+    for prefix in ("P", "Men's ", "Women's ")
+    for suffix in "ABC"
+]
+TEAM_CODE_PATTERN = re.compile(
+    rf'(?P<division>{"|".join(f"({division})" for division in DIVISIONS)})'
+    r"(?P<number>\d+)"
+)
 
 # =============================================================================
 
@@ -64,7 +73,7 @@ MATCHES_HEADERS = [
 ]
 
 SCHOOL_TEAM_CODE_PATTERN = re.compile(
-    rf"(?P<school>[A-Za-z ]+) (?P<code>{TEAM_CODE_PATTERN.pattern})"
+    rf"(?P<school>[A-Za-z ]+) {TEAM_CODE_PATTERN.pattern}"
 )
 
 # same order as the communications view (2023-03-19)
@@ -290,6 +299,27 @@ def get_worksheet(spreadsheet, worksheet_name, description=None):
 # =============================================================================
 
 
+def school_team_code_to_str(school, division, team_number):
+    return f"{school} {division}{team_number}"
+
+
+def division_sort_key(division):
+    try:
+        return DIVISIONS.index(division)
+    except ValueError:
+        # just put everything else at the end
+        return len(DIVISIONS)
+
+
+def school_team_code_sort_key(school_team_code):
+    school, division, team_number = school_team_code
+    return (school, division_sort_key(division), team_number)
+
+
+def team_sort_key(team):
+    return school_team_code_sort_key(team.school_team_code)
+
+
 def fetch_roster():
     """Fetches the full team roster from the TMS spreadsheet.
 
@@ -309,7 +339,8 @@ def fetch_roster():
                         seen (for logs)
                 'teams': list of:
                     'school': school name
-                    'code': team code
+                    'division': team division
+                    'number': team number
                     'light': (optional) email
                     'middle': (optional) email
                     'heavy': (optional) email
@@ -434,7 +465,8 @@ def process_roster(row_generator):
                         seen (for logs)
                 'teams': list of:
                     'school': school name
-                    'code': team code
+                    'division': team division
+                    'number': team number
                     'light': (optional) email
                     'middle': (optional) email
                     'heavy': (optional) email
@@ -452,7 +484,7 @@ def process_roster(row_generator):
     users = {}
     # maps: email -> whether they are on a poomsae or sparring team
     user_teams = {}
-    # maps: (school, code) -> team
+    # maps: (school, division, team number) -> team
     teams = {}
 
     def _add_school(school):
@@ -479,16 +511,17 @@ def process_roster(row_generator):
         if role == "ATHLETE":
             schools[school]["athletes"] += 1
 
-    def _add_team(school, team_code):
+    def _add_team(school, division, team_number):
         team = {
             "school": school,
-            "code": team_code,
+            "division": division,
+            "number": team_number,
             "light": None,
             "middle": None,
             "heavy": None,
             "alternates": [],
         }
-        teams[school, team_code] = team
+        teams[school, division, team_number] = team
         return team
 
     def _is_user_in_team(team, email):
@@ -538,7 +571,7 @@ def process_roster(row_generator):
         name_email = f"{full_name} <{email}>"
 
         if role not in POSSIBLE_ROLES:
-            _log_error(f'Invalid role "{role}" (skipped)')
+            _log_error(f"Invalid role {role!r} (skipped)")
             continue
         is_athlete = role == "ATHLETE"
 
@@ -592,14 +625,17 @@ def process_roster(row_generator):
         if team_code is None:
             _log_error("Missing team code (skipped)")
             continue
-        if TEAM_CODE_PATTERN.fullmatch(team_code) is None:
+        team_code_match = TEAM_CODE_PATTERN.fullmatch(team_code)
+        if team_code_match is None:
             _log_error(f"Invalid team code {team_code!r} (skipped)")
             continue
+        division, team_number = team_code_match.group("division", "number")
+        team_number = int(team_number)
         weight_class = row_data["fighting weight class"]
         if weight_class is not None:
             weight_class = weight_class.lower()
         # assume poomsae teams start with "P" and sparring teams do not
-        is_sparring_team = team_code[0].upper() != "P"
+        is_sparring_team = not division.startswith("P")
         if is_sparring_team:
             if weight_class is None:
                 _log_error(
@@ -615,15 +651,15 @@ def process_roster(row_generator):
             _log_warning("Unnecessary fighting weight class for poomsae team")
             weight_class = None
 
-        school_team = (school, team_code)
-        school_team_str = " ".join(school_team)
+        school_team_code = (school, division, team_number)
+        team_name = school_team_code_to_str(*school_team_code)
         created_team = False
-        if school_team in teams:
-            team = teams[school_team]
+        if school_team_code in teams:
+            team = teams[school_team_code]
             if _is_user_in_team(team, email):
                 _log_warning(
-                    f"Athlete {name_email} already in team "
-                    f"{school_team_str!r} (skipped)"
+                    f"Athlete {name_email} already in team {team_name!r} "
+                    "(skipped)"
                 )
                 continue
             # make sure there's an available spot for sparring team
@@ -633,12 +669,12 @@ def process_roster(row_generator):
                 and team[weight_class] is not None
             ):
                 _log_error(
-                    f"Team {school_team_str!r} already has a "
-                    f"{weight_class}-weight athlete (skipped)"
+                    f"Team {team_name!r} already has a {weight_class}-weight "
+                    "athlete (skipped)"
                 )
                 continue
         else:
-            team = _add_team(school, team_code)
+            team = _add_team(*school_team_code)
             created_team = True
 
         if _add_school(school):
@@ -650,7 +686,7 @@ def process_roster(row_generator):
             _log_info(f"Added athlete: {name_email} ({school})")
         if created_team:
             schools[school]["teams"] += 1
-            _log_info(f"Added team: {school_team_str}")
+            _log_info(f"Added team: {team_name}")
 
         # athlete can't be on multiple teams (as non-alternate)
         team_type_key = "sparring" if is_sparring_team else "poomsae"
@@ -663,7 +699,7 @@ def process_roster(row_generator):
             if user_teams[email][team_type_key]:
                 _log_error(
                     f"Athlete {name_email} already on a {team_type_key} team; "
-                    f"cannot also be on team {school_team_str!r}"
+                    f"cannot also be on team {team_name!r}"
                 )
                 continue
 
@@ -673,8 +709,7 @@ def process_roster(row_generator):
         else:
             weight_str = f" ({weight_class.capitalize()})"
         _log_info(
-            f"Added athlete to team: {name_email}{weight_str} on "
-            f"{school_team_str}"
+            f"Added athlete to team: {name_email}{weight_str} on {team_name!r}"
         )
 
         if weight_class != "alternate":
@@ -696,7 +731,7 @@ def process_roster(row_generator):
             )
 
     valid_teams = []
-    for school_code, team_info in teams.items():
+    for school_team_code, team_info in teams.items():
         has_team_members = False
         for key in ("light", "middle", "heavy"):
             if team_info[key] is not None:
@@ -705,13 +740,10 @@ def process_roster(row_generator):
         if has_team_members:
             valid_teams.append(team_info)
             continue
-        school_team_str = " ".join(school_code)
+        team_name = school_team_code_to_str(*school_team_code)
         _log(
             "ERROR",
-            (
-                f"Team {school_team_str!r} does not have any main team "
-                "members (skipped)"
-            ),
+            f"Team {team_name!r} has no main team members (skipped)",
             None,
         )
 
@@ -737,21 +769,15 @@ def match_number_sort_key(match_number):
         return (len(MATCH_NUMBER_HUNDREDS_ORDER), match_number)
 
 
-def split_school_team_code(school_team_code):
-    match = SCHOOL_TEAM_CODE_PATTERN.fullmatch(school_team_code)
-    if match is None:
-        return None, None
-    return match.group("school", "code")
-
-
 def _extract_school_team_code(team_name):
-    school, code = split_school_team_code(team_name)
-    if school is None or code is None:
+    match = SCHOOL_TEAM_CODE_PATTERN.fullmatch(team_name)
+    if match is None:
         return {"name": team_name, "valid": False}
+    school, division, number = match.group("school", "division", "number")
     return {
         "name": team_name,
         "valid": True,
-        "school_code": (school, code),
+        "school_team_code": (school, division, int(number)),
     }
 
 
@@ -771,8 +797,9 @@ def fetch_match_teams(match_numbers):
                 'blue_team':
                     'name': the team name
                     'valid': True or False
-                        If False, 'school_code' will not be present.
-                    'school_code': tuple of the school and team code
+                        If False, 'team_code' will not be present.
+                    'school_team_code':
+                        tuple of the school, division, and team number
                 'red_team': same as 'blue_team'
     """
 

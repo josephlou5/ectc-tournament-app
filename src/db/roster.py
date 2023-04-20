@@ -7,6 +7,7 @@ Teams tables.
 
 from db._utils import clear_tables, query
 from db.models import School, Team, User, db
+from utils import fetch_tms
 
 # =============================================================================
 
@@ -17,8 +18,11 @@ class TeamJoined:
     def __init__(self, team):
         self.id = team.id
         self.school = team.school
-        self.code = team.code
-        self.school_code = f"{self.school.name} {self.code}"
+        self.division = team.division
+        self.number = team.number
+
+        self.school_team_code = (team.school.name, team.division, team.number)
+        self.name = fetch_tms.school_team_code_to_str(*self.school_team_code)
 
         valid_emails = set()
 
@@ -107,10 +111,9 @@ def set_roster(roster):
         return (user["school"], role_id, user["email"])
 
     def team_sort_key(team):
-        # school, team code
-        # since team codes contain numbers, sort by length first
-        code = team["code"]
-        return (team["school"], len(code), code)
+        # school, division, team number
+        school_team_code = (team["school"], team["division"], team["number"])
+        return fetch_tms.school_team_code_sort_key(school_team_code)
 
     sort_keys = {
         "schools": school_sort_key,
@@ -157,7 +160,8 @@ def set_roster(roster):
             school_id = school_ids[team_info["school"]]
             team = Team(
                 school_id,
-                team_info["code"],
+                team_info["division"],
+                team_info["number"],
                 get_athlete_id(team_info["light"]),
                 get_athlete_id(team_info["middle"]),
                 get_athlete_id(team_info["heavy"]),
@@ -219,29 +223,54 @@ def get_users_for_school(school_name, roles):
 # =============================================================================
 
 
-def get_all_teams(school=None):
+def get_all_teams(school=None, division=None, without_email=None):
     """Returns all the teams.
 
-    If a school name is given, the teams will be filtered by the given
-    school. Otherwise, all schools will be returned.
+    If a school name or division is given, the teams will be filtered by
+    the given args. If a `without_email` value is given, any teams that
+    that user is on will not be returned. Otherwise, all teams will be
+    returned.
 
-    The teams are returned in sorted order (by school, then by code).
+    The teams are returned in sorted order (by school, division, and
+    team number).
     """
-    if school is None:
-        teams = query(Team).all()
-    else:
+    filters = {}
+    if school is not None:
         school_obj = query(School, {"name": school}).first()
         if school_obj is None:
             # school doesn't exist
             raise ValueError(f"School {school!r} not found")
-        school_id = school_obj.id
-        teams = query(Team, {"school_id": school_id}).all()
-    return sorted(
-        map(TeamJoined, teams), key=lambda t: (t.school.name, t.code)
-    )
+        filters["school_id"] = school_obj.id
+    if division is not None:
+        filters["division"] = division
+    if len(filters) == 0:
+        filters = None
+    all_teams = query(Team, filters).all()
+    valid_teams = all_teams
+    if without_email is not None:
+        # get user
+        user = query(User, {"email": without_email}).first()
+        if user is None:
+            # user doesn't exist, so all teams match
+            pass
+        elif user.role != "ATHLETE":
+            # not an athlete, so all teams match
+            pass
+        else:
+            user_id = user.id
+            valid_teams = []
+            for team in all_teams:
+                # if user not on team, add
+                if not (
+                    user_id in (team.light_id, team.middle_id, team.heavy_id)
+                    or user_id in team.get_alternate_ids()
+                ):
+                    valid_teams.append(team)
+
+    return sorted(map(TeamJoined, valid_teams), key=fetch_tms.team_sort_key)
 
 
-def get_team(school, team_code):
+def get_team(school, division, team_number):
     """Gets the team object for the given args.
 
     Returns:
@@ -254,9 +283,15 @@ def get_team(school, team_code):
         school = query(School, {"name": school_name}).first()
         if school is None:
             return f"School {school_name!r} not found", None
-    team = query(Team, {"school_id": school.id, "code": team_code}).first()
+    team = query(
+        Team,
+        {"school_id": school.id, "division": division, "number": team_number},
+    ).first()
     if team is None:
-        return f'Team "{school.name} {team_code}" not found', None
+        team_name = fetch_tms.school_team_code_to_str(
+            school, division, team_number
+        )
+        return f"Team {team_name!r} not found", None
     return None, TeamJoined(team)
 
 
@@ -264,16 +299,16 @@ def get_teams(team_infos):
     """Gets the team objects for the given teams.
 
     Args:
-        team_infos (List[Tuple[str, str]]): A list of the school names
-            and team codes.
+        team_infos (List[Tuple[str, str, int]]): A list of the school
+            team codes, as tuples (school, division, team number).
 
     Returns:
         Dict[
-            Tuple[str, str],
+            Tuple[str, str, int],
             Union[Tuple[str, None], Tuple[None, TeamJoined]]
         ]:
-            A mapping from school names and team codes to either an
-            error message or a team object.
+            A mapping from school team codes to either an error message
+            or a team object.
     """
     if len(team_infos) == 0:
         return {}
@@ -282,32 +317,37 @@ def get_teams(team_infos):
         return {team_info: get_team(*team_info)}
 
     # get all the teams to reduce the number of database queries
-    schools = {school.name: school.id for school in query(School).all()}
-    teams = {(team.school_id, team.code): team for team in query(Team).all()}
+    school_ids = {school.name: school.id for school in query(School).all()}
+    teams = {
+        (team.school_id, team.division, team.number): team
+        for team in query(Team).all()
+    }
 
     results = {}
     for school_team_code in team_infos:
         if school_team_code in results:
+            # already processed
             continue
-        school_name, team_code = school_team_code
-        if school_name not in schools:
+        school_name, division, team_number = school_team_code
+        school_id = school_ids.get(school_name, None)
+        if school_id is None:
             results[school_team_code] = (
                 f"School {school_name!r} not found",
                 None,
             )
             continue
-        school_id = schools[school_name]
-        school_id_team_code = (school_id, team_code)
-        if school_id_team_code not in teams:
+        school_id_team_code = (school_id, division, team_number)
+        team_obj = teams.get(school_id_team_code, None)
+        if team_obj is None:
+            team_code_str = fetch_tms.school_team_code_to_str(
+                *school_team_code
+            )
             results[school_team_code] = (
-                f'Team "{school_name} {team_code}" not found',
+                f"Team {team_code_str!r} not found",
                 None,
             )
             continue
-        results[school_team_code] = (
-            None,
-            TeamJoined(teams[school_id_team_code]),
-        )
+        results[school_team_code] = (None, TeamJoined(team_obj))
     return results
 
 
@@ -334,4 +374,4 @@ def get_user_teams(email):
             or user_id in team.get_alternate_ids()
         ):
             user_teams.append(TeamJoined(team))
-    return sorted(user_teams, key=lambda t: (t.school.name, t.code))
+    return sorted(user_teams, key=fetch_tms.team_sort_key)

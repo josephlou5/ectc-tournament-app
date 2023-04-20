@@ -8,37 +8,27 @@ Full Roster
 {% set clear_roster_btn_id = "clear-roster-btn" %}
 {% set fetch_roster_messages_id = "fetch-roster-messages" %}
 
+{% set teams_all_divisions_page_btn_id = "teams-all-divisions" %}
+{% set teams_division_page_btn_class = "division-page-btn" %}
+{% set teams_division_page_wrapper_class =
+     teams_division_page_btn_class ~ "-wrapper"
+ %}
+{% set no_teams_row_id = "no-teams-row" %}
+
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
-{% macro _pagination_component(label, by_school) %}
-{% set pagination_btn_class = label ~ "-school-page-btn" %}
-{% set pagination_wrapper_class = pagination_btn_class ~ "-wrapper" %}
-<nav>
-  <ul class="pagination">
-    <li
-      id="{{ label }}-all-schools"
-      class="page-item {{ pagination_wrapper_class }}"
-    >
-      <a
-        class="page-link {{ pagination_btn_class }}"
-        role="button"
-        all-schools="true"
-      >
-        All
-      </a>
-    </li>
-    {% for school_name in by_school.keys() %}
-    <li
-      id="{{ label }}-school-{{ school_name|e }}-page-btn"
-      class="page-item {{ pagination_wrapper_class }}"
-    >
-      <a class="page-link {{ pagination_btn_class }}" role="button">
-        {{ school_name|e }}
-      </a>
-    </li>
-    {% endfor %}
-  </ul>
-</nav>
+{% macro _pagination_by_school(label, by_school) %}
+{% set all_schools_btn_id = label ~ "-all-schools" %}
+{% set page_btn_class = label ~ "-school-page-btn" %}
+{% set page_wrapper_class = page_btn_class ~ "-wrapper" %}
+{{ macros.pagination(
+     all_schools_btn_id,
+     page_btn_class,
+     page_wrapper_class,
+     "school",
+     by_school.keys(),
+   )
+}}
 {% endmacro %}
 
 {% macro users_table(label, users_by_school) %}
@@ -52,7 +42,7 @@ Full Roster
     {% else %}
     {% if users_by_school|length > 1 %}
     {# use a pagination component to filter by each school #}
-    {{ _pagination_component(label_lower, users_by_school) }}
+    {{ _pagination_by_school(label_lower, users_by_school) }}
     {% endif %}
     <table class="table table-striped table-hover">
       <thead>
@@ -66,11 +56,8 @@ Full Roster
       </thead>
       <tbody>
         {% for school_name, users_list in users_by_school.items() %}
-        {% set school_row_class =
-             label_lower ~ "-school-" ~ school_name ~ "-row"
-         %}
         {% for user in users_list %}
-        <tr class="{{ user_row_class }} {{ school_row_class }}">
+        <tr class="{{ user_row_class }}" school="{{ school_name|e }}">
           <th class="row-index table-sm-col"></th>
           <td>{{ user.first_name|e }}</td>
           <td>{{ user.last_name|e }}</td>
@@ -180,17 +167,28 @@ Full Roster
       <div>No teams</div>
       {% else %}
       {% with label = "teams" %}
-      {% with user_row_class = label ~ "-user-row" %}
+      {% with team_row_class = label ~ "-row" %}
       {% if teams_by_school|length > 1 %}
       {# use a pagination component to filter by each school #}
-      {{ _pagination_component(label, teams_by_school) }}
+      {{ _pagination_by_school(label, teams_by_school) }}
+      {% endif %}
+      {% if divisions|length > 1 %}
+      {# use a pagination component to filter by each division #}
+      {{ macros.pagination(
+           teams_all_divisions_page_btn_id,
+           teams_division_page_btn_class,
+           teams_division_page_wrapper_class,
+           "division",
+           divisions,
+         )
+      }}
       {% endif %}
       <table class="table table-striped table-hover">
         <thead>
           <tr>
             <th class="table-sm-col"></th>
             <th>School</th>
-            <th>Code</th>
+            <th>Team</th>
             <th>Light</th>
             <th>Middle</th>
             <th>Heavy</th>
@@ -198,13 +196,22 @@ Full Roster
           </tr>
         </thead>
         <tbody>
+          <tr id="{{ no_teams_row_id }}" class="{{ team_row_class }} d-none">
+            <td colspan="7">
+              <em class="text-muted">No teams</em>
+            </td>
+          </tr>
           {% for school_name, teams_list in teams_by_school.items() %}
-          {% set school_row_class = label ~ "-school-" ~ school_name ~ "-row" %}
           {% for team in teams_list %}
-          <tr class="{{ user_row_class }} {{ school_row_class }}">
+          {% set division = team.division %}
+          <tr
+            class="{{ team_row_class }}"
+            school="{{ school_name|e }}"
+            division="{{ division|e }}"
+          >
             <th class="row-index table-sm-col"></th>
             <td>{{ school_name|e }}</td>
-            <td>{{ team.code|e }}</td>
+            <td>{{ (division ~ team.number)|e }}</td>
             <td>{{ team_member(team.light) }}</td>
             <td>{{ team_member(team.middle) }}</td>
             <td>{{ team_member(team.heavy) }}</td>
@@ -213,7 +220,7 @@ Full Roster
               <em class="text-muted">None</em>
               {% else %}
               {% for alternate in team.alternates %}
-              <div>{{ alternate.full_name|e }}</div>
+              <div>{{ team_member(alternate) }}</div>
               {% endfor %}
               {% endif %}
             </td>
@@ -266,31 +273,6 @@ Full Roster
     ajaxRequest('DELETE', '{{ url_for("fetch_roster") }}');
   }
 
-  function handlePaginationChanged(label, school = null) {
-    if (school == null) {
-      // deactivate all pagination buttons
-      $(`.${label}-school-page-btn-wrapper`).removeClass('active');
-      // make the "all schools" button active
-      $(`#${label}-all-schools`).addClass('active');
-      // show all rows
-      $(`.${label}-user-row`).removeClass('d-none');
-    } else {
-      school = school.trim();
-      if (school === '') return;
-      // deactivate all pagination buttons
-      $(`.${label}-school-page-btn-wrapper`).removeClass('active');
-      // make this pagination button active
-      $(`#${label}-school-${school}-page-btn`).addClass('active');
-      // show this school's rows
-      $(`.${label}-user-row`).addClass('d-none');
-      $(`.${label}-school-${school}-row`).removeClass('d-none');
-    }
-    // number all showing rows
-    $(`.${label}-user-row:not(.d-none) > .row-index`).each((index, element) => {
-      $(element).html(String(index + 1));
-    });
-  }
-
   $(document).ready(() => {
     $('#{{ refetch_roster_btn_id }}').click((event) => {
       handleFetchRosterClicked();
@@ -300,18 +282,104 @@ Full Roster
     });
 
     // pagination buttons by school
-    for (const label of ['coaches', 'spectators', 'athletes', 'teams']) {
-      // initialize with everything showing
-      handlePaginationChanged(label);
-      $(`.${label}-school-page-btn`).click((event) => {
-        const $element = $(event.target);
-        if ($element.attr('all-schools') != null) {
-          handlePaginationChanged(label);
-        } else {
-          handlePaginationChanged(label, $element.html() ?? '');
+    for (const label of ['coaches', 'spectators', 'athletes']) {
+      const allBtnId = `${label}-all-schools`;
+      const pageBtnClass = `${label}-school-page-btn`;
+      const pageBtnWrapperClass = `${pageBtnClass}-wrapper`;
+      const rowClass = `${label}-user-row`;
+      handleBsPagination(
+        allBtnId,
+        pageBtnClass,
+        pageBtnWrapperClass,
+        'school',
+        rowClass,
+        {
+          doneCallback: (environ) => {
+            // number all showing rows
+            $(`.${environ.itemClass}:not(.d-none) > .row-index`).each(
+              (index, element) => {
+                $(element).html(String(index + 1));
+              }
+            );
+          },
         }
-      });
+      );
     }
+    // pagination of teams by school and division
+    const teamsSchoolPageBtnClass = 'teams-school-page-btn';
+    const callbacks = {
+      startCallback: (environ) => {
+        if (environ.attr === 'school') {
+          // get currently selected division and add it to the environment
+          const $divisionPageBtn = $(
+            '.{{ teams_division_page_wrapper_class }}.active'
+          ).find('.{{ teams_division_page_btn_class }}');
+          if (elementHasAttr($divisionPageBtn, 'all-division')) {
+            // "all divisions" is selected; do nothing
+          } else {
+            const division = $divisionPageBtn.html()?.trim();
+            Object.assign(environ, { division });
+          }
+        } else {
+          // get currently selected school and add it to the environment
+          const $schoolPageBtn = $(
+            `.${teamsSchoolPageBtnClass}-wrapper.active`
+          ).find(`.${teamsSchoolPageBtnClass}`);
+          if (elementHasAttr($schoolPageBtn, 'all-school')) {
+            // "all schools" is selected; do nothing
+          } else {
+            const school = $schoolPageBtn.html()?.trim();
+            Object.assign(environ, { school });
+          }
+        }
+      },
+      shouldShowItemCallback: (selected, $element, environ, defaultShow) => {
+        if (!defaultShow) {
+          // doesn't even show by default
+          return false;
+        }
+        if (environ.attr === 'school' && environ.division != null) {
+          // also filter by division
+          return getElementAttr($element, 'division') === environ.division;
+        }
+        if (environ.attr === 'division' && environ.school != null) {
+          // also filter by school
+          return getElementAttr($element, 'school') === environ.school;
+        }
+        return true;
+      },
+      doneCallback: (environ) => {
+        // number all showing rows
+        const $showingRows = $(
+          `.${environ.itemClass}:not(.d-none) > .row-index`
+        );
+        if ($showingRows.length === 0) {
+          $('#{{ no_teams_row_id }}').removeClass('d-none');
+        } else {
+          $('#{{ no_teams_row_id }}').addClass('d-none');
+          $showingRows.each((index, element) => {
+            anyShowing = true;
+            $(element).html(String(index + 1));
+          });
+        }
+      },
+    };
+    handleBsPagination(
+      'teams-all-schools',
+      teamsSchoolPageBtnClass,
+      `${teamsSchoolPageBtnClass}-wrapper`,
+      'school',
+      'teams-row',
+      callbacks
+    );
+    handleBsPagination(
+      '{{ teams_all_divisions_page_btn_id }}',
+      '{{ teams_division_page_btn_class }}',
+      '{{ teams_division_page_wrapper_class }}',
+      'division',
+      'teams-row',
+      callbacks
+    );
   });
 </script>
 {% endblock %}

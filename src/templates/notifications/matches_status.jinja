@@ -90,32 +90,14 @@ Matches Status
   <div class="row mb-2">
     <div class="col">
       {# use a pagination component to filter each hundred of match numbers #}
-      <nav>
-        <ul class="pagination">
-          <li
-            id="{{ all_matches_btn_wrapper_id }}"
-            class="page-item {{ hundred_page_wrapper_class }}"
-          >
-            <a
-              class="page-link {{ hundred_page_btn_class }}"
-              role="button"
-              all-matches="true"
-            >
-              All
-            </a>
-          </li>
-          {% for hundred in hundreds %}
-          <li
-            id="hundred-{{ hundred }}-page-wrapper"
-            class="page-item {{ hundred_page_wrapper_class }}"
-          >
-            <a class="page-link {{ hundred_page_btn_class }}" role="button">
-              {{ hundred }}
-            </a>
-          </li>
-          {% endfor %}
-        </ul>
-      </nav>
+      {{ macros.pagination(
+           all_matches_btn_wrapper_id,
+           hundred_page_btn_class,
+           hundred_page_wrapper_class,
+           "hundred",
+           hundreds,
+         )
+      }}
     </div>
   </div>
   {% endif %}
@@ -154,11 +136,14 @@ Matches Status
             </tr>
           </thead>
           {% for status_info in statuses %}
-          {% set hundred_cls = "hundred-" ~ status_info["hundred_str"] %}
+          {% set hundred_str = status_info["hundred_str"]|e %}
           {% with emails = status_info["emails"] %}
           <tbody>
             {% if emails|length == 0 %}
-            <tr class="{{ match_status_row_class }} {{ hundred_cls }}">
+            <tr
+              class="{{ match_status_row_class }}"
+              hundred="{{ hundred_str }}"
+            >
               <th class="table-sm-col">{{ status_info["number"] }}</th>
               {{ _match_status_col(
                    status_info["tms_status"],
@@ -176,7 +161,10 @@ Matches Status
                  "" if row_span is none else ('rowspan="' ~ row_span ~ '"')
              %}
             {% for sent_email in emails %}
-            <tr class="{{ match_status_row_class }} {{ hundred_cls }}">
+            <tr
+              class="{{ match_status_row_class }}"
+              hundred="{{ hundred_str }}"
+            >
               {% if loop.first %}
               <th {{ row_span_attr }} class="table-sm-col">
                 {{ status_info["number"] }}
@@ -197,7 +185,10 @@ Matches Status
             </tr>
             {% endfor %}
             {% endif %}
-            <tr class="{{ match_status_row_class }} {{ hundred_cls }}">
+            <tr
+              class="{{ match_status_row_class }}"
+              hundred="{{ hundred_str }}"
+            >
               {# include a dummy row that doesn't do anything so that each
                  `tbody` element does not have a black line after the last row
                  (i didn't like it anyway, but it looked extra bad because it
@@ -218,34 +209,6 @@ Matches Status
 
 {% block script %}
 <script>
-  function handlePaginationChanged(hundredStr = null) {
-    if (hundredStr == null) {
-      // deactivate all pagination buttons
-      $('.{{ hundred_page_wrapper_class }}').removeClass('active');
-      // make the "all matches" button active
-      $('#{{ all_matches_btn_wrapper_id }}').addClass('active');
-      // show all the match rows
-      $('.{{ match_status_row_class }}').removeClass('d-none');
-    } else {
-      hundredStr = hundredStr.trim();
-      if (hundredStr === '') return;
-      // deactivate all pagination buttons
-      $('.{{ hundred_page_wrapper_class }}').removeClass('active');
-      // make this pagination button active
-      $(`#hundred-${hundredStr}-page-wrapper`).addClass('active');
-      // show the proper match rows
-      $('.{{ match_status_row_class }}').addClass('d-none');
-      $('.hundred-' + hundredStr).removeClass('d-none');
-      // hide the recipients for all the hidden rows
-      $(
-        '.{{ match_status_row_class }}.d-none ' +
-          '.{{ recipients_div_class }}:not(.d-none)'
-      ).each((index, element) => {
-        toggleEmailRecipients(element.id, false);
-      });
-    }
-  }
-
   function toggleEmailRecipients(elementId, forceShow = null) {
     const $recipientsDiv = $('#' + elementId);
     const $toggleButton = $('#toggle-' + elementId);
@@ -275,16 +238,23 @@ Matches Status
     enableBsTooltips();
 
     // pagination for matches
-    // initialize with everything showing
-    handlePaginationChanged();
-    $('.{{ hundred_page_btn_class }}').click((event) => {
-      const $element = $(event.target);
-      if ($element.attr('all-matches') != null) {
-        handlePaginationChanged();
-      } else {
-        handlePaginationChanged($element.html() ?? '');
+    handleBsPagination(
+      '{{ all_matches_btn_wrapper_id }}',
+      '{{ hundred_page_btn_class }}',
+      '{{ hundred_page_wrapper_class }}',
+      'hundred',
+      '{{ match_status_row_class }}',
+      {
+        hideItemCallback: ($row, environ) => {
+          // hide any expanded recipients for all hidden rows
+          $row
+            .find('.{{ recipients_div_class }}:not(.d-none)')
+            .each((index, element) => {
+              toggleEmailRecipients(element.id, false);
+            });
+        },
       }
-    });
+    );
 
     {% if user_is_admin %}
     // toggle all recipients button
