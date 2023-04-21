@@ -27,11 +27,14 @@ Notifications
 {% set no_matches_row_id = "no-matches-row" %}
 
 {% set email_items_col_class = "email-items-col" %}
-{% set mc_templates_dropdown_wrapper_id = "mc-templates-dropdown-wrapper" %}
-{% set mc_fetch_templates_id = "mc-fetch-templates" %}
-{% set mc_templates_dropdown_id = "mc-templates-dropdown-id" %}
-{% set email_subject_input_id = "email-subject-input" %}
-{% set email_subject_help_id = "email-subject-help" %}
+
+{% set match_notif_mc_templates_dropdown_wrapper_id =
+     "match-notif-mc-templates-dropdown-wrapper"
+ %}
+{% set match_notif_mc_fetch_templates_id = "match-notif-mc-fetch-templates" %}
+{% set match_notif_mc_templates_select_id = "match-notif-mc-templates-select" %}
+{% set match_notif_email_subject_input_id = "match-notif-email-subject-input" %}
+{% set match_notif_email_subject_help_id = "match-notif-email-subject-help" %}
 {% set send_to_coaches_checkbox_id = "send-to-coaches-checkbox" %}
 {% set send_to_spectators_checkbox_id = "send-to-spectators-checkbox" %}
 {% set send_to_subscribers_checkbox_id = "send-to-subscribers-checkbox" %}
@@ -39,11 +42,26 @@ Notifications
      send_to_subscribers_checkbox_id ~ "-label"
  %}
 
-{% set send_notif_btn_id = "send-notification-btn" %}
-{% set send_notif_error_id = "send-notification-error" %}
-{% set blast_notif_btn_id = "send-blast-notification-btn" %}
+{% set blast_notif_mc_templates_dropdown_wrapper_id =
+     "blast-notif-mc-templates-dropdown-wrapper"
+ %}
+{% set blast_notif_mc_fetch_templates_id = "blast-notif-mc-fetch-templates" %}
+{% set blast_notif_mc_templates_select_id = "blast-notif-mc-templates-select" %}
+{% set blast_notif_email_subject_input_id = "blast-notif-email-subject-input" %}
+{% set blast_notif_email_subject_help_id = "blast-notif-email-subject-help" %}
+{% set clear_division_btn_id = "clear-division-btn" %}
+{% set division_radio_name = "division-radio" %}
+{% set division_invalid_div_id = "division-invalid-messages" %}
+{% set confirm_blast_audience_div_id = "confirm-blast-audience-div" %}
+{% set confirm_blast_division_div_id = "confirm-blast-division-div" %}
+{% set confirm_blast_division_id = "confirm-blast-division" %}
+
+{% set send_match_notif_btn_id = "send-match-notification-btn" %}
+{% set send_match_notif_error_id = "send-match-notification-error" %}
+{% set send_blast_notif_btn_id = "send-blast-notification-btn" %}
 {% set blast_notif_confirm_btn_id = "send-blast-notification-confirm-btn" %}
 {% set blast_notif_modal_id = "send-blast-notification-modal" %}
+{% set send_blast_notif_error_id = "send-blast-notification-error" %}
 {% set send_notif_messages_id = "send-notification-messages" %}
 
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
@@ -352,7 +370,7 @@ Notifications
                  "Refreshing...",
                  classes="btn-sm me-1",
                )
-            %}
+             %}
             disabled
             {% endcall %}
             <span
@@ -396,25 +414,27 @@ Notifications
           </table>
         </div>
       </div>
-      <div class="row">
-        <div class="col-md-auto">
+      <div class="row gy-2">
+        <div class="col-auto col-md-6">
           <table class="table table-sm table-borderless">
             <tr>
               {% if has_all_admin_settings_error is none %}
               <td class="table-sm-col">
-                {# the id of the select is from
-                   `src/templates/notifications/templates_info.jinja`
-                 #}
                 {{ macros.form_label(
-                     "mc-template-select", "Template", "col-form-label"
+                     match_notif_mc_templates_select_id,
+                     "Template",
+                     "col-form-label",
                    )
                 }}
               </td>
               <td
-                id="{{ mc_templates_dropdown_wrapper_id }}"
+                id="{{ match_notif_mc_templates_dropdown_wrapper_id }}"
                 class="{{ email_items_col_class }}"
               >
-                <div id="{{ mc_fetch_templates_id }}" class="col-form-label">
+                <div
+                  id="{{ match_notif_mc_fetch_templates_id }}"
+                  class="col-form-label"
+                >
                   {# will be replaced when templates are fetched #}
                   <div
                     class="spinner-border spinner-border-sm"
@@ -433,14 +453,16 @@ Notifications
             <tr>
               <td class="table-sm-col">
                 {{ macros.form_label(
-                     email_subject_input_id, "Subject", "col-form-label"
+                     match_notif_email_subject_input_id,
+                     "Subject",
+                     "col-form-label",
                    )
                 }}
               </td>
               <td class="{{ email_items_col_class }}">
                 {{ macros.form_input(
-                     email_subject_input_id,
-                     value=last_subject,
+                     match_notif_email_subject_input_id,
+                     value=last_match_subject,
                      placeholder="e.g., Match {match}: Report to Holding"
                    )
                 }}
@@ -449,9 +471,9 @@ Notifications
                   the match number. For the full placeholder list and subject
                   specifications, see help
                   <a
-                    href="#{{ email_subject_help_id }}"
+                    href="#{{ match_notif_email_subject_help_id }}"
                     data-bs-toggle="offcanvas"
-                    aria-controls="{{ email_subject_help_id }}"
+                    aria-controls="{{ match_notif_email_subject_help_id }}"
                   >here</a>.
                 </div>
               </td>
@@ -489,16 +511,16 @@ Notifications
             </tr>
           </table>
           <div
-            id="{{ email_subject_help_id }}"
+            id="{{ match_notif_email_subject_help_id }}"
             class="offcanvas offcanvas-end"
             tabindex="-1"
-            aria-labelledby="{{ email_subject_help_id }}-title"
+            aria-labelledby="{{ match_notif_email_subject_help_id }}-title"
             data-bs-scroll="true"
           >
             <div class="offcanvas-header">
               <h5
                 class="offcanvas-title"
-                id="{{ email_subject_help_id }}-title"
+                id="{{ match_notif_email_subject_help_id }}-title"
               >
                 Email Subject Help
               </h5>
@@ -595,30 +617,144 @@ Notifications
                 letters, digits, spaces, and any of the following:
                 <code>{{ EMAIL_SUBJECT_VALID_CHARS }}</code>.
               </p>
-              <p>
-                You cannot use placeholders for blast email subjects, since
-                there is no match data to populate the variables.
-              </p>
             </div>
           </div>
           <div class="mb-1">
             {{ macros.loading_btn(
-                 send_notif_btn_id, "primary", "Send Notification", "Sending..."
+                 send_match_notif_btn_id,
+                 "primary",
+                 "Send Match Notification",
+                 "Sending...",
                )
             }}
+          </div>
+          <div id="{{ send_match_notif_error_id }}" class="text-danger"></div>
+        </div>
+        <div class="col-auto col-md-6">
+          <h5>Send Blast Notifications</h5>
+          <div class="mb-2">
+            You can also send a blast notification to either the
+            {% if audience_tag is none %}
+            entire audience
+            {% else %}
+            <code>{{ audience_tag|e }}</code> tag
+            {% endif %}
+            or to a specific division.
+          </div>
+          <table class="table table-sm table-borderless">
+            <tr>
+              {% if has_all_admin_settings_error is none %}
+              <td class="table-sm-col">
+                {{ macros.form_label(
+                     blast_notif_mc_templates_select_id,
+                     "Template",
+                     "col-form-label",
+                   )
+                }}
+              </td>
+              <td
+                id="{{ blast_notif_mc_templates_dropdown_wrapper_id }}"
+                class="{{ email_items_col_class }}"
+              >
+                <div
+                  id="{{ blast_notif_mc_fetch_templates_id }}"
+                  class="col-form-label"
+                >
+                  {# will be replaced when templates are fetched #}
+                  <div
+                    class="spinner-border spinner-border-sm"
+                    role="status"
+                  ></div>
+                  Fetching Templates...
+                </div>
+              </td>
+              {% else %}
+              <td class="table-sm-col">Template</td>
+              <td class="{{ email_items_col_class }}">
+                <em class="text-muted">Cannot fetch templates</em>
+              </td>
+              {% endif %}
+            </tr>
+            <tr>
+              <td class="table-sm-col">
+                {{ macros.form_label(
+                     blast_notif_email_subject_input_id,
+                     "Subject",
+                     "col-form-label"
+                   )
+                }}
+              </td>
+              <td class="{{ email_items_col_class }}">
+                {{ macros.form_input(
+                     blast_notif_email_subject_input_id,
+                     value=last_blast_subject,
+                     placeholder="e.g., Brackets released"
+                   )
+                }}
+              </td>
+            </tr>
+            <tr>
+              {% if no_divisions %}
+              <td class="table-sm-col">Divisions</td>
+              <td class="{{ email_items_col_class }}">
+                <em class="col-form-label text-muted">No divisions</em>
+              </td>
+              {% else %}
+              <td class="table-sm-col">
+                <div class="col-form-label">Division</div>
+                <button
+                  type="button"
+                  id="{{ clear_division_btn_id }}"
+                  class="btn btn-sm btn-outline-danger"
+                >
+                  Clear
+                </button>
+              </td>
+              <td class="{{ email_items_col_class }}">
+                <div class="row g-2">
+                  {% for division_group in division_groups %}
+                  <div class="col-auto">
+                    <div class="btn-group" role="group">
+                      {% for division in division_group %}
+                      {% set input_id = "division-" ~ (division|e) %}
+                      <input
+                        type="radio"
+                        id="{{ input_id }}"
+                        class="btn-check"
+                        name="{{ division_radio_name }}"
+                        value="{{ division|e }}"
+                        autocomplete="off"
+                      />
+                      {{ macros.form_label(
+                           input_id, division|e, "btn btn-outline-success"
+                         )
+                      }}
+                      {% endfor %}
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+                <div
+                  id="{{ division_invalid_div_id }}"
+                  class="text-danger"
+                ></div>
+              </td>
+              {% endif %}
+            </tr>
+          </table>
+          <div class="mb-1">
             {% call macros.loading_btn(
-                 blast_notif_btn_id,
+                 send_blast_notif_btn_id,
                  "warning",
                  "Send Blast Notification",
                  "Sending...",
-                 classes="ms-2",
                )
              %}
             data-bs-toggle="modal"
             data-bs-target="#{{ blast_notif_modal_id }}"
             {% endcall %}
           </div>
-          <div id="{{ send_notif_error_id }}" class="text-danger"></div>
+          <div id="{{ send_blast_notif_error_id }}" class="text-danger"></div>
           {% if has_all_admin_settings_error is none %}
           {% with modal_title = blast_notif_modal_id ~ "-title" %}
           <div
@@ -637,21 +773,29 @@ Notifications
                   {{ macros.bs_close_btn(dismiss="modal") }}
                 </div>
                 <div class="modal-body">
-                  {% if audience_tag is none %}
-                  <p>
+                  <div id="{{ confirm_blast_audience_div_id }}">
+                    {% if audience_tag is none %}
+                    <p>
+                      Are you sure you want to send a blast notification email
+                      to all contacts in the selected audience?
+                    </p>
+                    <p>
+                      If you specify the audience tag on the
+                      <a href="{{ url_for('admin_settings') }}">Admin
+                      Settings</a> page, this button will instead send a
+                      notification email only to the contacts with that tag.
+                    </p>
+                    {% else %}
                     Are you sure you want to send a blast notification email to
-                    all contacts in the selected audience?
-                  </p>
-                  <p>
-                    If you specify the audience tag on the
-                    <a href="{{ url_for('admin_settings') }}">Admin Settings</a>
-                    page, this button will instead send a notification email
-                    only to the contacts with that tag.
-                  </p>
-                  {% else %}
-                  Are you sure you want to send a blast notification email to
-                  all contacts with the tag <code>{{ audience_tag }}</code>?
-                  {% endif %}
+                    all contacts with the tag <code>{{ audience_tag }}</code>?
+                    {% endif %}
+                  </div>
+                  <div id="{{ confirm_blast_division_div_id }}" class="d-none">
+                    Are you sure you want to send a blast notification email to
+                    all contacts in the
+                    <strong id="{{ confirm_blast_division_id }}"></strong>
+                    division?
+                  </div>
                 </div>
                 <div class="modal-footer">
                   <button
@@ -684,11 +828,15 @@ Notifications
 
 {% block script %}
 <script>
+  function isCurrentlySending() {
+    return (
+      isButtonLoading('{{ send_match_notif_btn_id }}') ||
+      isButtonLoading('{{ send_blast_notif_btn_id }}')
+    );
+  }
+
   function handleFetchRosterClicked() {
-    if (
-      isButtonLoading('{{ send_notif_btn_id }}') ||
-      isButtonLoading('{{ blast_notif_btn_id }}')
-    ) {
+    if (isCurrentlySending()) {
       // currently sending something; ignore this
       return;
     }
@@ -724,10 +872,7 @@ Notifications
   }
 
   function handleClearRosterClicked() {
-    if (
-      isButtonLoading('{{ send_notif_btn_id }}') ||
-      isButtonLoading('{{ blast_notif_btn_id }}')
-    ) {
+    if (isCurrentlySending()) {
       // currently sending something; ignore this
       return;
     }
@@ -767,10 +912,7 @@ Notifications
   }
 
   function handleSetLastMatchesQueryClicked() {
-    if (
-      isButtonLoading('{{ send_notif_btn_id }}') ||
-      isButtonLoading('{{ blast_notif_btn_id }}')
-    ) {
+    if (isCurrentlySending()) {
       // currently sending something; ignore this
       return;
     }
@@ -789,10 +931,7 @@ Notifications
   }
 
   function resetMatchesTable({ clearWarnings = true } = {}) {
-    if (
-      isButtonLoading('{{ send_notif_btn_id }}') ||
-      isButtonLoading('{{ blast_notif_btn_id }}')
-    ) {
+    if (isCurrentlySending()) {
       // currently sending something; ignore this
       return;
     }
@@ -861,10 +1000,7 @@ Notifications
   }
 
   function handleFetchMatchInfoClicked() {
-    if (
-      isButtonLoading('{{ send_notif_btn_id }}') ||
-      isButtonLoading('{{ blast_notif_btn_id }}')
-    ) {
+    if (isCurrentlySending()) {
       // currently sending something; ignore this
       return;
     }
@@ -920,10 +1056,7 @@ Notifications
   }
 
   function refreshMatches() {
-    if (
-      isButtonLoading('{{ send_notif_btn_id }}') ||
-      isButtonLoading('{{ blast_notif_btn_id }}')
-    ) {
+    if (isCurrentlySending()) {
       // currently sending something; ignore this
       return;
     }
@@ -982,10 +1115,7 @@ Notifications
   }
 
   function removeMatchRow(matchNumber) {
-    if (
-      isButtonLoading('{{ send_notif_btn_id }}') ||
-      isButtonLoading('{{ blast_notif_btn_id }}')
-    ) {
+    if (isCurrentlySending()) {
       // currently sending something; ignore this
       return;
     }
@@ -1028,31 +1158,43 @@ Notifications
   }
 
   function populateMailchimpTemplateDropdown() {
-    const $loadingDiv = $('#{{ mc_fetch_templates_id }}');
-    if ($loadingDiv.length === 0) return;
+    const hasMatchLoadingDiv =
+      $('#{{ match_notif_mc_fetch_templates_id }}').length > 0;
+    const hasBlastLoadingDiv =
+      $('#{{ blast_notif_mc_fetch_templates_id }}').length > 0;
+    if (!hasMatchLoadingDiv && !hasBlastLoadingDiv) return;
 
     ajaxRequest('GET', '{{ url_for("get_mailchimp_templates") }}', {
       success: (response, status, jqXHR) => {
         if (response.success) {
           // populate the templates
-          $('#{{ mc_templates_dropdown_wrapper_id }}').html(
-            response['templates_html']
-          );
+          if (hasMatchLoadingDiv) {
+            $('#{{ match_notif_mc_templates_dropdown_wrapper_id }}').html(
+              response['match_templates_html']
+            );
+          }
+          if (hasBlastLoadingDiv) {
+            $('#{{ blast_notif_mc_templates_dropdown_wrapper_id }}').html(
+              response['blast_templates_html']
+            );
+          }
         } else {
           // some failure
-          $('#{{ mc_templates_dropdown_wrapper_id }}').html(
-            bsAlert(
-              response.reason ?? 'Unknown error: please try again',
-              'danger',
-              { dismissible: false }
-            )
+          const error = bsAlert(
+            response.reason ?? 'Unknown error: please try again',
+            'danger',
+            { dismissible: false }
           );
+          $('#{{ match_notif_mc_templates_dropdown_wrapper_id }}').html(error);
+          $('#{{ blast_notif_mc_templates_dropdown_wrapper_id }}').html(error);
         }
       },
       error: (jqXHR, status, errorThrown) => {
-        $('#{{ mc_templates_dropdown_wrapper_id }}').html(
-          bsAlert(jqXHR.statusText, 'danger', { dismissible: false })
-        );
+        const error = bsAlert(jqXHR.statusText, 'danger', {
+          dismissible: false,
+        });
+        $('#{{ match_notif_mc_templates_dropdown_wrapper_id }}').html(error);
+        $('#{{ blast_notif_mc_templates_dropdown_wrapper_id }}').html(error);
       },
     });
   }
@@ -1067,63 +1209,131 @@ Notifications
     );
   }
 
-  {# this id is from `src/templates/notifications/templates_info.jinja` #}
-  const TEMPLATE_SELECT_ID = 'mc-template-select';
-
   function resetSendNotificationErrors() {
     // clear messages
     $('#{{ send_notif_messages_id }}').html('');
-    clearInvalid(TEMPLATE_SELECT_ID);
-    clearInvalid('{{ email_subject_input_id }}');
-    $('#{{ send_notif_error_id }}').html('');
+    clearInvalid('{{ match_notif_mc_templates_select_id }}');
+    clearInvalid('{{ match_notif_email_subject_input_id }}');
+    $('#{{ send_match_notif_error_id }}').html('');
+    clearInvalid('{{ blast_notif_mc_templates_select_id }}');
+    clearInvalid('{{ blast_notif_email_subject_input_id }}');
+    $('#{{ division_invalid_div_id }}').html('');
+    $('#{{ send_blast_notif_error_id }}').html('');
   }
 
-  function handleSendNotificationClicked(blast = false) {
-    function generalError(msg) {
-      $('#{{ send_notif_error_id }}').html(msg);
+  function disableAllButtons(exclude = []) {
+    exclude = new Set(exclude);
+    const disabledButtonIds = [];
+    $('button').each((index, button) => {
+      const buttonId = button.id;
+      // if the button doesn't have an id, it likely doesn't do anything, so
+      // ignore it
+      if (buttonId === '') return;
+      if (exclude.has(buttonId)) return;
+      const $button = $(button);
+      if ($button.prop('disabled')) return;
+      $button.prop('disabled', true);
+      disabledButtonIds.push(buttonId);
+    });
+    return disabledButtonIds;
+  }
+
+  function enableAllButtons(disabledButtonIds) {
+    for (const buttonId of disabledButtonIds) {
+      $('#' + buttonId).prop('disabled', false);
+    }
+  }
+
+  function handleSendNotificationErrors(
+    response,
+    { generalErrorId, templateSelectId, subjectInputId, divisionErrorId = null }
+  ) {
+    const errorMessages = response.errors ?? {};
+    let errorSomewhere = false;
+
+    const templateError = errorMessages['TEMPLATE'];
+    if (templateError != null) {
+      errorSomewhere = true;
+      setInvalid(templateSelectId, templateError);
     }
 
-    if (
-      isButtonLoading('{{ send_notif_btn_id }}') ||
-      isButtonLoading('{{ blast_notif_btn_id }}')
-    ) {
+    const subjectError = errorMessages['SUBJECT'];
+    if (subjectError != null) {
+      errorSomewhere = true;
+      setInvalid(subjectInputId, subjectError);
+    }
+
+    if (divisionErrorId != null) {
+      const divisionError = errorMessages['DIVISION'];
+      if (divisionError != null) {
+        errorSomewhere = true;
+        $('#' + divisionErrorId).html(divisionError);
+      }
+    }
+
+    const errorMessage = errorMessages['GENERAL'];
+    if (errorMessage != null) {
+      errorSomewhere = true;
+      $('#' + generalErrorId).html(errorMessage);
+    }
+
+    if (!errorSomewhere) {
+      $('#' + generalErrorId).html('Unknown error: please try again');
+    }
+  }
+
+  function handleSendMatchNotificationClicked() {
+    function generalError(msg) {
+      $('#{{ send_match_notif_error_id }}').html(msg);
+    }
+
+    if (isCurrentlySending()) {
       // currently sending something; ignore the click
       return;
     }
 
     resetSendNotificationErrors();
 
-    let matches = [];
-    if (!blast) {
-      // server will validate match infos and return appropriate errors
-      matches = getCurrentMatchRows();
-      if (matches.length === 0) {
-        generalError('No matches.');
-        return;
-      }
+    // server will validate match infos and return appropriate errors
+    const matches = getCurrentMatchRows();
+    if (matches.length === 0) {
+      generalError('No matches.');
+      return;
     }
 
     let invalid = false;
 
-    const selectedTemplateId = getInputValue(TEMPLATE_SELECT_ID);
+    const selectedTemplateId = getInputValue(
+      '{{ match_notif_mc_templates_select_id }}'
+    );
     if (selectedTemplateId === '') {
       invalid = true;
-      setInvalid(TEMPLATE_SELECT_ID, 'Please select an email template.');
+      setInvalid(
+        '{{ match_notif_mc_templates_select_id }}',
+        'Please select an email template.'
+      );
     }
 
-    const emailSubject = getInputValue('{{ email_subject_input_id }}');
+    const emailSubject = getInputValue(
+      '{{ match_notif_email_subject_input_id }}'
+    );
     if (emailSubject === '') {
       invalid = true;
-      setInvalid('{{ email_subject_input_id }}', 'Please enter a subject.');
+      setInvalid(
+        '{{ match_notif_email_subject_input_id }}',
+        'Please enter a subject.'
+      );
     } else if (!emailSubject.match(/^[A-Z0-9 \-_+.,!#&()[\]{}|:;'"/?]+$/i)) {
       // regexp should also include curly braces for placeholders
       // server will validate proper placeholders
       invalid = true;
       setInvalid(
-        '{{ email_subject_input_id }}',
+        '{{ match_notif_email_subject_input_id }}',
         'Subject contains illegal characters.'
       );
     }
+
+    if (invalid) return;
 
     const sendToCoaches = getInputValue('{{ send_to_coaches_checkbox_id }}');
     const sendToSpectators = getInputValue(
@@ -1133,96 +1343,162 @@ Notifications
       '{{ send_to_subscribers_checkbox_id }}'
     );
 
-    if (invalid) return;
-
-    const loadingButtonId = blast
-      ? '{{ blast_notif_btn_id }}'
-      : '{{ send_notif_btn_id }}';
-    setButtonLoading(loadingButtonId);
+    setButtonLoading('{{ send_match_notif_btn_id }}');
 
     // disable all the other buttons while sending a notification
-    const disabledButtonIds = [];
-    $('button').each((index, button) => {
-      const buttonId = button.id;
-      // if the button doesn't have an id, it likely doesn't do anything that
-      // would mess up the sending, so ignore it
-      if (buttonId === '') return;
-      if (buttonId === loadingButtonId) return;
-      const $button = $(button);
-      if ($button.prop('disabled')) return;
-      $button.prop('disabled', true);
-      disabledButtonIds.push(buttonId);
+    const disabledButtonIds = disableAllButtons([
+      '{{ send_match_notif_btn_id }}',
+    ]);
+
+    ajaxRequest('POST', '{{ url_for("send_match_notification") }}', {
+      contentType: 'application/json',
+      data: JSON.stringify({
+        templateId: selectedTemplateId,
+        subject: emailSubject,
+        matches: matches,
+        sendToCoaches: sendToCoaches,
+        sendToSpectators: sendToSpectators,
+        sendToSubscribers: sendToSubscribers,
+      }),
+      success: (response, status, jqXHR) => {
+        if (response.success) {
+          // reload the page
+          location.reload();
+        } else {
+          // some failure(s)
+          stopButtonLoading('{{ send_match_notif_btn_id }}');
+          enableAllButtons(disabledButtonIds);
+          handleSendNotificationErrors(response, {
+            generalErrorId: '{{ send_match_notif_error_id }}',
+            templateSelectId: '{{ match_notif_mc_templates_select_id }}',
+            subjectInputId: '{{ match_notif_email_subject_input_id }}',
+          });
+        }
+      },
+      error: (jqXHR, status, errorThrown) => {
+        stopButtonLoading('{{ send_match_notif_btn_id }}');
+        enableAllButtons(disabledButtonIds);
+        generalError(jqXHR.statusText);
+      },
     });
+  }
+
+  function handleClearDivisionClicked() {
+    // clear all the radio inputs
+    getRadioInputs('{{ division_radio_name }}').prop('checked', false);
+    // show the proper confirm text in the modal
+    $('#{{ confirm_blast_audience_div_id }}').removeClass('d-none');
+    $('#{{ confirm_blast_division_div_id }}').addClass('d-none');
+  }
+
+  function handleDivisionSelected() {
+    // show the proper confirm text in the modal
+    $('#{{ confirm_blast_audience_div_id }}').addClass('d-none');
+    $('#{{ confirm_blast_division_div_id }}').removeClass('d-none');
+    // update the division text
+    $('#{{ confirm_blast_division_id }}').html(
+      getRadioValue('{{ division_radio_name }}') ?? ''
+    );
+  }
+
+  function handleSendBlastNotificationClicked() {
+    function generalError(msg) {
+      $('#{{ send_blast_notif_error_id }}').html(msg);
+    }
+
+    if (isCurrentlySending()) {
+      // currently sending something; ignore the click
+      return;
+    }
+
+    resetSendNotificationErrors();
+
+    let invalid = false;
+
+    const selectedTemplateId = getInputValue(
+      '{{ blast_notif_mc_templates_select_id }}'
+    );
+    if (selectedTemplateId === '') {
+      invalid = true;
+      setInvalid(
+        '{{ blast_notif_mc_templates_select_id }}',
+        'Please select an email template.'
+      );
+    }
+
+    const emailSubject = getInputValue(
+      '{{ blast_notif_email_subject_input_id }}'
+    );
+    if (emailSubject === '') {
+      invalid = true;
+      setInvalid(
+        '{{ blast_notif_email_subject_input_id }}',
+        'Please enter a subject.'
+      );
+    } else if (!emailSubject.match(/^[A-Z0-9 \-_+.,!#&()[\]|:;'"/?]+$/i)) {
+      // no curly braces because no placeholders are allowed
+      invalid = true;
+      setInvalid(
+        '{{ blast_notif_email_subject_input_id }}',
+        'Subject contains illegal characters.'
+      );
+    }
+
+    if (invalid) return;
+
+    const division = getRadioValue('{{ division_radio_name }}');
+
+    setButtonLoading('{{ send_blast_notif_btn_id }}');
+
+    // disable all the other buttons while sending a notification
+    const disabledButtonIds = disableAllButtons([
+      '{{ send_blast_notif_btn_id }}',
+    ]);
 
     const requestData = {
       templateId: selectedTemplateId,
       subject: emailSubject,
     };
-
-    if (blast) {
-      requestData.blast = true;
-    } else {
-      Object.assign(requestData, {
-        matches: matches,
-        sendToCoaches: sendToCoaches,
-        sendToSpectators: sendToSpectators,
-        sendToSubscribers: sendToSubscribers,
-      });
+    if (division != null) {
+      requestData.division = division;
     }
-
-    ajaxRequest('POST', '{{ url_for("send_notification") }}', {
+    ajaxRequest('POST', '{{ url_for("send_blast_notification") }}', {
       contentType: 'application/json',
       data: JSON.stringify(requestData),
       success: (response, status, jqXHR) => {
-        stopButtonLoading(loadingButtonId);
-        // re-enable all the other buttons again
-        for (const buttonId of disabledButtonIds) {
-          $('#' + buttonId).prop('disabled', false);
-        }
+        stopButtonLoading('{{ send_blast_notif_btn_id }}');
+        enableAllButtons(disabledButtonIds);
         if (response.success) {
-          if (blast) {
-            // success
-            $('#{{ send_notif_messages_id }}').html(
-              bsAlert(response.message, 'success')
-            );
-          } else {
-            // reload the page
-            location.reload();
+          // success
+          // show the alert manually instead of reloading the page for a flashed
+          // message so that any potential matches queue is left intact
+          let alertMessageText = bsAlert(
+            response.message ?? 'Successfully sent blast notification',
+            'success'
+          );
+          if (response.error != null) {
+            alertMessageText += bsAlert(response.error, 'danger');
           }
+          setElementTextFor(
+            '{{ send_notif_messages_id }}',
+            alertMessageText,
+            60
+          );
+          // clear the selected division, if any
+          handleClearDivisionClicked();
         } else {
           // some failure(s)
-          const errorMessages = response.errors ?? {};
-          let errorSomewhere = false;
-
-          const templateError = errorMessages['TEMPLATE'];
-          if (templateError != null) {
-            errorSomewhere = true;
-            setInvalid(TEMPLATE_SELECT_ID, templateError);
-          }
-
-          const subjectError = errorMessages['SUBJECT'];
-          if (subjectError != null) {
-            errorSomewhere = true;
-            setInvalid('{{ email_subject_input_id }}', subjectError);
-          }
-
-          const errorMessage = errorMessages['GENERAL'];
-          if (errorMessage != null) {
-            errorSomewhere = true;
-            generalError(errorMessage);
-          }
-
-          if (!errorSomewhere) {
-            generalError('Unknown error: please try again');
-          }
+          handleSendNotificationErrors(response, {
+            generalErrorId: '{{ send_blast_notif_error_id }}',
+            templateSelectId: '{{ blast_notif_mc_templates_select_id }}',
+            subjectInputId: '{{ blast_notif_email_subject_input_id }}',
+            divisionErrorId: '{{ division_invalid_div_id }}',
+          });
         }
       },
       error: (jqXHR, status, errorThrown) => {
-        stopButtonLoading(loadingButtonId);
-        // re-enable all the other buttons again
-        for (const buttonId of disabledButtonIds) {
-          $('#' + buttonId).prop('disabled', false);
-        }
+        stopButtonLoading('{{ send_blast_notif_btn_id }}');
+        enableAllButtons(disabledButtonIds);
         generalError(jqXHR.statusText);
       },
     });
@@ -1266,14 +1542,20 @@ Notifications
     $('#{{ send_to_subscribers_checkbox_id }}').on('input', (event) => {
       handleTeamSubscribersChecked();
     });
-    $('#{{ send_notif_btn_id }}').click((event) => {
-      handleSendNotificationClicked();
+    $('#{{ send_match_notif_btn_id }}').click((event) => {
+      handleSendMatchNotificationClicked();
     });
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ send_notif_messages_id }}', 60);
     // Blast notifications
+    $('#{{ clear_division_btn_id }}').click((event) => {
+      handleClearDivisionClicked();
+    });
+    getRadioInputs('{{ division_radio_name }}').on('input', (event) => {
+      handleDivisionSelected();
+    });
     $('#{{ blast_notif_confirm_btn_id }}').click((event) => {
-      handleSendNotificationClicked(true);
+      handleSendBlastNotificationClicked();
     });
     {% endif %}
   });

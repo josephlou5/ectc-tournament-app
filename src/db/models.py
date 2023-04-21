@@ -31,6 +31,7 @@ __all__ = (
     "Team",
     "TMSMatchStatus",
     "EmailSent",
+    "BlastEmailSent",
 )
 
 # =============================================================================
@@ -64,12 +65,18 @@ class GlobalState(db.Model):
     # NOTE: For now, the template folder is actually a campaign folder,
     #   but the column name shouldn't have to change if this gets fixed.
     mailchimp_folder_id = Column(String(), nullable=True)
-    # The id of the last selected Mailchimp template
+    # The id of the last selected Mailchimp template for match notifs
     # NOTE: For now, this is actually a campaign id, but the column name
     #   shouldn't have to change if this gets fixed.
-    mailchimp_template_id = Column(String(), nullable=True)
-    # The subject of the last sent Mailchimp email
-    mailchimp_subject = Column(String(), nullable=True)
+    mailchimp_match_template_id = Column(String(), nullable=True)
+    # The subject of the last sent Mailchimp email for match notifs
+    mailchimp_match_subject = Column(String(), nullable=True)
+    # The id of the last selected Mailchimp template for blast notifs
+    # NOTE: For now, this is actually a campaign id, but the column name
+    #   shouldn't have to change if this gets fixed.
+    mailchimp_blast_template_id = Column(String(), nullable=True)
+    # The subject of the last sent Mailchimp email for blast notifs
+    mailchimp_blast_subject = Column(String(), nullable=True)
     # Whether to also send notifications to coaches
     send_to_coaches = Column(Boolean(), nullable=False, default=False)
     # Whether to also send notifications to spectators
@@ -278,21 +285,56 @@ class EmailSent(db.Model):
 
     id = Column(Integer, primary_key=True)
     match_number = Column(Integer, nullable=False)
-    subject = Column(String(), nullable=False)
-    # A semicolon-separated list of recipient email addresses
-    recipients = Column(String(), nullable=False)
     # The name of the Mailchimp template used for this email
     template_name = Column(String(), nullable=False)
+    subject = Column(String(), nullable=False)
     time_sent = Column(DateTime(timezone=False), nullable=False)
+    # A semicolon-separated list of recipient email addresses
+    recipients = Column(String(), nullable=False)
 
     def __init__(
-        self, match_number, subject, recipients, template_name, time_sent
+        self, match_number, template_name, subject, time_sent, recipients
     ):
         self.match_number = match_number
-        self.subject = subject
-        self.recipients = ";".join(sorted(recipients))
         self.template_name = template_name
+        self.subject = subject
         self.time_sent = time_sent
+        self.recipients = ";".join(sorted(recipients))
 
     def email_recipients(self):
         return self.recipients.split(";")
+
+
+class BlastEmailSent(db.Model):
+    """Model for when a blast email was sent."""
+
+    __tablename__ = "BlastEmailsSent"
+
+    id = Column(Integer, primary_key=True)
+    # The name of the Mailchimp template used for this email
+    template_name = Column(String(), nullable=False)
+    subject = Column(String(), nullable=False)
+    time_sent = Column(DateTime(timezone=False), nullable=False)
+
+    # At most one of these should be set; the other should be null.
+    division = Column(String(), nullable=True)
+    tag = Column(String(), nullable=True)
+
+    def __init__(
+        self, template_name, subject, time_sent, division=None, tag=None
+    ):
+        self.template_name = template_name
+        self.subject = subject
+        self.time_sent = time_sent
+        if division is not None and tag is not None:
+            raise ValueError("only one of `division` or `tag` can be set")
+        self.division = division
+        self.tag = tag
+
+    @property
+    def recipient(self):
+        if self.tag is not None:
+            return f"Tag {self.tag!r}"
+        if self.division is not None:
+            return f"Division {self.division!r}"
+        return "Entire audience"

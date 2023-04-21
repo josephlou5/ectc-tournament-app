@@ -79,10 +79,10 @@ def get_matches_status(match_numbers=None, tz=utils.EASTERN_TZ):
                 'emails': a list of emails sent for this match, sorted
                     by time sent, in the format:
                         'match_number': the target match number
-                        'subject': the email subject
-                        'recipients': a list of recipient emails
                         'template_name': the Mailchimp template used
-                        'time_sent': when the email was sent
+                        'subject': the email subject
+                        'time_sent': when the email was sent (as a str)
+                        'recipients': a list of recipient emails
     """
 
     if match_numbers is None:
@@ -134,12 +134,12 @@ def get_matches_status(match_numbers=None, tz=utils.EASTERN_TZ):
             status_info["emails"] = [
                 {
                     "match_number": email_sent.match_number,
-                    "subject": email_sent.subject,
-                    "recipients": email_sent.email_recipients(),
                     "template_name": email_sent.template_name,
+                    "subject": email_sent.subject,
                     "time_sent": utils.dt_str(
                         utils.dt_to_timezone(email_sent.time_sent, tz)
                     ),
+                    "recipients": email_sent.email_recipients(),
                 }
                 for email_sent in sorted(
                     match_emails_sent, key=lambda e: e.time_sent
@@ -154,12 +154,12 @@ def get_matches_status(match_numbers=None, tz=utils.EASTERN_TZ):
 
 
 def clear_matches_status():
-    """Clears the TMS match statuses and the sent emails.
+    """Clears the TMS match statuses.
 
     Returns:
         bool: Whether the operation was successful.
     """
-    clear_tables(TMSMatchStatus, EmailSent)
+    clear_tables(TMSMatchStatus)
     return True
 
 
@@ -203,17 +203,4 @@ def set_matches_tms_status(matches_info):
         )
     if any_changed:
         db.session.commit()
-    return True
-
-
-def add_emails_sent(emails_sent):
-    """Stores the given emails as being sent.
-
-    Returns:
-        bool: Whether the operation was successful.
-    """
-    for email_sent_info in emails_sent:
-        email_sent = EmailSent(**email_sent_info)
-        db.session.add(email_sent)
-    db.session.commit()
     return True

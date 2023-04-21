@@ -6,7 +6,14 @@ Methods and objects pertaining to the database.
 
 from flask_migrate import Migrate
 
-from db import admin, global_state, match_status, roster, subscriptions
+from db import (
+    admin,
+    global_state,
+    match_status,
+    roster,
+    sent_emails,
+    subscriptions,
+)
 from db.models import db
 
 # =============================================================================
@@ -18,6 +25,7 @@ __all__ = (
     "roster",
     "subscriptions",
     "match_status",
+    "sent_emails",
 )
 
 # =============================================================================

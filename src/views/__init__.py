@@ -5,6 +5,7 @@ All the views for the app.
 # =============================================================================
 
 from views import (
+    admin,
     admin_settings,
     auth,
     notifications,
@@ -26,5 +27,6 @@ def register_all(app):
         admin_settings,
         notifications,
         user,
+        admin,
     ):
         module.app.register(app)

@@ -1,10 +1,12 @@
-{# if this value changes, it also needs to change in
-   `handleSendNotificationClicked()` in `src/templates/notifications/index.jinja`
- #}
-{% set mc_template_select_input_id = "mc-template-select" %}
+{# These ids are from `src/templates/notifications/index.jinja` #}
+{% if blast %}
+{% set mc_template_select_id = "blast-notif-mc-templates-select" %}
+{% else %}
+{% set mc_template_select_id = "match-notif-mc-templates-select" %}
+{% endif %}
 
 <select
-  id="{{ mc_template_select_input_id }}"
+  id="{{ mc_template_select_id }}"
   class="form-select"
   {% if templates|length == 0 %}
   disabled
@@ -27,7 +29,4 @@
   {% endfor %}
   {% endif %}
 </select>
-<div
-  id="{{ mc_template_select_input_id }}-invalid"
-  class="invalid-feedback"
-></div>
+<div id="{{ mc_template_select_id }}-invalid" class="invalid-feedback"></div>

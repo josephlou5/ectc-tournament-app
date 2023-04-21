@@ -223,6 +223,34 @@ def get_users_for_school(school_name, roles):
 # =============================================================================
 
 
+def get_all_divisions():
+    """Returns all the divisions in the roster.
+
+    The divisions are returned in the proper sorted order.
+    """
+    divisions = set()
+    for (division,) in query(Team.division).distinct():
+        divisions.add(division)
+    return sorted(divisions, key=fetch_tms.division_sort_key)
+
+
+def get_emails_for_division(division):
+    """Gets the set of emails of all the users that belong to teams in
+    the given division.
+
+    If the resulting set is empty, the division did not have any valid
+    emails.
+    """
+    division_teams = query(Team, {"division": division}).all()
+    emails = set()
+    for team in map(TeamJoined, division_teams):
+        emails.update(team.valid_emails())
+    return emails
+
+
+# =============================================================================
+
+
 def get_all_teams(school=None, division=None, without_email=None):
     """Returns all the teams.
 

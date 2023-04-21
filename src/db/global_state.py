@@ -72,8 +72,10 @@ def clear_all_admin_settings():
         "mailchimp_audience_id",
         "mailchimp_audience_tag",
         "mailchimp_folder_id",
-        "mailchimp_template_id",
-        "mailchimp_subject",
+        "mailchimp_match_template_id",
+        "mailchimp_match_subject",
+        "mailchimp_blast_template_id",
+        "mailchimp_blast_subject",
     ]
     false_fields = [
         "send_to_coaches",
@@ -310,63 +312,119 @@ def clear_mailchimp_folder_id():
     return set_mailchimp_folder_id(None)
 
 
-def get_mailchimp_template_id():
-    """Returns the last selected Mailchimp template id, or None if it
-    does not exist.
+def get_mailchimp_match_template_id():
+    """Returns the last selected Mailchimp template id for match
+    notifications, or None if it does not exist.
     """
     global_state = get()
-    return global_state.mailchimp_template_id
+    return global_state.mailchimp_match_template_id
 
 
-def set_mailchimp_template_id(template_id):
-    """Sets the selected Mailchimp template id.
+def set_mailchimp_match_template_id(template_id):
+    """Sets the selected Mailchimp template id for match notifications.
 
     Returns:
         bool: Whether the operation was successful.
     """
-    _set_global(mailchimp_template_id=template_id)
+    _set_global(mailchimp_match_template_id=template_id)
     return True
 
 
-def clear_mailchimp_template_id():
-    """Clears the selected Mailchimp template id.
+def clear_mailchimp_match_template_id():
+    """Clears the selected Mailchimp template id for match
+    notifications.
 
     Returns:
         bool: Whether the operation was successful.
     """
-    return set_mailchimp_template_id(None)
+    return set_mailchimp_match_template_id(None)
 
 
-def get_mailchimp_subject():
-    """Returns the last sent Mailchimp subject, or None if it does not
-    exist.
+def get_mailchimp_match_subject():
+    """Returns the last sent Mailchimp subject for match notifications,
+    or None if it does not exist.
     """
     global_state = get()
-    return global_state.mailchimp_subject
+    return global_state.mailchimp_match_subject
 
 
-def set_mailchimp_subject(subject):
-    """Sets the last sent Mailchimp subject.
+def set_mailchimp_match_subject(subject):
+    """Sets the last sent Mailchimp subject for match notifications.
 
     Returns:
         bool: Whether the operation was successful.
     """
-    _set_global(mailchimp_subject=subject)
+    _set_global(mailchimp_match_subject=subject)
     return True
 
 
-def clear_mailchimp_subject():
-    """Clears the last sent Mailchimp subject.
+def clear_mailchimp_match_subject():
+    """Clears the last sent Mailchimp subject for match notifications.
 
     Returns:
         bool: Whether the operation was successful.
     """
-    return set_mailchimp_subject(None)
+    return set_mailchimp_match_subject(None)
+
+
+def get_mailchimp_blast_template_id():
+    """Returns the last selected Mailchimp template id for blast
+    notifications, or None if it does not exist.
+    """
+    global_state = get()
+    return global_state.mailchimp_blast_template_id
+
+
+def set_mailchimp_blast_template_id(template_id):
+    """Sets the selected Mailchimp template id for blast notifications.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    _set_global(mailchimp_blast_template_id=template_id)
+    return True
+
+
+def clear_mailchimp_blast_template_id():
+    """Clears the selected Mailchimp template id for blast
+    notifications.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    return set_mailchimp_blast_template_id(None)
+
+
+def get_mailchimp_blast_subject():
+    """Returns the last sent Mailchimp subject for blast notifications,
+    or None if it does not exist.
+    """
+    global_state = get()
+    return global_state.mailchimp_blast_subject
+
+
+def set_mailchimp_blast_subject(subject):
+    """Sets the last sent Mailchimp subject for blast notifications.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    _set_global(mailchimp_blast_subject=subject)
+    return True
+
+
+def clear_mailchimp_blast_subject():
+    """Clears the last sent Mailchimp subject for blast notifications.
+
+    Returns:
+        bool: Whether the operation was successful.
+    """
+    return set_mailchimp_blast_subject(None)
 
 
 def clear_mailchimp_related_fields():
     """Clears the global Mailchimp API key, selected audience id,
-    selected template folder id, and selected template id.
+    selected template folder id, and selected template ids.
 
     All these values depend on the permissions of the API key, so if the
     API key needs to be cleared (because it's invalid or if initiated by
@@ -379,7 +437,8 @@ def clear_mailchimp_related_fields():
         mailchimp_api_key=None,
         mailchimp_audience_id=None,
         mailchimp_folder_id=None,
-        mailchimp_template_id=None,
+        mailchimp_match_template_id=None,
+        mailchimp_blast_template_id=None,
     )
     return True
 

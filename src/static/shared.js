@@ -80,6 +80,22 @@ function getInputValue(elementId) {
   return $element.val()?.trim() ?? '';
 }
 
+function getRadioInputs(elementName) {
+  return $(`input[type="radio"][name="${elementName}"]`);
+}
+
+function getRadioValue(elementName) {
+  let value = null;
+  getRadioInputs(elementName).each((index, element) => {
+    const $element = $(element);
+    if ($element.prop('checked')) {
+      value = $element.val()?.trim() ?? '';
+      return false;
+    }
+  });
+  return value;
+}
+
 function clearInvalid(elementId) {
   $('#' + elementId).removeClass('is-invalid');
   $('#' + elementId + '-invalid').html('');

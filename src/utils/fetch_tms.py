@@ -311,6 +311,21 @@ def division_sort_key(division):
         return len(DIVISIONS)
 
 
+def split_divisions_by_groups(divisions):
+    # assumes the only division groups are these three
+    p_group = []
+    mens_group = []
+    womens_group = []
+    for division in sorted(divisions, key=division_sort_key):
+        if division.startswith("P"):
+            p_group.append(division)
+        elif division.startswith("M"):
+            mens_group.append(division)
+        elif division.startswith("W"):
+            womens_group.append(division)
+    return p_group, mens_group, womens_group
+
+
 def school_team_code_sort_key(school_team_code):
     school, division, team_number = school_team_code
     return (school, division_sort_key(division), team_number)

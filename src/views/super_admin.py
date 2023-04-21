@@ -238,6 +238,11 @@ def clear_everything():
     if not success:
         return _db_error("clearing matches status")
 
+    print(" ", " ", "Clearing all sent emails")
+    success = db.sent_emails.clear_sent_emails()
+    if not success:
+        return _db_error("clearing sent emails")
+
     print(" ", " ", "Deleting fetch roster logs")
     logs_file = notifications.FETCH_ROSTER_LOGS_FILE
     if logs_file.exists():

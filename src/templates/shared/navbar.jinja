@@ -48,6 +48,9 @@
         {{ _nav_item_link("Notifications", "notifications") }}
         {% endif %}
         {{ _nav_item_link("Matches Status", "view_matches_status") }}
+        {% if user_is_logged_in and user_is_admin %}
+        {{ _nav_item_link("Sent Emails", "view_sent_emails") }}
+        {% endif %}
       </ul>
 
       <ul class="nav navbar-nav navbar-right">

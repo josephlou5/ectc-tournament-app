@@ -67,14 +67,14 @@ code {
 @media (max-width: 699.98px) {
   /* Less than 700px. */
   #fetch-roster-help,
-  #email-subject-help {
+  #match-notif-email-subject-help {
     width: 100%;
   }
 }
 @media (min-width: 700px) {
   /* More than 700px. */
   #fetch-roster-help,
-  #email-subject-help {
+  #match-notif-email-subject-help {
     min-width: 700px;
   }
 }

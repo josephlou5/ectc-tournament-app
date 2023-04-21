@@ -49,7 +49,7 @@ Matches Status
       type="button"
       id="toggle-{{ recipients_div_id }}"
       class="btn btn-sm btn-secondary"
-      onclick="toggleEmailRecipients('{{ recipients_div_id }}')"
+      onclick="toggleEmailRecipients('{{ recipients_div_id }}');"
     >
       Show
     </button>
@@ -61,7 +61,7 @@ Matches Status
   </div>
 </td>
 {% endif %}
-<td>{{ sent_email["time_sent"] }}</td>
+<td>{{ sent_email["time_sent"]|e }}</td>
 {% endmacro %}
 
 {% block body %}

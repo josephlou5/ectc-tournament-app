@@ -526,7 +526,7 @@ def get_or_create_tns_segment(audience_id):
     return None, segment_id
 
 
-def update_tns_segment_emails(audience_id, segment_id, emails):
+def update_segment_emails(audience_id, segment_id, emails):
     """Replaces the emails in the given segment with the given emails.
 
     Assumes the given segment is the reserved TNS segment.
@@ -650,7 +650,7 @@ def create_and_send_campaign(
     return None, campaign_info
 
 
-def create_and_send_match_campaign(
+def create_and_send_campaign_to_emails(
     audience_id, replicate_id, subject, segment_id, emails
 ):
     """Creates and sends a campaign to the given emails.
@@ -665,7 +665,7 @@ def create_and_send_match_campaign(
     """
 
     # update segment emails
-    error_msg = update_tns_segment_emails(audience_id, segment_id, emails)
+    error_msg = update_segment_emails(audience_id, segment_id, emails)
     if error_msg is not None:
         return error_msg, None
 
