@@ -34,6 +34,7 @@ Please contact a
 {# Mailchimp #}
 {% set mc_audiences_info_section_id = "mc-audiences-info" %}
 {% set mc_fetch_audiences_id = "mc-fetch-audiences" %}
+{% set mc_save_audience_status_id = "mc-save-audience-status" %}
 
 {% set mc_audience_tag_input_id = "mc-audience-tag-input" %}
 {% set mc_set_audience_tag_btn_id = "mc-set-audience-tag-btn" %}
@@ -41,6 +42,7 @@ Please contact a
 
 {% set mc_templates_info_section_id = "mc-template-folders-info" %}
 {% set mc_fetch_template_folders_id = "mc-fetch-template-folders" %}
+{% set mc_save_template_folder_status_id = "mc-save-template-folder-status" %}
 
 {% set flashed = get_flashed_by_categories(subcategories=true) %}
 
@@ -231,6 +233,8 @@ Please contact a
               </div>
               {% endif %}
             </div>
+            <div id="{{ mc_save_audience_status_id }}" class="col-auto mt-2">
+            </div>
           </div>
           {% if has_mc_api_key %}
           <div class="mb-2">
@@ -294,6 +298,10 @@ Please contact a
               </div>
               {% endif %}
             </div>
+            <div
+              id="{{ mc_save_template_folder_status_id }}"
+              class="col-auto mt-2"
+            ></div>
           </div>
         </div>
       </div>
@@ -402,10 +410,9 @@ Please contact a
     });
   }
 
-  function handleMailchimpAudienceSelected(element) {
-    const elementId = element.id;
-
+  function handleMailchimpAudienceSelected(elementId) {
     clearInvalid(elementId);
+    $('#{{ mc_save_audience_status_id }}').html('');
 
     const selectedAudienceId = getInputValue(elementId);
     if (selectedAudienceId === '') {
@@ -417,13 +424,19 @@ Please contact a
     $('.mc-audience-' + selectedAudienceId).removeClass('d-none');
 
     // send ajax request to save audience id
+    const $status = $('#{{ mc_save_audience_status_id }}');
+    $status.removeClass('text-danger');
+    $status.addClass('fst-italic');
+    $status.html('Saving...');
     ajaxRequest('POST', '{{ url_for("set_mailchimp_audience") }}', {
       contentType: 'application/json',
       data: JSON.stringify({ audienceId: selectedAudienceId }),
       success: (response, status, jqXHR) => {
         if (response.success) {
-          // good! do nothing
+          // success
+          setElementTextFor('{{ mc_save_audience_status_id }}', 'Saved.', 1);
         } else {
+          $('#{{ mc_save_audience_status_id }}').html('');
           // some failure
           setInvalid(
             elementId,
@@ -432,6 +445,7 @@ Please contact a
         }
       },
       error: (jqXHR, status, errorThrown) => {
+        $('#{{ mc_save_audience_status_id }}').html('');
         setInvalid(
           elementId,
           `Error while saving selection: ${jqXHR.statusText}`
@@ -511,10 +525,9 @@ Please contact a
     });
   }
 
-  function handleMailchimpFolderSelected(element) {
-    const elementId = element.id;
-
+  function handleMailchimpTemplateFolderSelected(elementId) {
     clearInvalid(elementId);
+    $('#{{ mc_save_template_folder_status_id }}').html('');
 
     const selectedFolderId = getInputValue(elementId);
     if (selectedFolderId === '') {
@@ -522,14 +535,24 @@ Please contact a
     }
 
     // send ajax request to save folder id
+    const $status = $('#{{ mc_save_template_folder_status_id }}');
+    $status.removeClass('text-danger');
+    $status.addClass('fst-italic');
+    $status.html('Saving...');
     ajaxRequest('POST', '{{ url_for("set_mailchimp_template_folder") }}', {
       contentType: 'application/json',
       data: JSON.stringify({ folderId: selectedFolderId }),
       success: (response, status, jqXHR) => {
         if (response.success) {
-          // good! do nothing
+          // success
+          setElementTextFor(
+            '{{ mc_save_template_folder_status_id }}',
+            'Saved.',
+            1
+          );
         } else {
           // some failure
+          $('#{{ mc_save_template_folder_status_id }}').html('');
           setInvalid(
             elementId,
             response.reason ?? 'Unknown error: please try again'
@@ -537,6 +560,7 @@ Please contact a
         }
       },
       error: (jqXHR, status, errorThrown) => {
+        $('#{{ mc_save_template_folder_status_id }}').html('');
         setInvalid(
           elementId,
           `Error while saving selection: ${jqXHR.statusText}`

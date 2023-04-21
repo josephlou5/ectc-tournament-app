@@ -11,7 +11,7 @@
       {% if folders|length == 0 %}
       disabled
       {% else %}
-      oninput="handleMailchimpFolderSelected(this);"
+      oninput="handleMailchimpTemplateFolderSelected('{{ mc_folder_select_input_id }}');"
       {% endif %}
     >
       {% if folders|length == 0 %}

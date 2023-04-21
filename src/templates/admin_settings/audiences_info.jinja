@@ -31,7 +31,7 @@
       <select
         id="{{ mc_audience_select_input_id }}"
         class="form-select"
-        oninput="handleMailchimpAudienceSelected(this);"
+        oninput="handleMailchimpAudienceSelected('{{ mc_audience_select_input_id }}');"
       >
         {% if selected_audience_id is none %}
         <option value="" disabled selected>Select audience</option>
