@@ -133,31 +133,13 @@ def get_mailchimp_audiences():
         print_records(audiences[0].keys(), audiences, indent=4, padding=2)
 
         # determine which audience to select as default
-        selected_audience_id = db.global_state.get_mailchimp_audience_id()
-        if selected_audience_id is None:
-            print(" ", "No selected audience in database")
-        else:
-            print(
-                " ",
-                "Selected audience id from database:",
-                selected_audience_id,
-            )
-            for info in audiences:
-                if info["id"] == selected_audience_id:
-                    print(
-                        " ",
-                        " ",
-                        f'Selected audience: {info["name"]!r} ({info["id"]})',
-                    )
-                    break
-            else:
-                # invalid audience id
-                # clear from database (don't care if failed)
-                _ = db.global_state.clear_mailchimp_audience_id()
-                selected_audience_id = None
-                print(
-                    " ", " ", "Invalid selected audience id (not in fetched)"
-                )
+        selected_audience_id = mailchimp_utils.find_selected_from_database(
+            audiences,
+            "audience",
+            db.global_state.get_mailchimp_audience_id,
+            db.global_state.clear_mailchimp_audience_id,
+            "{name!r} ({id})",
+        )
 
     audiences_html = render_template(
         "admin_settings/audiences_info.jinja",
@@ -239,29 +221,13 @@ def get_mailchimp_template_folders():
         print_records(folders[0].keys(), folders, indent=4, padding=2)
 
         # determine which folder to select as default
-        selected_folder_id = db.global_state.get_mailchimp_folder_id()
-        if selected_folder_id is None:
-            print(" ", "No selected folder in database")
-        else:
-            print(
-                " ",
-                "Selected folder id from database:",
-                selected_folder_id,
-            )
-            for info in folders:
-                if info["id"] == selected_folder_id:
-                    print(
-                        " ",
-                        " ",
-                        f'Selected folder: {info["name"]!r} ({info["id"]})',
-                    )
-                    break
-            else:
-                # invalid folder id
-                # clear from database (don't care if failed)
-                _ = db.global_state.clear_mailchimp_folder_id()
-                selected_folder_id = None
-                print(" ", " ", "Invalid selected folder id (not in fetched)")
+        selected_folder_id = mailchimp_utils.find_selected_from_database(
+            folders,
+            "folder id",
+            db.global_state.get_mailchimp_folder_id,
+            db.global_state.clear_mailchimp_folder_id,
+            "{name!r} ({id})",
+        )
 
     folders_html = render_template(
         "admin_settings/template_folders_info.jinja",

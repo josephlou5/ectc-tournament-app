@@ -199,6 +199,37 @@ def _get_subscriber_hash(email):
 
 # =============================================================================
 
+
+def find_selected_from_database(
+    data, desc, get_func, clear_func, data_info_str, key="id"
+):
+    if not isinstance(data, (dict, list)):
+        raise TypeError(f"Unknown type of `data`: {data.__class__.__name__}")
+    selected = get_func()
+    if selected is None:
+        print(" ", f"No selected {desc} in database")
+        return None
+    print(" ", f"Selected {desc} {key} from database:", selected)
+    selected_info = None
+    if isinstance(data, dict):
+        selected_info = data.get(selected, None)
+    else:  # `data` is a list
+        for info in data:
+            if info[key] == selected:
+                selected_info = info
+                break
+    if selected_info is None:
+        # invalid selection
+        # clear from database (don't care if failed)
+        _ = clear_func()
+        print(" ", " ", f"Invalid selected {desc} {key} (not in fetched)")
+        return None
+    print(" ", " ", f"Selected {desc}:", data_info_str.format(**selected_info))
+    return selected
+
+
+# =============================================================================
+
 AUDIENCE_FIELDS = {
     "id": {"path": "id"},
     "name": {"path": "name"},

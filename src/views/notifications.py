@@ -2,21 +2,19 @@
 The "notifications" view, which includes fetching the roster, fetching
 team info, and sending notifications.
 """
-# pylint: disable=too-many-lines
 
 # =============================================================================
 
-import json
 from collections import defaultdict
 from datetime import datetime
-from pathlib import Path
 
 from flask import flash, render_template, request
 
 import db
 import utils
 from utils import fetch_tms, mailchimp_utils
-from utils.auth import login_required, set_redirect_page
+from utils import notifications_utils as helpers
+from utils.auth import login_required
 from utils.server import (
     AppRoutes,
     _render,
@@ -29,32 +27,23 @@ from utils.server import (
 
 app = AppRoutes()
 
-STATIC_FOLDER = (Path(__file__).parent / ".." / "static").resolve()
-FETCH_ROSTER_LOGS_FILE = STATIC_FOLDER / "fetch_roster_logs.json"
-
-# Instead of injecting these characters into the Jinja template as a
-# JavaScript RegExp object, the client-side JavaScript should be
-# manually updated in `src/templates/notifications/index.jinja` whenever
-# this value changes.
-EMAIL_SUBJECT_VALID_CHARS = "-_+.,!#&()[]|:;'\"/?"
-EMAIL_SUBJECT_VALID_CHARS_SET = set(EMAIL_SUBJECT_VALID_CHARS)
-
 # =============================================================================
-
-
-def get_roster_last_fetched_time_str():
-    last_fetched_dt = db.global_state.get_roster_last_fetched_time()
-    return utils.dt_str(last_fetched_dt)
 
 
 @app.route("/notifications", methods=["GET"])
 @login_required(admin=True)
 def notifications():
-    # make sure the notifications page is ready to use
-    has_all_admin_settings_error = db.global_state.has_all_admin_settings()
+    roster_last_fetched_time = utils.dt_str(
+        db.global_state.get_roster_last_fetched_time()
+    )
+    has_fetch_logs = helpers.has_fetch_roster_logs()
 
-    roster_last_fetched_time = get_roster_last_fetched_time_str()
-    has_fetch_logs = FETCH_ROSTER_LOGS_FILE.exists()
+    # make sure the notifications page / section is ready to use
+    has_all_admin_settings_error = db.global_state.has_all_admin_settings()
+    notifications_page_enabled = has_all_admin_settings_error is None
+    send_notifications_section_enabled = (
+        notifications_page_enabled and roster_last_fetched_time is not None
+    )
 
     global_state = db.global_state.get()
     last_matches_query = global_state.last_matches_query
@@ -71,6 +60,8 @@ def notifications():
     return _render(
         "notifications/index.jinja",
         has_all_admin_settings_error=has_all_admin_settings_error,
+        notifications_page_enabled=notifications_page_enabled,
+        send_notifications_section_enabled=send_notifications_section_enabled,
         roster_worksheet_name=fetch_tms.ROSTER_WORKSHEET_NAME,
         possible_roles=[role.title() for role in fetch_tms.POSSIBLE_ROLES],
         possible_weights=[
@@ -85,434 +76,11 @@ def notifications():
         send_to_coaches=send_to_coaches,
         send_to_spectators=send_to_spectators,
         send_to_subscribers=send_to_subscribers,
-        EMAIL_SUBJECT_VALID_CHARS=EMAIL_SUBJECT_VALID_CHARS,
+        EMAIL_SUBJECT_VALID_CHARS=helpers.EMAIL_SUBJECT_VALID_CHARS,
         audience_tag=audience_tag,
         no_divisions=len(divisions) == 0,
         division_groups=division_groups,
     )
-
-
-@app.route("/notifications/fetch_roster", methods=["POST", "DELETE"])
-@login_required(admin=True, save_redirect=False)
-def fetch_roster():
-    if request.method == "DELETE":
-        print(" ", "Clearing full roster")
-        all_success = True
-        success = db.roster.clear_roster()
-        if not success:
-            all_success = False
-            print(" ", "Database error while clearing roster tables")
-        success = db.global_state.clear_roster_related_fields()
-        if not success:
-            all_success = False
-            print(
-                " ",
-                (
-                    "Database error while clearing roster related fields in "
-                    "the global state"
-                ),
-            )
-        if not all_success:
-            flash("Database error", "fetch-roster.danger")
-        else:
-            success_msg = "Successfully cleared roster"
-            print(" ", success_msg)
-            flash(success_msg, "fetch-roster.success")
-        return {"success": success}
-
-    # If the query arg is given, flash all error messages as well. Note
-    # that the value doesn't matter, so it could be "?flash_all=false"
-    # and it would still work.
-    flash_all = "flash_all" in request.args
-
-    error_messages = []
-
-    print(" ", "Fetching teams roster from TMS spreadsheet")
-    error_msg, logs, roster = fetch_tms.fetch_roster()
-    if error_msg is not None:
-        if flash_all:
-            flash(error_msg, "fetch-roster.danger")
-        return unsuccessful(error_msg)
-
-    logs_has_error = False
-    logs_has_warning = False
-    for log in logs:
-        if log["level"] == "ERROR":
-            logs_has_error = True
-        elif log["level"] == "WARNING":
-            logs_has_warning = True
-        if logs_has_error and logs_has_warning:
-            break
-
-    # add contacts to mailchimp (also validates emails)
-    print(" ", "Adding contacts to Mailchimp")
-    all_emails_invalid = False
-    if not db.global_state.has_mailchimp_api_key():
-        error_msg = "No Mailchimp API key to import contacts"
-        error_messages.append(error_msg)
-        logs.append({"level": "ERROR", "row_num": None, "message": error_msg})
-        if flash_all:
-            flash(error_msg, "fetch-roster.danger")
-    else:
-        audience_id = db.global_state.get_mailchimp_audience_id()
-        if audience_id is None:
-            error_msg = "No selected Mailchimp audience id"
-            error_messages.append(error_msg)
-            logs.append(
-                {"level": "ERROR", "row_num": None, "message": error_msg}
-            )
-            if flash_all:
-                flash(error_msg, "fetch-roster.danger")
-        else:
-            deleted_emails = db.roster.get_all_user_emails(email_valid=True)
-            users_by_email = {}
-            for user in roster["users"]:
-                email = user["email"]
-                users_by_email[email] = user
-                deleted_emails.discard(email)
-            tournament_tag = db.global_state.get_mailchimp_audience_tag()
-            error_msg, invalid_emails = mailchimp_utils.add_members(
-                audience_id,
-                list(users_by_email.keys()),
-                tournament_tag=tournament_tag,
-                remove_emails=deleted_emails,
-            )
-
-            if error_msg is not None:
-                error_messages.append(error_msg)
-                logs.append(
-                    {"level": "ERROR", "row_num": None, "message": error_msg}
-                )
-                if flash_all:
-                    flash(error_msg, "fetch-roster.danger")
-
-            if len(invalid_emails) == 0:
-                pass
-            elif len(invalid_emails) == len(users_by_email):
-                # all emails were invalid
-                all_emails_invalid = True
-                error_msg = "All emails are invalid"
-                error_messages.append(error_msg)
-                logs.append(
-                    {"level": "ERROR", "row_num": None, "message": error_msg}
-                )
-                if flash_all:
-                    flash(error_msg, "fetch-roster.danger")
-            else:
-                flash("There are some invalid emails", "fetch-roster.warning")
-                for email in invalid_emails:
-                    user = users_by_email[email]
-                    user["email_valid"] = False
-                    logs.append(
-                        {
-                            "level": "WARNING",
-                            "row_num": user["row_num"],
-                            "message": f"Invalid email: {email}",
-                        }
-                    )
-
-    if not all_emails_invalid:
-        # save in database
-        print(" ", "Saving the roster to the database")
-        success = db.roster.set_roster(roster)
-        if success:
-            logs.append(
-                {
-                    "level": "INFO",
-                    "row_num": None,
-                    "message": "Saved roster in database",
-                }
-            )
-        else:
-            # probably won't happen, since `fetch_roster()` should have
-            # good enough checks
-            error_msg = "Database error"
-            error_messages.append(error_msg)
-            logs.append(
-                {"level": "ERROR", "row_num": None, "message": error_msg}
-            )
-            if flash_all:
-                flash(error_msg, "fetch-roster.danger")
-
-    # sort the logs by row number (`None` is at the end)
-    logs.sort(
-        key=lambda r: r["row_num"]
-        if r["row_num"] is not None
-        else float("inf")
-    )
-    # save the logs in a file
-    full_logs = {
-        "time_fetched": get_roster_last_fetched_time_str(),
-        "logs": logs,
-    }
-    FETCH_ROSTER_LOGS_FILE.write_text(
-        json.dumps(full_logs, indent=2), encoding="utf-8"
-    )
-
-    # print for server logs
-    print(" ", "Time finished fetching:", full_logs["time_fetched"])
-    print_records(
-        {"level": "Level", "row_num": "Row Num", "message": "Message"},
-        logs,
-        indent=2,
-        padding=2,
-    )
-
-    if len(error_messages) > 0:
-        return {"success": False, "reason": "; ".join(error_messages)}
-
-    # use flash so the last fetched time is updated
-    success_msg = "Successfully fetched roster"
-    print(" ", success_msg)
-    flash(success_msg, "fetch-roster.success")
-
-    if logs_has_error:
-        flash("There are some errors in the logs", "fetch-roster.warning")
-    elif logs_has_warning:
-        flash("There are some warnings in the logs", "fetch-roster.warning")
-
-    return {"success": True}
-
-
-@app.route("/notifications/fetch_roster/logs", methods=["GET"])
-@login_required(admin=True)
-def fetch_roster_logs():
-    time_fetched = None
-    logs = None
-    if FETCH_ROSTER_LOGS_FILE.exists():
-        try:
-            full_logs = json.loads(FETCH_ROSTER_LOGS_FILE.read_bytes())
-            time_fetched = full_logs["time_fetched"]
-            logs = full_logs["logs"]
-        except (json.decoder.JSONDecodeError, KeyError):
-            # delete the file; it's faulty somehow
-            FETCH_ROSTER_LOGS_FILE.unlink()
-    return _render(
-        "notifications/fetch_roster_logs.jinja",
-        # for a link to the raw logs file
-        fetch_logs_filename=FETCH_ROSTER_LOGS_FILE.name,
-        time_fetched=time_fetched,
-        logs=logs,
-    )
-
-
-@app.route("/notifications/full_roster", methods=["GET"])
-@login_required(admin=True)
-def view_full_roster():
-    full_roster = db.roster.get_full_roster()
-    has_fetch_logs = FETCH_ROSTER_LOGS_FILE.exists()
-
-    # sort schools by name
-    full_roster["schools"].sort(key=lambda s: s.name)
-
-    # split the users into roles and schools
-    coaches = {}
-    athletes = {}
-    spectators = {}
-    for user in full_roster.pop("users"):
-        school_name = user.school.name
-        if user.role == "COACH":
-            role_dict = coaches
-        elif user.role == "ATHLETE":
-            role_dict = athletes
-        elif user.role == "SPECTATOR":
-            role_dict = spectators
-        else:
-            # invalid role; shouldn't happen
-            user_info = (
-                f"{user.full_name} <{user.email}> ({user.role} at "
-                f"{school_name})"
-            )
-            print(
-                " ",
-                f"Warning: got invalid role for user {user.id}:",
-                user_info,
-            )
-            continue
-        if school_name not in role_dict:
-            role_dict[school_name] = []
-        role_dict[school_name].append(user)
-
-    def sort_users_dict(user_role_dict):
-        return {
-            school: sorted(
-                user_list, key=lambda u: (u.last_name, u.first_name, u.email)
-            )
-            for school, user_list in sorted(user_role_dict.items())
-        }
-
-    full_roster["coaches"] = sort_users_dict(coaches)
-    full_roster["athletes"] = sort_users_dict(athletes)
-    full_roster["spectators"] = sort_users_dict(spectators)
-
-    # organize teams by school and division
-    teams = {}
-    divisions = set()
-    for team in full_roster.pop("teams"):
-        school_name = team.school.name
-        if school_name not in teams:
-            teams[school_name] = []
-        teams[school_name].append(team)
-        divisions.add(team.division)
-    full_roster["teams_by_school"] = {
-        school: sorted(team_list, key=fetch_tms.team_sort_key)
-        for school, team_list in sorted(teams.items())
-    }
-    full_roster["divisions"] = sorted(
-        divisions, key=fetch_tms.division_sort_key
-    )
-
-    full_roster["is_roster_empty"] = all(
-        len(objs) == 0 for objs in full_roster.values()
-    )
-
-    return _render(
-        "notifications/full_roster.jinja",
-        **full_roster,
-        has_fetch_logs=has_fetch_logs,
-    )
-
-
-@app.route("/notifications/full_roster/raw", methods=["GET"])
-@login_required(admin=True)
-def view_full_roster_raw():
-    return db.roster.get_full_roster(as_json=True)
-
-
-def _parse_matches_query(matches_query):
-    """Handwritten parser to parse a match list str, with spaces or
-    commas separating match groups, and with dashes representing match
-    ranges.
-
-    The parser is pretty forgiving; it allows numbers starting with 0s
-    and has no restrictions on the value ranges. However, the end of
-    ranges must be at least as large as the start of the range. Also,
-    there is a cutoff on the number of matches that can be specified.
-    """
-    MAX_NUM_MATCHES = 50
-
-    def _parse_error(msg, index=None):
-        if index is not None:
-            msg = f"Position {index+1}: {msg}"
-        return msg, None
-
-    # insertion-order collection of match numbers
-    match_numbers = {}
-    # a buffer of the last seen match number
-    last_num = None
-    # index of the seen dash
-    saw_dash = None
-    # the digits of the current number
-    current_number = []
-
-    def _add_number(i, c=None):
-        nonlocal last_num, saw_dash
-
-        if len(current_number) == 0:
-            return None
-
-        num_start_i = i - len(current_number)
-        num = int("".join(current_number))
-        current_number.clear()
-
-        if saw_dash is not None:
-            # end a range
-            if num < last_num:
-                return (
-                    f"Position {num_start_i}: "
-                    "Range end is smaller than range start"
-                )
-            if num == last_num:
-                match_numbers[last_num] = True
-            else:
-                for x in range(last_num, num + 1):
-                    match_numbers[x] = True
-            last_num = None
-            saw_dash = None
-        else:
-            # single match number
-            if last_num is not None:
-                match_numbers[last_num] = True
-            last_num = num
-
-        if len(match_numbers) > MAX_NUM_MATCHES:
-            return f"Too many matches specified (max {MAX_NUM_MATCHES})"
-
-        return None
-
-    for i, c in enumerate(matches_query):
-        if c.isspace() or c in (",", "-"):
-            # end of a number
-            error_msg = _add_number(i, c)
-            if error_msg is not None:
-                return _parse_error(error_msg)
-            if c == ",":
-                # explicitly start a new group (dashes cannot go across
-                # commas)
-                if saw_dash is not None:
-                    return _parse_error(
-                        f"Position {saw_dash+1}: Dash without end number"
-                    )
-                if last_num is not None:
-                    match_numbers[last_num] = True
-                last_num = None
-            elif c == "-":
-                if last_num is None:
-                    return _parse_error(
-                        f"Position {i+1}: Dash without a start number"
-                    )
-                if saw_dash is not None:
-                    return _parse_error(f"Position {i+1}: invalid dash")
-                saw_dash = i
-            continue
-        if c.isdigit():
-            current_number.append(c)
-            continue
-        return _parse_error(f"Position {i+1}: unknown character: {c}")
-    error_msg = _add_number(len(matches_query))
-    if error_msg is not None:
-        return _parse_error(error_msg)
-
-    if saw_dash is not None:
-        return _parse_error(f"Position {saw_dash+1}: Dash without end number")
-
-    if last_num is not None:
-        match_numbers[last_num] = True
-    if len(match_numbers) > MAX_NUM_MATCHES:
-        return _parse_error(
-            f"Too many matches specified (max {MAX_NUM_MATCHES})"
-        )
-
-    return None, list(match_numbers.keys())
-
-
-def _clean_matches_query(match_numbers):
-    """Returns a "clean" version of a matches query string that
-    represents the specified match numbers.
-    """
-    groups = []
-    group_start = None
-    group_end = None
-
-    def add_group():
-        if group_start == group_end:
-            groups.append(str(group_start))
-        else:
-            groups.append(f"{group_start}-{group_end}")
-
-    # find all consecutive groups
-    for num in sorted(set(match_numbers), key=fetch_tms.match_number_sort_key):
-        if group_start is not None:
-            # has to be in the same hundred
-            if (num // 100 == group_end // 100) and num == group_end + 1:
-                group_end = num
-                continue
-            add_group()
-        group_start = num
-        group_end = num
-    if group_start is not None:
-        add_group()
-    return ",".join(groups)
 
 
 @app.route("/notifications/matches_info", methods=["GET"])
@@ -537,7 +105,7 @@ def fetch_matches_info():
     print(" ", "Fetching matches for query:", matches_query)
     print(" ", "Previous matches:", previous_matches_query)
 
-    error_msg, match_numbers = _parse_matches_query(matches_query)
+    error_msg, match_numbers = helpers.parse_matches_query(matches_query)
     if error_msg is not None:
         return unsuccessful(error_msg, "Error parsing matches query")
     if len(match_numbers) == 0:
@@ -545,9 +113,10 @@ def fetch_matches_info():
     match_numbers.sort(key=fetch_tms.match_number_sort_key)
     print(" ", "Parsed match numbers:", match_numbers)
 
-    error_msg, previous_match_numbers = _parse_matches_query(
-        previous_matches_query
-    )
+    (
+        error_msg,
+        previous_match_numbers,
+    ) = helpers.parse_matches_query(previous_matches_query)
     if error_msg is not None:
         print(" ", "Error parsing previous matches query:", error_msg)
     else:
@@ -573,7 +142,7 @@ def fetch_matches_info():
     # maps: match number -> team code
     match_same_teams = {}
     # maps: (school, division, team number) -> set of match numbers
-    all_team_infos = {}
+    all_team_matches = {}
     for match_team in match_teams:
         match_number = match_team["number"]
         if not match_team["found"]:
@@ -592,9 +161,9 @@ def fetch_matches_info():
             # same teams
             match_same_teams[match_number] = school_team_codes[0]
         for school_team_code in set(school_team_codes):
-            if school_team_code not in all_team_infos:
-                all_team_infos[school_team_code] = set()
-            all_team_infos[school_team_code].add(match_number)
+            if school_team_code not in all_team_matches:
+                all_team_matches[school_team_code] = set()
+            all_team_matches[school_team_code].add(match_number)
     # check if some matches have the same teams
     for match_number, school_team_code in match_same_teams.items():
         team_name = fetch_tms.school_team_code_to_str(*school_team_code)
@@ -602,7 +171,7 @@ def fetch_matches_info():
             f"Match {match_number} has same blue and red team: {team_name}"
         )
     # check if some teams have multiple matches
-    for school_team_code, team_matches in all_team_infos.items():
+    for school_team_code, team_matches in all_team_matches.items():
         if len(team_matches) <= 1:
             continue
         matches_list_str = utils.list_of_items(sorted(team_matches))
@@ -611,14 +180,16 @@ def fetch_matches_info():
             f"{fetch_tms.school_team_code_to_str(*school_team_code)!r}"
         )
 
-    # get the actual team infos from the database
-    team_infos = db.roster.get_teams(list(all_team_infos.keys()))
-
-    # combine the team info into match info
-    if len(all_team_infos) == 0:
+    if len(all_team_matches) == 0:
         print(" ", "No valid teams found")
     else:
         print(" ", "Compiling match infos")
+
+    # get the actual team infos from the database
+    # maps: (school, division, team number) -> (error message, team obj)
+    team_infos = db.roster.get_teams(list(all_team_matches.keys()))
+
+    # combine the team info into match info
     matches = []
     for match_team in match_teams:
         match_number = match_team["number"]
@@ -684,6 +255,7 @@ def fetch_matches_info():
                     "error": error_msg,
                 }
                 continue
+
             match_info[team_color] = {
                 "valid": True,
                 "name": team.name,
@@ -696,63 +268,41 @@ def fetch_matches_info():
                 "number": team.number,
             }
 
-            team_has_valid_email = False
-            for weight in ("light", "middle", "heavy"):
-                user = getattr(team, weight)
-                if user is not None and user.email_valid:
-                    team_has_valid_email = True
-                    break
-            else:
-                for user in team.alternates:
-                    if user.email_valid:
-                        team_has_valid_email = True
-                        break
-            if not team_has_valid_email:
+            if len(team.valid_emails()) == 0:
                 # at least one person on the team must receive the email
                 invalid_team_emails.append(color)
 
             if team_division != match_division:
                 invalid_team_divisions.append(color)
 
-        if len(invalid_teams) == 0:
-            pass
-        elif len(invalid_teams) == 1:
-            _invalid_match(f"{invalid_teams[0]} team invalid")
-        else:  # len(invalid_teams) == 2
-            _invalid_match("Both teams invalid")
-
-        if len(invalid_team_emails) == 0:
-            pass
-        elif len(invalid_team_emails) == 1:
-            _invalid_match(
-                f"{invalid_team_emails[0]} team has no valid emails"
-            )
-        else:  # len(invalid_team_emails) == 2
-            _invalid_match("No teams have valid emails")
-
-        if len(invalid_team_divisions) == 0:
-            pass
-        elif len(invalid_team_divisions) == 1:
-            _invalid_match(
-                f"{invalid_team_divisions[0]} team in wrong division"
-            )
-        else:  # len(invalid_team_divisions) == 2
-            _invalid_match("Both teams in wrong division")
+        for invalids, msg, both_msg in (
+            (invalid_teams, "invalid", None),
+            (
+                invalid_team_emails,
+                "has no valid emails",
+                "No teams have valid emails",
+            ),
+            (invalid_team_divisions, "in wrong division", None),
+        ):
+            if len(invalids) == 0:
+                continue
+            if len(invalids) == 1:
+                error_msg = f"{invalids[0]} team {msg}"
+            else:  # len(invalids) == 2
+                error_msg = both_msg or f"Both teams {msg}"
+            _invalid_match(error_msg)
 
         match_info["valid"] = match_valid
         match_info["invalid_msg"] = match_invalid_msg
 
-        if match_valid:
-            match_info["compact"] = utils.json_dump_compact(compact_info)
-        else:
-            match_info["compact"] = utils.json_dump_compact(
-                {"number": match_number}
-            )
+        if not match_valid:
+            compact_info = {"number": match_number}
+        match_info["compact"] = utils.json_dump_compact(compact_info)
 
         matches.append(match_info)
 
     # only include the found matches
-    clean_matches_query = _clean_matches_query(
+    clean_matches_query = helpers.clean_matches_query(
         match_info["number"] for match_info in matches
     )
     # save the "clean" last matches query (don't care if failed)
@@ -786,12 +336,12 @@ def get_matches_query():
     if matches_query == "":
         return unsuccessful("No matches query given")
 
-    error_msg, match_numbers = _parse_matches_query(matches_query)
+    error_msg, match_numbers = helpers.parse_matches_query(matches_query)
     if error_msg is not None:
         return unsuccessful(error_msg, "Error parsing matches query:")
     match_numbers.sort(key=fetch_tms.match_number_sort_key)
 
-    clean_matches_query = _clean_matches_query(match_numbers)
+    clean_matches_query = helpers.clean_matches_query(match_numbers)
     # save the "clean" last matches query (don't care if failed)
     _ = db.global_state.set_last_matches_query(clean_matches_query)
 
@@ -830,43 +380,24 @@ def get_mailchimp_templates():
             template_info["id"]: template_info for template_info in templates
         }
 
-        def get_template_id(desc, get_func, clear_func):
-            template_id = get_func()
-            if template_id is None:
-                print(" ", f"No selected {desc} template in database")
-                return None
-            print(
-                " ", f"Selected {desc} template id from database:", template_id
-            )
-            template_info = templates_by_id.get(template_id, None)
-            if template_info is None:
-                # invalid template id
-                # clear from database (don't care if failed)
-                _ = clear_func()
-                print(
-                    " ",
-                    " ",
-                    f"Invalid selected {desc} template id (not in fetched)",
-                )
-                return None
-            print(
-                " ",
-                " ",
-                f"Selected {desc} template:",
-                f'{template_info["title"]!r} ({template_info["id"]})',
-            )
-            return template_id
-
         # determine which templates to select as default
-        selected_match_template_id = get_template_id(
-            "match",
-            db.global_state.get_mailchimp_match_template_id,
-            db.global_state.clear_mailchimp_match_template_id,
+        selected_match_template_id = (
+            mailchimp_utils.find_selected_from_database(
+                templates_by_id,
+                "match template",
+                db.global_state.get_mailchimp_match_template_id,
+                db.global_state.clear_mailchimp_match_template_id,
+                "{title!r} ({id})",
+            )
         )
-        selected_blast_template_id = get_template_id(
-            "blast",
-            db.global_state.get_mailchimp_blast_template_id,
-            db.global_state.clear_mailchimp_blast_template_id,
+        selected_blast_template_id = (
+            mailchimp_utils.find_selected_from_database(
+                templates_by_id,
+                "blast template",
+                db.global_state.get_mailchimp_blast_template_id,
+                db.global_state.clear_mailchimp_blast_template_id,
+                "{title!r} ({id})",
+            )
         )
 
     match_templates_html = render_template(
@@ -888,150 +419,11 @@ def get_mailchimp_templates():
     }
 
 
-def _validate_subject(subject, blast=False):
-    """Validates a given subject with optional placeholder values.
-
-    If `blast` is True, placeholders are not allowed. Otherwise,
-    converts all placeholder names to lowercase.
-
-    Returns:
-        Union[Tuple[str, None], Tuple[None, str]]:
-            An error message, or the validated subject.
-    """
-    VALID_PLACEHOLDERS = {
-        "match",
-        "division",
-        "round",
-        "blueteam",
-        "redteam",
-        "team",
-    }
-
-    def _error(msg):
-        return msg, None
-
-    subject_chars = []
-
-    in_placeholder = False
-    placeholder_chars = []
-    has_match_number = False
-    for i, c in enumerate(subject):
-        if c == "{":
-            if blast:
-                return _error(
-                    f"Index {i+1}: invalid open bracket: no placeholders in "
-                    "blast email subject"
-                )
-            if in_placeholder:
-                return _error(
-                    f"Index {i+1}: invalid open bracket: cannot have a nested "
-                    "placeholder"
-                )
-            in_placeholder = True
-        elif c == "}":
-            if blast:
-                return _error(f"Index {i+1}: invalid character: {c}")
-            if not in_placeholder:
-                return _error(
-                    f"Index {i+1}: invalid close bracket: not in a placeholder"
-                )
-            placeholder_str = "".join(placeholder_chars)
-            bracket_index = i - len(placeholder_str)
-            if placeholder_str == "":
-                return _error(f"Index {bracket_index}: empty placeholder")
-            if placeholder_str == "match":
-                has_match_number = True
-            elif placeholder_str not in VALID_PLACEHOLDERS:
-                return _error(
-                    f"Index {bracket_index}: unknown placeholder "
-                    f'"{placeholder_str}"'
-                )
-            # reset placeholder values
-            in_placeholder = False
-            placeholder_chars.clear()
-        elif in_placeholder:
-            if not c.isalpha():
-                return _error(
-                    f"Index {i+1}: invalid character inside placeholder: {c}"
-                )
-            placeholder_chars.append(c.lower())
-        elif not (
-            c.isalpha()
-            or c.isdigit()
-            or c == " "
-            or c in EMAIL_SUBJECT_VALID_CHARS_SET
-        ):
-            return _error(f"Index {i+1}: invalid character: {c}")
-
-        if in_placeholder:
-            subject_chars.append(c.lower())
-        else:
-            subject_chars.append(c)
-    if in_placeholder:
-        bracket_index = len(subject) - len(placeholder_chars)
-        return _error(f"Index {bracket_index}: unclosed placeholder")
-    if not blast and not has_match_number:
-        return _error('Missing "{match}" placeholder')
-    # valid!
-    return None, "".join(subject_chars)
-
-
-def _format_subject(subject, match_info):
-    """Formats a subject with the possible placeholder values.
-
-    Returns:
-        Dict[str, str]: The subject for each team color in the format:
-            'blue_team': subject
-            'red_team': subject
-        Note that the two subjects may be the same.
-    """
-
-    def _team_name(team_info):
-        return fetch_tms.school_team_code_to_str(
-            *team_info["school_team_code"]
-        )
-
-    blue_team = _team_name(match_info["blue_team"])
-    red_team = _team_name(match_info["red_team"])
-    kwargs = {
-        "match": match_info["number"],
-        "division": match_info["division"],
-        "round": match_info["round"],
-        "blueteam": blue_team,
-        "redteam": red_team,
-    }
-    return {
-        "blue_team": subject.format(**kwargs, team=blue_team),
-        "red_team": subject.format(**kwargs, team=red_team),
-    }
-
-
-def _unsuccessful_notif(
-    general=None, template=None, subject=None, print_error=True
-):
-    errors = {}
-    if general is not None:
-        errors["GENERAL"] = general
-    if template is not None:
-        errors["TEMPLATE"] = template
-    if subject is not None:
-        errors["SUBJECT"] = subject
-    if len(errors) == 0:
-        raise ValueError("No errors given")
-    if print_error:
-        for location, error_msg in errors.items():
-            if location == "GENERAL":
-                print(" ", "Error:", error_msg)
-            else:
-                print(" ", f"{location.capitalize()} error:", error_msg)
-    return {"success": False, "errors": errors}
-
-
 @app.route("/notifications/send/matches", methods=["POST"])
 @login_required(admin=True, save_redirect=False)
 def send_match_notification():
     if not db.global_state.has_mailchimp_api_key():
-        return _unsuccessful_notif("No Mailchimp API key")
+        return helpers.unsuccessful_notif("No Mailchimp API key")
 
     error_msg, request_args = get_request_json(
         "templateId",
@@ -1042,7 +434,7 @@ def send_match_notification():
         {"key": "sendToSubscribers", "type": bool},
     )
     if error_msg is not None:
-        return _unsuccessful_notif(error_msg)
+        return helpers.unsuccessful_notif(error_msg)
 
     # get and validate request args
     template_id = request_args["templateId"].strip()
@@ -1059,7 +451,7 @@ def send_match_notification():
     if subject == "":
         errors["SUBJECT"] = "Subject is empty"
     else:
-        error_msg, subject = _validate_subject(subject)
+        error_msg, subject = helpers.validate_subject(subject)
         if error_msg is not None:
             errors["SUBJECT"] = error_msg
 
@@ -1109,11 +501,11 @@ def send_match_notification():
             return
 
         school_team_codes = set()
-        for color in ("blue_team", "red_team"):
-            if color not in match_info:
+        for team_color in ("blue_team", "red_team"):
+            if team_color not in match_info:
                 invalid_matches["match_number"].append(match_number)
                 return
-            team_info = match_info[color]
+            team_info = match_info[team_color]
             for key in ("school", "number"):
                 if key not in team_info:
                     invalid_matches["match_number"].append(match_number)
@@ -1152,13 +544,13 @@ def send_match_notification():
     # get Mailchimp audience
     audience_id = db.global_state.get_mailchimp_audience_id()
     if audience_id is None:
-        return _unsuccessful_notif("No selected Mailchimp audience")
+        return helpers.unsuccessful_notif("No selected Mailchimp audience")
 
     # validate template exists (but doesn't have to be in audience or
     # folder)
     error_msg, template_info = mailchimp_utils.get_campaign(template_id)
     if error_msg is not None:
-        return _unsuccessful_notif(template="Invalid template id")
+        return helpers.unsuccessful_notif(template="Invalid template id")
     mailchimp_template_name = template_info["title"]
 
     # get TNS segment id
@@ -1167,7 +559,7 @@ def send_match_notification():
     )
     if error_msg is not None:
         print(" ", "Error while getting TNS segment:", error_msg)
-        return _unsuccessful_notif("Mailchimp error", print_error=False)
+        return helpers.unsuccessful_notif("Mailchimp error", print_error=False)
 
     # get the team info for all the match teams
     print(" ", "Fetching info for all match teams")
@@ -1244,7 +636,7 @@ def send_match_notification():
             _add_status("ERROR", match_number, error_msg)
             continue
 
-        team_subjects = _format_subject(subject, match_info)
+        team_subjects = helpers.format_team_subjects(subject, match_info)
         if team_subjects["blue_team"] == team_subjects["red_team"]:
             # same subject, so can send one big email to all of them
             all_emails = list(
@@ -1277,7 +669,9 @@ def send_match_notification():
         print(
             " ", "Error: No generated emails, so no valid matches were given"
         )
-        return _unsuccessful_notif("No valid matches given", print_error=False)
+        return helpers.unsuccessful_notif(
+            "No valid matches given", print_error=False
+        )
 
     # send emails
     print(" ", "Sending emails")
@@ -1307,7 +701,7 @@ def send_match_notification():
             }
         )
     if len(emails_sent) == 0:
-        return _unsuccessful_notif("All emails failed to send")
+        return helpers.unsuccessful_notif("All emails failed to send")
 
     # save Mailchimp template and subject
     success = db.global_state.set_mailchimp_match_template_id(template_id)
@@ -1375,7 +769,7 @@ def send_blast_notification():
     # flashed so that any potential matches queue is left intact
 
     if not db.global_state.has_mailchimp_api_key():
-        return _unsuccessful_notif("No Mailchimp API key")
+        return helpers.unsuccessful_notif("No Mailchimp API key")
 
     error_msg, request_args = get_request_json(
         "templateId",
@@ -1383,7 +777,7 @@ def send_blast_notification():
         {"key": "division", "required": False},
     )
     if error_msg is not None:
-        return _unsuccessful_notif(error_msg)
+        return helpers.unsuccessful_notif(error_msg)
 
     # get and validate request args
     template_id = request_args["templateId"].strip()
@@ -1397,7 +791,7 @@ def send_blast_notification():
     if subject == "":
         errors["SUBJECT"] = "Subject is empty"
     else:
-        error_msg, subject = _validate_subject(subject, blast=True)
+        error_msg, subject = helpers.validate_subject(subject, blast=True)
         if error_msg is not None:
             errors["SUBJECT"] = error_msg
     if division is not None:
@@ -1421,13 +815,13 @@ def send_blast_notification():
     # get Mailchimp audience
     audience_id = db.global_state.get_mailchimp_audience_id()
     if audience_id is None:
-        return _unsuccessful_notif("No selected Mailchimp audience")
+        return helpers.unsuccessful_notif("No selected Mailchimp audience")
 
     # validate template exists (but doesn't have to be in audience or
     # folder)
     error_msg, template_info = mailchimp_utils.get_campaign(template_id)
     if error_msg is not None:
-        return _unsuccessful_notif(template="Invalid template id")
+        return helpers.unsuccessful_notif(template="Invalid template id")
     mailchimp_template_name = template_info["title"]
 
     email_sent_info = {
@@ -1453,7 +847,9 @@ def send_blast_notification():
         )
         if error_msg is not None:
             print(" ", "Error while getting TNS segment:", error_msg)
-            return _unsuccessful_notif("Mailchimp error", print_error=False)
+            return helpers.unsuccessful_notif(
+                "Mailchimp error", print_error=False
+            )
 
         # send email
         (
@@ -1485,11 +881,11 @@ def send_blast_notification():
                     f"Error while getting segment {audience_tag!r}:",
                     error_msg,
                 )
-                return _unsuccessful_notif(
+                return helpers.unsuccessful_notif(
                     "Mailchimp error", print_error=False
                 )
             if audience_tag_id is None:
-                return _unsuccessful_notif(
+                return helpers.unsuccessful_notif(
                     f"Mailchimp audience tag {audience_tag!r} not found"
                 )
 
@@ -1502,7 +898,9 @@ def send_blast_notification():
 
     if error_msg is not None:
         print(" ", "Error while sending email:", error_msg)
-        return _unsuccessful_notif("Email send failed", print_error=False)
+        return helpers.unsuccessful_notif(
+            "Email send failed", print_error=False
+        )
     print(" ", " ", "Created campaign id:", campaign_info["id"])
 
     email_sent_info["time_sent"] = datetime.utcnow()
@@ -1528,33 +926,3 @@ def send_blast_notification():
     success_msg = f"Successfully sent blast notification to {recipients}"
     response["message"] = success_msg
     return response
-
-
-@app.route("/matches_status", methods=["GET"])
-def view_matches_status():
-    set_redirect_page()
-
-    matches_statuses = db.match_status.get_matches_status()
-
-    # sort by match number
-    hundreds = []
-    ordered_statuses = []
-    last_hundred = None
-    for match_number, match_status in sorted(
-        matches_statuses.items(),
-        key=lambda pair: fetch_tms.match_number_sort_key(pair[0]),
-    ):
-        match_number_hundred = match_number // 100
-        hundred_str = f"{match_number_hundred}00"
-        if last_hundred is None or match_number_hundred != last_hundred:
-            last_hundred = match_number_hundred
-            hundreds.append(hundred_str)
-        match_status["hundred_str"] = hundred_str
-        ordered_statuses.append(match_status)
-
-    return _render(
-        "/notifications/matches_status.jinja",
-        hundreds=hundreds,
-        statuses=ordered_statuses,
-        status_accents=fetch_tms.MATCH_STATUS_TABLE_ACCENTS,
-    )

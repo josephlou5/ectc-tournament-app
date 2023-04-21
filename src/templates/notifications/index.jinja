@@ -294,6 +294,12 @@ Notifications
           <h4>Send Match Notifications</h4>
         </div>
       </div>
+      {% if not send_notifications_section_enabled %}
+      {% call macros.bs_alert("danger", dismissible=false) %}
+      <div><strong>Roster has not yet been fetched</strong></div>
+      <div>Please fetch the roster before you can send notifications.</div>
+      {% endcall %}
+      {% endif %}
       {{ macros.flashed_messages(send_notif_messages_id, flashed["send-notif"])
       }}
       <div class="row">
@@ -418,7 +424,7 @@ Notifications
         <div class="col-auto col-md-6">
           <table class="table table-sm table-borderless">
             <tr>
-              {% if has_all_admin_settings_error is none %}
+              {% if send_notifications_section_enabled %}
               <td class="table-sm-col">
                 {{ macros.form_label(
                      match_notif_mc_templates_select_id,
@@ -643,7 +649,7 @@ Notifications
           </div>
           <table class="table table-sm table-borderless">
             <tr>
-              {% if has_all_admin_settings_error is none %}
+              {% if send_notifications_section_enabled %}
               <td class="table-sm-col">
                 {{ macros.form_label(
                      blast_notif_mc_templates_select_id,
@@ -755,7 +761,7 @@ Notifications
             {% endcall %}
           </div>
           <div id="{{ send_blast_notif_error_id }}" class="text-danger"></div>
-          {% if has_all_admin_settings_error is none %}
+          {% if send_notifications_section_enabled %}
           {% with modal_title = blast_notif_modal_id ~ "-title" %}
           <div
             id="{{ blast_notif_modal_id }}"
@@ -1505,9 +1511,9 @@ Notifications
   }
 
   $(document).ready(() => {
-    {% if has_all_admin_settings_error is not none %}
+    {% if not notifications_page_enabled %}
     // There is an error; disable all inputs
-    $('input,button').prop('disabled', true);
+    $('input,button:not(.navbar-toggler,.btn-close)').prop('disabled', true);
     {% else %}
     // Fetch roster
     $('#{{ fetch_roster_btn_id }}').click((event) => {
@@ -1519,6 +1525,13 @@ Notifications
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ fetch_roster_messages_id }}', 60);
 
+    {% if not send_notifications_section_enabled %}
+    // Roster not yet fetched; disable all inputs for sending notifications
+    $(
+      '#send-notifications-section ' +
+        ':is(input,button:not(.navbar-toggler,.btn-close))'
+    ).prop('disabled', true);
+    {% else %}
     // Fetch match info
     $('#{{ match_numbers_input_id }}').onEnterKeyPress((event) => {
       $('#{{ fetch_matches_btn_id }}').click();
@@ -1557,6 +1570,7 @@ Notifications
     $('#{{ blast_notif_confirm_btn_id }}').click((event) => {
       handleSendBlastNotificationClicked();
     });
+    {% endif %}
     {% endif %}
   });
 </script>
