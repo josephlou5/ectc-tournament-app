@@ -91,7 +91,7 @@ Notifications
         The roster in the TMS spreadsheet will be fetched whenever the "Fetch
         Roster" button is pressed. There should be a worksheet called
         <code>{{ roster_worksheet_name }}</code> with the full teams roster. For
-        full requirements, see help
+        full specifications (including what else the button does), see help
         <a
           href="#{{ fetch_roster_help_id }}"
           data-bs-toggle="offcanvas"
@@ -284,6 +284,17 @@ Notifications
           rows will be removed, unchanged rows will remain, and new rows will
           be added).
         </p>
+        <p>
+          All the emails in the fetched roster will also be added to the
+          Mailchimp audience selected on the
+          <a href="{{ url_for('admin_settings') }}">Admin Settings</a> page. If
+          an audience tag was given, these contacts will also be tagged with
+          that tag. If any emails were removed from the
+          <code>{{ roster_worksheet_name }}</code> worksheet between the last
+          fetch and a new fetch, the removed emails will have the audience tag
+          removed from their contact. This step may be a little finnicky, so may
+          not always work.
+        </p>
       </div>
     </div>
   </div>
@@ -473,8 +484,9 @@ Notifications
                    )
                 }}
                 <div class="form-text">
-                  You must use the placeholder <code>{match}</code> to indicate
-                  the match number. For the full placeholder list and subject
+                  You must include the text <code>{match}</code>, which will be
+                  automatically replaced with the match numbers above for each
+                  email. For the full placeholder list, subject
                   specifications, see help
                   <a
                     href="#{{ match_notif_email_subject_help_id }}"
@@ -536,8 +548,9 @@ Notifications
               <p>
                 The email subject can be customized on a per-match or per-team
                 basis by using placeholder variables. These placeholders will be
-                replaced with their corresponding values in the subjects of the
-                sent emails. Here is a list of the available placeholders:
+                automatically replaced with their corresponding values in the
+                subjects of the sent emails. Here is a list of the available
+                placeholders:
               </p>
               <div>
                 <table class="table table-bordered">
@@ -596,24 +609,50 @@ Notifications
               </p>
               <p>
                 For example, a simple subject could look like:
-              </p>
-              <p>
+                <input
+                  type="text"
+                  class="form-control my-2"
+                  value="Match {match}: Report to Holding"
+                  disabled
+                  readonly
+                />
+                which would result in these actual email subjects:
+                <input
+                  type="text"
+                  class="form-control mt-2 mb-1"
+                  value="Match 701: Report to Holding"
+                  disabled
+                  readonly
+                />
                 <input
                   type="text"
                   class="form-control"
-                  value="Match {match}: Report to Holding"
+                  value="Match 702: Report to Holding"
                   disabled
                   readonly
                 />
               </p>
               <p>
                 Or, if you want to get fancier, something like:
-              </p>
-              <p>
+                <input
+                  type="text"
+                  class="form-control my-2"
+                  value="Match #{match} [{division}, {round}]: {blueteam} & {redteam}: Report to Holding!"
+                  disabled
+                  readonly
+                />
+                would result in these actual email subjects:
+                <input
+                  type="text"
+                  class="form-control mt-2 mb-1"
+                  value="Match #701 [PA, Round of 64]: Princeton PA1 & MIT PA2: Report to Holding!"
+                  disabled
+                  readonly
+                />
                 <input
                   type="text"
                   class="form-control"
-                  value="Match #{match} [{division}, {round}]: {blueteam} & {redteam}: Report to Holding!"
+                  value="Match #210 [Women's A, Quarters]: Harvard Women's A2 & UPenn Women's A1: Report to Holding!"
                   disabled
                   readonly
                 />

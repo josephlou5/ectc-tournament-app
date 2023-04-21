@@ -64,18 +64,18 @@ code {
   }
 }
 
-@media (max-width: 699.98px) {
-  /* Less than 700px. */
+@media (max-width: 799.98px) {
+  /* Less than 800px. */
   #fetch-roster-help,
   #match-notif-email-subject-help {
     width: 100%;
   }
 }
-@media (min-width: 700px) {
-  /* More than 700px. */
+@media (min-width: 800px) {
+  /* More than 800px. */
   #fetch-roster-help,
   #match-notif-email-subject-help {
-    min-width: 700px;
+    min-width: 800px;
   }
 }
 
