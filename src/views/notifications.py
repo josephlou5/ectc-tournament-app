@@ -553,6 +553,20 @@ def send_match_notification():
         return helpers.unsuccessful_notif(template="Invalid template id")
     mailchimp_template_name = template_info["title"]
 
+    print(" ", " ", "Template:", mailchimp_template_name, f"({template_id})")
+    print(" ", " ", "Subject (with placeholders):", subject)
+    also_sending_to = []
+    if send_to_coaches:
+        also_sending_to.append("Coaches")
+    if send_to_spectators:
+        also_sending_to.append("Spectators")
+    if send_to_subscribers:
+        also_sending_to.append("Team subscribers")
+    if len(also_sending_to) > 0:
+        print(
+            " ", " ", "Also sending to:", utils.list_of_items(also_sending_to)
+        )
+
     # get the team info for all the match teams
     print(" ", "Fetching info for all match teams")
     team_infos = db.roster.get_teams(list(all_team_names))
@@ -850,6 +864,9 @@ def send_blast_notification():
         "template_name": mailchimp_template_name,
         "subject": subject,
     }
+
+    print(" ", " ", "Template:", mailchimp_template_name, f"({template_id})")
+    print(" ", " ", "Subject:", subject)
 
     if tag is not None:
         recipients = f"tag {tag!r}"
