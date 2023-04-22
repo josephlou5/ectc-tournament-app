@@ -1,0 +1,11 @@
+[
+  {
+    "version": "0.0.100",
+    "timestamp": "2023-04-22 10:54",
+    "title": "Start changelog",
+    "descriptions": [
+      "Fix the bug with Mailchimp campaigns using the same segment, which messes up the email recipients",
+      "Start this changelog (which is why the version number is starting at 100)"
+    ]
+  }
+]

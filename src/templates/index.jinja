@@ -12,9 +12,13 @@
         <div class="col">
           <h2>{{ APP_NAME|e }}</h2>
         </div>
+        {% if version != "" %}
         <div class="col-auto">
-          <em class="text-muted">{{ VERSION|e }}</em>
+          <a href="{{ url_for('view_changelog') }}">
+            <em class="text-muted">{{ version|e }}</em>
+          </a>
         </div>
+        {% endif %}
       </div>
       <div class="row">
         <div class="col">

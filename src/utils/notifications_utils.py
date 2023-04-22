@@ -4,13 +4,10 @@ Utilities for the notifications view.
 
 # =============================================================================
 
-from pathlib import Path
-
-from utils import fetch_tms
+from utils import STATIC_FOLDER, fetch_tms
 
 # =============================================================================
 
-STATIC_FOLDER = (Path(__file__).parent / ".." / "static").resolve()
 FETCH_ROSTER_LOGS_FILE = STATIC_FOLDER / "fetch_roster_logs.json"
 
 # Instead of injecting these characters into the Jinja template as a

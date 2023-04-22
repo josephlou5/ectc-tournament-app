@@ -25,7 +25,6 @@ from utils.server import _render
 
 APP_NAME = "Tournament Notification System"
 NAVBAR_APP_NAME = "TNS"
-VERSION = "v0.0.100"
 
 # =============================================================================
 
@@ -46,7 +45,6 @@ def inject_template_variables():
     variables = {
         "APP_NAME": APP_NAME,
         "NAVBAR_APP_NAME": NAVBAR_APP_NAME,
-        "VERSION": VERSION,
         "get_flashed_by_categories": flask_utils.get_flashed_by_categories,
     }
     user_is_logged_in = is_logged_in()

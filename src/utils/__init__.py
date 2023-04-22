@@ -5,6 +5,7 @@ General utilities.
 # =============================================================================
 
 import json
+from pathlib import Path
 
 import pytz
 
@@ -14,6 +15,8 @@ UTC_TZ = pytz.utc
 EASTERN_TZ = pytz.timezone("US/Eastern")
 
 DATETIME_FMT = "%Y-%m-%d %H:%M:%S"
+
+STATIC_FOLDER = (Path(__file__).parent / ".." / "static").resolve()
 
 # =============================================================================
 

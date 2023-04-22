@@ -1,0 +1,54 @@
+{% extends "shared/layout.jinja" %}
+
+{% block title %}
+Changelog
+{% endblock %}
+
+{% block body %}
+<div id="changelog-body" class="container-fluid">
+  <div class="row align-items-end">
+    <div class="col">
+      <h2>Changelog</h2>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      {% if changes|length == 0 %}
+      No changes so far
+      {% else %}
+      {% for change in changes %}
+      <div class="row mb-2">
+        <div class="col">
+          <div>
+            {% with title = change["title"] %}
+            {% if title == "" %}
+            <span class="fs-4">v{{ change["version"]|e }}</span>
+            {% else %}
+            <span class="fs-4">
+              v{{ change["version"]|e }}: {{ change["title"]|e }}
+            </span>
+            {% endif %}
+            {% endwith %}
+            <span class="fst-italic text-muted ms-2">
+              {{ change["timestamp"]|e }}
+            </span>
+          </div>
+          {% with descriptions = change.get("descriptions", []) %}
+          {% if descriptions|length == 0 %}
+          <em class="text-muted">No description</em>
+          {% else %}
+          <ul>
+            {% for description in descriptions %}
+            <li>{{ description|e }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          {% endwith %}
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
