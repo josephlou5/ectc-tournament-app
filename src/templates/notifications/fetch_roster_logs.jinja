@@ -4,7 +4,15 @@
 Fetch Roster Logs
 {% endblock %}
 
-{% macro log_level_class(log_level) %}
+{% set all_log_levels_btn_wrapper_id = "all-log-levels-btn-wrapper" %}
+{% set log_levels_page_btn_class = "log-level-page" %}
+{% set log_levels_page_wrapper_class = log_levels_page_btn_class ~ "-wrapper" %}
+
+{% set log_row_class = "log-row" %}
+{% set log_error_row_class = "log-error-row" %}
+{% set log_warning_row_class = "log-warning-row" %}
+
+{% macro log_level_accent_class(log_level) %}
 {% if log_level == "ERROR" %}
 table-danger
 {% elif log_level == "WARNING" %}
@@ -18,7 +26,18 @@ table-warning
   {% if time_fetched is none or logs is none %}
   <div>No logs</div>
   {% else %}
-  <h5>Time fetched: {{ time_fetched }}</h5>
+  <h5>Time fetched: {{ time_fetched|e }}</h5>
+  {% if warning_log_levels|length > 0 %}
+  {# allow using pagination to see the warnings better #}
+  {{ macros.pagination(
+       all_log_levels_btn_wrapper_id,
+       log_levels_page_btn_class,
+       log_levels_page_wrapper_class,
+       "level",
+       warning_log_levels,
+     )
+  }}
+  {% endif %}
   <table class="table table-bordered table-hover">
     <thead>
       <tr>
@@ -30,8 +49,11 @@ table-warning
     <tbody>
       {% for log in logs %}
       {% set log_level = log["level"] %}
-      <tr class="text-monospace">
-        <td class="table-sm-col {{ log_level_class(log_level) }}">
+      <tr
+        class="text-monospace {{ log_row_class }}"
+        level="{{ log_level|capitalize|e }}"
+      >
+        <td class="table-sm-col {{ log_level_accent_class(log_level) }}">
           {{ log_level|e }}
         </td>
         <td class="table-sm-col">
@@ -46,4 +68,21 @@ table-warning
     <a href="{{ url_for('static', filename=fetch_logs_filename) }}">Raw logs</a>
   </div>
   {% endif %}
+{% endblock %}
+
+{% block script %}
+{% if warning_log_levels|length > 0 %}
+<script>
+  $(document).ready(() => {
+    // pagination for log levels
+    handleBsPagination(
+      '{{ all_log_levels_btn_wrapper_id }}',
+      '{{ log_levels_page_btn_class }}',
+      '{{ log_levels_page_wrapper_class }}',
+      'level',
+      '{{ log_row_class }}'
+    );
+  });
+</script>
+{% endif %}
 {% endblock %}

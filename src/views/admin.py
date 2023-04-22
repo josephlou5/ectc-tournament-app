@@ -232,19 +232,35 @@ def fetch_roster():
 
 @app.route("/fetch_roster/logs", methods=["GET"])
 @login_required(admin=True)
-def fetch_roster_logs():
+def view_fetch_roster_logs():
     logs_file = notifications_utils.FETCH_ROSTER_LOGS_FILE
 
     time_fetched = None
     logs = None
+    has_errors = False
+    has_warnings = False
     if logs_file.exists():
         try:
             full_logs = json.loads(logs_file.read_bytes())
             time_fetched = full_logs["time_fetched"]
             logs = full_logs["logs"]
+
+            for log in logs:
+                if log["level"] == "ERROR":
+                    has_errors = True
+                elif log["level"] == "WARNING":
+                    has_warnings = True
+                if has_errors and has_warnings:
+                    break
         except (json.decoder.JSONDecodeError, KeyError):
             # delete the file; it's faulty somehow
             logs_file.unlink()
+
+    warning_log_levels = []
+    if has_errors:
+        warning_log_levels.append("Error")
+    if has_warnings:
+        warning_log_levels.append("Warning")
 
     return _render(
         "notifications/fetch_roster_logs.jinja",
@@ -252,6 +268,7 @@ def fetch_roster_logs():
         fetch_logs_filename=logs_file.name,
         time_fetched=time_fetched,
         logs=logs,
+        warning_log_levels=warning_log_levels,
     )
 
 
