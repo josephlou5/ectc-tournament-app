@@ -94,7 +94,14 @@ def fetch_roster():
             if flash_all:
                 flash(error_msg, "fetch-roster.danger")
         else:
-            deleted_emails = db.roster.get_all_user_emails(email_valid=True)
+            existing_user_emails = db.roster.get_all_user_emails()
+            # only need to delete the email if it was valid and doesn't
+            # appear in the newly fetched roster
+            deleted_emails = set(
+                email
+                for email, email_valid in existing_user_emails.items()
+                if email_valid
+            )
             users_by_email = {}
             for user in roster["users"]:
                 email = user["email"]
@@ -103,9 +110,26 @@ def fetch_roster():
 
             tournament_tag = db.global_state.get_mailchimp_audience_tag()
 
+            # only add the new emails
+            new_emails = set(users_by_email.keys()) - set(
+                existing_user_emails.keys()
+            )
+            print(
+                " ",
+                " ",
+                f"{len(existing_user_emails)} existing users in the database",
+            )
+            print(
+                " ",
+                " ",
+                f"{len(users_by_email)} users being added through this fetch",
+            )
+            print(" ", " ", f"{len(new_emails)} new emails being added")
+            print(" ", " ", f"{len(deleted_emails)} emails being removed")
+
             error_msg, invalid_emails = mailchimp_utils.add_members(
                 audience_id,
-                list(users_by_email.keys()),
+                list(new_emails),
                 tournament_tag=tournament_tag,
                 remove_emails=deleted_emails,
             )

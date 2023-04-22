@@ -183,12 +183,14 @@ def set_roster(roster):
 # =============================================================================
 
 
-def get_all_user_emails(email_valid=None):
-    """Gets the user emails currently in the database."""
-    users = query(User).all()
-    if email_valid is None:
-        return set(user.email for user in users)
-    return set(user.email for user in users if user.email_valid is email_valid)
+def get_all_user_emails():
+    """Gets the user emails currently in the database.
+
+    Returns:
+        Dict[str, bool]: A mapping from emails to whether the email was
+            valid when added to Mailchimp.
+    """
+    return {user.email: user.email_valid for user in query(User).all()}
 
 
 def is_email_in_roster(email):
