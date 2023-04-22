@@ -8,11 +8,22 @@
 <div id="index-body" class="container-fluid">
   <div class="row mb-2">
     <div class="col">
-      <h2>{{ APP_NAME }}</h2>
-      <div>
-        Welcome to the ECTC Tournament Notification System (TNS), which is aimed
-        to provide better communication between the league and its participants,
-        namely the competitors and their coaches.
+      <div class="row">
+        <div class="col">
+          <h2>{{ APP_NAME|e }}</h2>
+        </div>
+        <div class="col-auto">
+          <em class="text-muted">{{ VERSION|e }}</em>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col">
+          <div>
+            Welcome to the ECTC Tournament Notification System (TNS), which is
+            aimed to provide better communication between the league and its
+            participants, namely the competitors and their coaches.
+          </div>
+        </div>
       </div>
     </div>
   </div>
