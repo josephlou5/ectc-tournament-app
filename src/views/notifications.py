@@ -553,14 +553,6 @@ def send_match_notification():
         return helpers.unsuccessful_notif(template="Invalid template id")
     mailchimp_template_name = template_info["title"]
 
-    # get TNS segment id
-    error_msg, tns_segment_id = mailchimp_utils.get_or_create_tns_segment(
-        audience_id
-    )
-    if error_msg is not None:
-        print(" ", "Error while getting TNS segment:", error_msg)
-        return helpers.unsuccessful_notif("Mailchimp error", print_error=False)
-
     # get the team info for all the match teams
     print(" ", "Fetching info for all match teams")
     team_infos = db.roster.get_teams(list(all_team_names))
@@ -676,15 +668,26 @@ def send_match_notification():
     # send emails
     print(" ", "Sending emails")
     emails_sent = []
-    for args in email_args:
+    for index, args in enumerate(email_args):
         print(" ", " ", f'Sending email for {args["description"]}:')
         print(" ", " ", " ", "Subject:", args["subject"])
         print(" ", " ", " ", "Recipients:", args["emails"])
+
+        # get TNS segment id
+        error_msg, segment_id = mailchimp_utils.get_or_create_tns_segment(
+            audience_id, index
+        )
+        if error_msg is not None:
+            print(" ", "Error while getting TNS segment:", error_msg)
+            return helpers.unsuccessful_notif(
+                "Mailchimp error", print_error=False
+            )
+
         error_msg, _ = mailchimp_utils.create_and_send_campaign_to_emails(
             audience_id,
             template_id,
             args["subject"],
-            tns_segment_id,
+            segment_id,
             args["emails"],
         )
         if error_msg is not None:
@@ -890,8 +893,8 @@ def send_blast_notification():
         email_sent_info["division"] = division
 
         # get TNS segment id
-        error_msg, tns_segment_id = mailchimp_utils.get_or_create_tns_segment(
-            audience_id
+        error_msg, segment_id = mailchimp_utils.get_or_create_tns_segment(
+            audience_id, 0
         )
         if error_msg is not None:
             print(" ", "Error while getting TNS segment:", error_msg)
@@ -907,7 +910,7 @@ def send_blast_notification():
             audience_id,
             template_id,
             subject,
-            tns_segment_id,
+            segment_id,
             list(division_emails),
         )
 

@@ -17,7 +17,7 @@ import utils
 
 PAGINATION_LIMIT = 100
 
-TNS_SEGMENT_NAME = "[TNS] Match Segment"
+TNS_SEGMENT_NAME = "[TNS] Match Segment {index}"
 
 # =============================================================================
 
@@ -524,8 +524,9 @@ def get_segment_id(audience_id, segment_name):
     return None, None
 
 
-def get_or_create_tns_segment(audience_id):
-    """Gets the TNS email segment, or creates it if it doesn't exist.
+def get_or_create_tns_segment(audience_id, index):
+    """Gets the TNS email segment with the given index, or creates it if
+    it doesn't exist.
 
     Returns:
         Union[Tuple[str, None], Tuple[None, int]]:
@@ -536,7 +537,9 @@ def get_or_create_tns_segment(audience_id):
     if error_msg is not None:
         return error_msg, None
 
-    error_msg, segment_id = get_segment_id(audience_id, TNS_SEGMENT_NAME)
+    segment_name = TNS_SEGMENT_NAME.format(index=index)
+
+    error_msg, segment_id = get_segment_id(audience_id, segment_name)
     if error_msg is not None:
         return error_msg, None
 
@@ -546,7 +549,7 @@ def get_or_create_tns_segment(audience_id):
             # https://mailchimp.com/developer/marketing/api/list-segments/add-segment/
             created_segment = client.lists.create_segment(
                 audience_id,
-                {"name": TNS_SEGMENT_NAME, "static_segment": []},
+                {"name": segment_name, "static_segment": []},
             )
         except ApiClientError as ex:
             error_msg = str(ex.text)
