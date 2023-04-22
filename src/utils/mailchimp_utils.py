@@ -584,7 +584,7 @@ def update_segment_emails(audience_id, segment_id, emails):
         # would have to specify which emails to remove, so this call is
         # better because we want to start from a clean slate
         response = client.lists.update_segment(
-            audience_id, segment_id, {"static_segment": emails}
+            audience_id, segment_id, {"static_segment": sorted(emails)}
         )
     except ApiClientError as ex:
         error_msg = str(ex.text)

@@ -631,7 +631,7 @@ def send_match_notification():
         team_subjects = helpers.format_team_subjects(subject, match_info)
         if team_subjects["blue_team"] == team_subjects["red_team"]:
             # same subject, so can send one big email to all of them
-            all_emails = list(
+            all_emails = sorted(
                 set(team_emails["blue_team"] + team_emails["red_team"])
             )
             email_args.append(
@@ -651,7 +651,7 @@ def send_match_notification():
                         "match_number": match_number,
                         "description": f"Match {match_number}, {color} team",
                         "subject": team_subjects[team_color],
-                        "emails": list(set(team_emails[team_color])),
+                        "emails": sorted(set(team_emails[team_color])),
                     }
                 )
 
@@ -911,7 +911,7 @@ def send_blast_notification():
             template_id,
             subject,
             segment_id,
-            list(division_emails),
+            sorted(division_emails),
         )
 
     if error_msg is not None:
