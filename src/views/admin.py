@@ -21,6 +21,13 @@ app = AppRoutes()
 
 # =============================================================================
 
+# To prevent server timeouts, set a limit on the number of new contacts
+# that can be added during a single roster fetch.
+# This number was chosen arbitrarily; I'm not sure if it's good or bad.
+NEW_CONTACTS_LIMIT = 5
+
+# =============================================================================
+
 
 @app.route("/fetch_roster", methods=["POST", "DELETE"])
 @login_required(admin=True, save_redirect=False)
@@ -126,6 +133,12 @@ def fetch_roster():
             )
             print(" ", " ", f"{len(new_emails)} new emails being added")
             print(" ", " ", f"{len(deleted_emails)} emails being removed")
+
+            if len(new_emails) > NEW_CONTACTS_LIMIT:
+                return unsuccessful(
+                    "Too many new contacts to add. "
+                    "Please see the fetch help page for a workaround."
+                )
 
             error_msg, invalid_emails = mailchimp_utils.add_members(
                 audience_id,

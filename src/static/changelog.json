@@ -7,5 +7,11 @@
       "Fix the bug with Mailchimp campaigns using the same segment, which messes up the email recipients",
       "Start this changelog (which is why the version number is starting at 100)"
     ]
+  },
+  {
+    "version": "0.0.101",
+    "timestamp": "2023-04-22 12:51",
+    "title": "",
+    "descriptions": ["Add limit on new contacts when fetching roster"]
   }
 ]
