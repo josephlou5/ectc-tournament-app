@@ -109,7 +109,7 @@ Please contact a
             <em class="text-muted">None</em>
             {% else %}
             <strong id="{{ service_account_email_id }}">
-              {{ service_account_email }}
+              {{ service_account_email|e }}
             </strong>
             <button
               type="button"
@@ -335,8 +335,8 @@ Please contact a
     }
 
     // clear messages
-    $('#{{ tms_url_messages_id }}').html('');
     clearInvalid('{{ tms_url_input_id }}');
+    clearElement('{{ tms_url_messages_id }}');
 
     const url = getUrl();
     if (url === '') {
@@ -412,7 +412,7 @@ Please contact a
 
   function handleMailchimpAudienceSelected(elementId) {
     clearInvalid(elementId);
-    $('#{{ mc_save_audience_status_id }}').html('');
+    clearElement('{{ mc_save_audience_status_id }}');
 
     const selectedAudienceId = getInputValue(elementId);
     if (selectedAudienceId === '') {
@@ -427,16 +427,16 @@ Please contact a
     const $status = $('#{{ mc_save_audience_status_id }}');
     $status.removeClass('text-danger');
     $status.addClass('fst-italic');
-    $status.html('Saving...');
+    $status.text('Saving...');
     ajaxRequest('POST', '{{ url_for("set_mailchimp_audience") }}', {
       contentType: 'application/json',
       data: JSON.stringify({ audienceId: selectedAudienceId }),
       success: (response, status, jqXHR) => {
         if (response.success) {
           // success
-          setElementTextFor('{{ mc_save_audience_status_id }}', 'Saved.', 1);
+          setElementHtmlFor('{{ mc_save_audience_status_id }}', 'Saved.', 1);
         } else {
-          $('#{{ mc_save_audience_status_id }}').html('');
+          clearElement('{{ mc_save_audience_status_id }}');
           // some failure
           setInvalid(
             elementId,
@@ -445,7 +445,7 @@ Please contact a
         }
       },
       error: (jqXHR, status, errorThrown) => {
-        $('#{{ mc_save_audience_status_id }}').html('');
+        clearElement('{{ mc_save_audience_status_id }}');
         setInvalid(
           elementId,
           `Error while saving selection: ${jqXHR.statusText}`
@@ -461,8 +461,8 @@ Please contact a
     }
 
     // clear status
-    $('#{{ mc_set_audience_tag_status_id }}').html('');
     clearInvalid('{{ mc_audience_tag_input_id }}');
+    clearElement('{{ mc_set_audience_tag_status_id }}');
 
     // can be empty, which would clear it
     const audienceTag = getInputValue('{{ mc_audience_tag_input_id }}');
@@ -470,12 +470,12 @@ Please contact a
     setButtonLoading('{{ mc_set_audience_tag_btn_id }}');
     ajaxRequest('POST', '{{ url_for("set_mailchimp_audience_tag") }}', {
       contentType: 'application/json',
-      data: JSON.stringify({ 'tag': audienceTag }),
+      data: JSON.stringify({ tag: audienceTag }),
       success: (response, status, jqXHR) => {
         stopButtonLoading('{{ mc_set_audience_tag_btn_id }}');
         if (response.success) {
           // success
-          setElementTextFor(
+          setElementHtmlFor(
             '{{ mc_set_audience_tag_status_id }}',
             bsAlertSm('Success', 'success'),
             60
@@ -527,7 +527,7 @@ Please contact a
 
   function handleMailchimpTemplateFolderSelected(elementId) {
     clearInvalid(elementId);
-    $('#{{ mc_save_template_folder_status_id }}').html('');
+    clearElement('{{ mc_save_template_folder_status_id }}');
 
     const selectedFolderId = getInputValue(elementId);
     if (selectedFolderId === '') {
@@ -538,21 +538,21 @@ Please contact a
     const $status = $('#{{ mc_save_template_folder_status_id }}');
     $status.removeClass('text-danger');
     $status.addClass('fst-italic');
-    $status.html('Saving...');
+    $status.text('Saving...');
     ajaxRequest('POST', '{{ url_for("set_mailchimp_template_folder") }}', {
       contentType: 'application/json',
       data: JSON.stringify({ folderId: selectedFolderId }),
       success: (response, status, jqXHR) => {
         if (response.success) {
           // success
-          setElementTextFor(
+          setElementHtmlFor(
             '{{ mc_save_template_folder_status_id }}',
             'Saved.',
             1
           );
         } else {
           // some failure
-          $('#{{ mc_save_template_folder_status_id }}').html('');
+          clearElement('{{ mc_save_template_folder_status_id }}');
           setInvalid(
             elementId,
             response.reason ?? 'Unknown error: please try again'
@@ -560,7 +560,7 @@ Please contact a
         }
       },
       error: (jqXHR, status, errorThrown) => {
-        $('#{{ mc_save_template_folder_status_id }}').html('');
+        clearElement('{{ mc_save_template_folder_status_id }}');
         setInvalid(
           elementId,
           `Error while saving selection: ${jqXHR.statusText}`
@@ -574,10 +574,10 @@ Please contact a
     $('#{{ copy_email_btn_id }}').click((event) => {
       // copy the email to the user's clipboard
       copyElementContent('{{ service_account_email_id }}', () => {
-        setElementTextFor(
+        setElementHtmlFor(
           '{{ copy_email_status_id }}',
           bsAlertSm('Copied!', 'success'),
-          30
+          5
         );
       });
     });

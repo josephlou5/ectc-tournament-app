@@ -23,8 +23,8 @@
         width="132"
         height="56"
       />
-      <span class="ms-1 d-none d-xl-inline">{{ APP_NAME }}</span>
-      <span class="ms-1 d-xl-none">{{ NAVBAR_APP_NAME }}</span>
+      <span class="ms-1 d-none d-xl-inline">{{ APP_NAME|e }}</span>
+      <span class="ms-1 d-xl-none">{{ NAVBAR_APP_NAME|e }}</span>
     </a>
 
     <button
@@ -90,7 +90,7 @@
         {% endif %}
         {% if not (user_is_admin or user_is_in_roster) %}
         <li class="navbar-text me-3">
-          <strong>{{ logged_in_email }}</strong>
+          <strong>{{ logged_in_email|e }}</strong>
         </li>
         {% else %}
         <li class="nav-item dropdown me-3">
@@ -101,7 +101,7 @@
             data-bs-toggle="dropdown"
             aria-expanded="false"
           >
-            <strong>{{ logged_in_email }}</strong>
+            <strong>{{ logged_in_email|e }}</strong>
           </a>
           <ul
             class="dropdown-menu dropdown-menu-end"

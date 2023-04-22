@@ -148,8 +148,8 @@ Manage Admins
     }
 
     // clear messages
-    $('#{{ manage_admins_messages_id }}').html('');
     clearInvalid('{{ add_admin_input_id }}');
+    clearElement('{{ manage_admins_messages_id }}');
 
     const adminEmail = getInputValue('{{ add_admin_input_id }}');
     if (adminEmail === '') {
@@ -189,7 +189,7 @@ Manage Admins
     }
 
     // clear messages
-    $('#{{ manage_admins_messages_id }}').html('');
+    clearElement('{{ manage_admins_messages_id }}');
 
     const adminEmail = getAttr(buttonId, 'email');
     if (adminEmail === '') {

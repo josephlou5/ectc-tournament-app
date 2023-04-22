@@ -252,7 +252,7 @@ Full Roster
     }
 
     // clear messages
-    $('#{{ fetch_roster_messages_id }}').html('');
+    clearElement('{{ fetch_roster_messages_id }}');
 
     setButtonLoading('{{ refetch_roster_btn_id }}');
     // just reload once the fetching is done
@@ -266,7 +266,7 @@ Full Roster
     }
 
     // clear messages
-    $('#{{ fetch_roster_messages_id }}').html('');
+    clearElement('{{ fetch_roster_messages_id }}');
 
     setButtonLoading('{{ clear_roster_btn_id }}');
     // just reload once the clearing is done
@@ -317,7 +317,7 @@ Full Roster
           if (elementHasAttr($divisionPageBtn, 'all-division')) {
             // "all divisions" is selected; do nothing
           } else {
-            const division = $divisionPageBtn.html()?.trim();
+            const division = getElementText($divisionPageBtn);
             Object.assign(environ, { division });
           }
         } else {
@@ -328,7 +328,7 @@ Full Roster
           if (elementHasAttr($schoolPageBtn, 'all-school')) {
             // "all schools" is selected; do nothing
           } else {
-            const school = $schoolPageBtn.html()?.trim();
+            const school = getElementText($schoolPageBtn);
             Object.assign(environ, { school });
           }
         }
@@ -358,7 +358,6 @@ Full Roster
         } else {
           $('#{{ no_teams_row_id }}').addClass('d-none');
           $showingRows.each((index, element) => {
-            anyShowing = true;
             $(element).html(String(index + 1));
           });
         }

@@ -225,7 +225,7 @@
   {% if label_id is not none %} id="{{ label_id }}" {% endif %}
   {% if classes is not none %} class="{{ classes }}" {% endif %}
 >
-  {{ label }}
+  {{ label|e }}
 </label>
 {% endmacro %}
 
@@ -250,7 +250,7 @@
   type="{{ input_type }}"
   id="{{ input_id }}"
   class="{{ classes }}"
-  {% if value is not none %} value="{{ value }}" {% endif %}
+  {% if value is not none %} value="{{ value|e }}" {% endif %}
   {% if placeholder is not none %} placeholder="{{ placeholder }}" {% endif %}
   {% if checked %} checked {% endif %}
   {% if caller %}

@@ -102,10 +102,7 @@ def set_tms_spreadsheet():
         # only show this flash if the save to the database was
         # successful
         flash(
-            (
-                "<strong>Warning:</strong> No service account; could not "
-                "verify access"
-            ),
+            "Warning: No service account; could not verify access",
             "tms-spreadsheet.warning",
         )
 

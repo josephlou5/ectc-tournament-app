@@ -84,6 +84,7 @@
 {% endmacro %}
 
 {% for match in matches %}
+{# the match number is always an int, so it doesn't need to be escaped #}
 {% set match_number = match["number"] %}
 {% set match_id = "match-" ~ match_number %}
 {% set match_team_blue_id = match_id ~ "-blue" %}

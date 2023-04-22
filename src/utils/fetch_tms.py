@@ -323,7 +323,11 @@ def split_divisions_by_groups(divisions):
             mens_group.append(division)
         elif division.startswith("W"):
             womens_group.append(division)
-    return p_group, mens_group, womens_group
+    return list(
+        filter(
+            lambda group: len(group) > 0, [p_group, mens_group, womens_group]
+        )
+    )
 
 
 def school_team_code_sort_key(school_team_code):

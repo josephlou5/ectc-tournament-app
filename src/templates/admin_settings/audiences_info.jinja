@@ -39,7 +39,7 @@
         {% for audience_info in audiences %}
         {% set audience_id = audience_info["id"] %}
         <option
-          value="{{ audience_id }}"
+          value="{{ audience_id|e }}"
           {% if audience_id == selected_audience_id %} selected {% endif %}
         >
           {{ audience_info["name"]|e }}

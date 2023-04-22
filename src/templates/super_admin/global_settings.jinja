@@ -48,7 +48,7 @@ Global Settings
             <em class="text-muted">None</em>
             {% else %}
             <strong id="{{ service_account_email_id }}">
-              {{ service_account_email }}
+              {{ service_account_email|e }}
             </strong>
             <button
               type="button"
@@ -249,8 +249,8 @@ Global Settings
     }
 
     // clear messages
-    $('#{{ service_account_messages_id }}').html('');
     clearInvalid('{{ service_account_creds_input_id }}');
+    clearElement('{{ service_account_messages_id }}');
 
     const fileList = $('#{{ service_account_creds_input_id }}').prop('files');
     if (fileList.length === 0) {
@@ -287,7 +287,7 @@ Global Settings
           stopButtonLoading('{{ set_service_account_btn_id }}');
           setInvalid('{{ service_account_creds_input_id }}', jqXHR.statusText);
         },
-      })
+      });
     });
   }
 
@@ -309,8 +309,8 @@ Global Settings
     }
 
     // clear messages
-    $('#{{ mc_api_key_messages_id }}').html('');
     clearInvalid('{{ mc_api_key_input_id }}');
+    clearElement('{{ mc_api_key_messages_id }}');
 
     const apiKey = getInputValue('{{ mc_api_key_input_id }}');
     if (apiKey === '') {
@@ -380,10 +380,10 @@ Global Settings
     $('#{{ copy_email_btn_id }}').click((event) => {
       // copy the email to the user's clipboard
       copyElementContent('{{ service_account_email_id }}', () => {
-        setElementTextFor(
+        setElementHtmlFor(
           '{{ copy_email_status_id }}',
           bsAlertSm('Copied!', 'success'),
-          30
+          5
         );
       });
     });

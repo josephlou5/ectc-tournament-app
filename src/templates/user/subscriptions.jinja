@@ -99,9 +99,9 @@
                checked=(is_user_on_team or team_info["is_subscribed"]),
              )
            %}
-          school="{{ school }}"
-          division="{{ division }}"
-          number="{{ team_number }}"
+          school="{{ school|e }}"
+          division="{{ division|e }}"
+          number="{{ team_number|e }}"
           {% if is_user_on_team %}
           onteam="true"
           disabled
@@ -120,21 +120,21 @@
 {% block script %}
 <script>
   function clearSavingStatus() {
-    $('#{{ save_subscriptions_status_id }}').html('');
+    clearElement('{{ save_subscriptions_status_id }}');
   }
 
   function updateSavingStatus() {
     const $status = $('#{{ save_subscriptions_status_id }}');
     $status.removeClass('text-danger');
     $status.addClass('fst-italic');
-    $status.html('Saving...');
+    $status.text('Saving...');
   }
 
   function setSavingError(errorMessage) {
     const $status = $('#{{ save_subscriptions_status_id }}');
     $status.removeClass('fst-italic');
     $status.addClass('text-danger');
-    $status.html(errorMessage);
+    $status.text(errorMessage);
   }
 
   function toggleAllCheckboxes({ school, division } = {}) {
@@ -193,7 +193,7 @@
       data: JSON.stringify(requestData),
       success: (response, status, jqXHR) => {
         if (response.success) {
-          setElementTextFor('{{ save_subscriptions_status_id }}', 'Saved.', 5);
+          setElementHtmlFor('{{ save_subscriptions_status_id }}', 'Saved.', 5);
         } else {
           setSavingError(response.reason ?? 'Unknown error: please try again');
         }
@@ -231,7 +231,7 @@
       }),
       success: (response, status, jqXHR) => {
         if (response.success) {
-          setElementTextFor('{{ save_subscriptions_status_id }}', 'Saved.', 5);
+          setElementHtmlFor('{{ save_subscriptions_status_id }}', 'Saved.', 5);
         } else {
           setSavingError(response.reason ?? 'Unknown error: please try again');
         }

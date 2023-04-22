@@ -7,10 +7,9 @@ Views for the super admin role.
 from flask import flash, request
 
 import db
-from utils import fetch_tms, mailchimp_utils
+from utils import fetch_tms, mailchimp_utils, notifications_utils
 from utils.auth import login_required
 from utils.server import AppRoutes, _render, get_request_json, unsuccessful
-from views import notifications
 
 # =============================================================================
 
@@ -150,10 +149,7 @@ def set_service_account():
         if error_msg is not None:
             print(" ", "Error:", error_msg)
             flash(
-                (
-                    "<strong>Error:</strong> Could not access TMS "
-                    f"spreadsheet: {error_msg}"
-                ),
+                f"Error: Could not access TMS spreadsheet: {error_msg}",
                 "service-account.warning",
             )
         else:
@@ -244,7 +240,7 @@ def clear_everything():
         return _db_error("clearing sent emails")
 
     print(" ", " ", "Deleting fetch roster logs")
-    logs_file = notifications.FETCH_ROSTER_LOGS_FILE
+    logs_file = notifications_utils.FETCH_ROSTER_LOGS_FILE
     if logs_file.exists():
         logs_file.unlink()
 

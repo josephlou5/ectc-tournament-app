@@ -26,8 +26,6 @@ Notifications
 {% set remove_all_matches_btn_id = "remove-all-matches-btn" %}
 {% set no_matches_row_id = "no-matches-row" %}
 
-{% set email_items_col_class = "email-items-col" %}
-
 {% set match_notif_mc_templates_dropdown_wrapper_id =
      "match-notif-mc-templates-dropdown-wrapper"
  %}
@@ -49,12 +47,12 @@ Notifications
 {% set blast_notif_mc_templates_select_id = "blast-notif-mc-templates-select" %}
 {% set blast_notif_email_subject_input_id = "blast-notif-email-subject-input" %}
 {% set blast_notif_email_subject_help_id = "blast-notif-email-subject-help" %}
-{% set clear_division_btn_id = "clear-division-btn" %}
-{% set division_radio_name = "division-radio" %}
-{% set division_invalid_div_id = "division-invalid-messages" %}
+{% set recipients_radio_name = "recipients-radio" %}
+{% set recipients_everyone_radio_id = "recipients-everyone-radio" %}
+{% set recipients_invalid_div_id = "recipients-invalid-messages" %}
 {% set confirm_blast_audience_div_id = "confirm-blast-audience-div" %}
 {% set confirm_blast_division_div_id = "confirm-blast-division-div" %}
-{% set confirm_blast_division_id = "confirm-blast-division" %}
+{% set confirm_blast_division_id = "confirm-blast-division-text" %}
 
 {% set send_match_notif_btn_id = "send-match-notification-btn" %}
 {% set send_match_notif_error_id = "send-match-notification-error" %}
@@ -90,8 +88,8 @@ Notifications
       <div class="mb-2">
         The roster in the TMS spreadsheet will be fetched whenever the "Fetch
         Roster" button is pressed. There should be a worksheet called
-        <code>{{ roster_worksheet_name }}</code> with the full teams roster. For
-        full specifications (including what else the button does), see help
+        <code>{{ roster_worksheet_name|e }}</code> with the full teams roster.
+        For full specifications (including what else the button does), see help
         <a
           href="#{{ fetch_roster_help_id }}"
           data-bs-toggle="offcanvas"
@@ -157,7 +155,7 @@ Notifications
             {% if roster_last_fetched_time is none %}
             <em class="text-muted">never</em>
             {% else %}
-            {{ roster_last_fetched_time }}
+            {{ roster_last_fetched_time|e }}
             {% if has_fetch_logs %}
             <a href="{{ url_for('fetch_roster_logs') }}">(logs)</a>
             {% endif %}
@@ -184,7 +182,7 @@ Notifications
           In the given TMS spreadsheet in the
           <a href="{{ url_for('admin_settings') }}">Admin Settings</a> page,
           there should be a worksheet called
-          <code>{{ roster_worksheet_name }}</code> with the full teams roster.
+          <code>{{ roster_worksheet_name|e }}</code> with the full teams roster.
         </p>
         <p>
           The first row should be the header row with the following headers:
@@ -209,7 +207,7 @@ Notifications
                 The possible roles are:
                 <ul>
                   {% for role in possible_roles %}
-                  <li><code>{{ role }}</code></li>
+                  <li><code>{{ role|e }}</code></li>
                   {% endfor %}
                 </ul>
                 These values are case insensitive.
@@ -232,7 +230,7 @@ Notifications
                 The possible weights are:
                 <ul>
                   {% for weight in possible_weights %}
-                  <li><code>{{ weight }}</code></li>
+                  <li><code>{{ weight|e }}</code></li>
                   {% endfor %}
                 </ul>
                 These values are case insensitive.
@@ -270,12 +268,12 @@ Notifications
         </p>
         <p>
           When the "Fetch Roster" button is clicked, the
-          <code>{{ roster_worksheet_name }}</code> worksheet will be fetched as
-          specified. After a successful fetch, logs will be generated. It could
-          be helpful to check the logs for any potential warnings or errors. For
-          example, a team may have only alternates and no main team members, or
-          a school may have only coaches and spectators and no athletes or
-          teams. Invalid teams will not be saved.
+          <code>{{ roster_worksheet_name|e }}</code> worksheet will be fetched
+          as specified. After a successful fetch, logs will be generated. It
+          could be helpful to check the logs for any potential warnings or
+          errors. For example, a team may have only alternates and no main team
+          members, or a school may have only coaches and spectators and no
+          athletes or teams. Invalid teams will not be saved.
         </p>
         <p>
           Whenever the "Fetch Roster" button is clicked, the existing saved
@@ -290,7 +288,7 @@ Notifications
           <a href="{{ url_for('admin_settings') }}">Admin Settings</a> page. If
           an audience tag was given, these contacts will also be tagged with
           that tag. If any emails were removed from the
-          <code>{{ roster_worksheet_name }}</code> worksheet between the last
+          <code>{{ roster_worksheet_name|e }}</code> worksheet between the last
           fetch and a new fetch, the removed emails will have the audience tag
           removed from their contact. This step may be a little finnicky, so may
           not always work.
@@ -324,7 +322,7 @@ Notifications
           </div>
           <div class="mb-2">
             The TMS spreadsheet should have a worksheet called
-            <code>{{ matches_worksheet_name }}</code> which will be queried to
+            <code>{{ matches_worksheet_name|e }}</code> which will be queried to
             find the competing teams for each match.
           </div>
         </div>
@@ -364,7 +362,11 @@ Notifications
             {% with hidden = "d-none" if last_matches_query is none else "" %}
             class="btn btn btn-secondary {{ hidden }}"
             {% endwith %}
-            lastquery="{{ last_matches_query or '' }}"
+            {% if last_matches_query is not none %}
+            lastquery="{{ last_matches_query|e }}"
+            {% else %}
+            lastquery=""
+            {% endif %}
           >
             Last Query
           </button>
@@ -390,10 +392,8 @@ Notifications
              %}
             disabled
             {% endcall %}
-            <span
-              id="{{ refresh_matches_status_id }}"
-              class="text-danger d-none"
-            ></span>
+            <span id="{{ refresh_matches_status_id }}" class="text-danger">
+            </span>
           </div>
         </div>
       </div>
@@ -444,10 +444,7 @@ Notifications
                    )
                 }}
               </td>
-              <td
-                id="{{ match_notif_mc_templates_dropdown_wrapper_id }}"
-                class="{{ email_items_col_class }}"
-              >
+              <td id="{{ match_notif_mc_templates_dropdown_wrapper_id }}">
                 <div
                   id="{{ match_notif_mc_fetch_templates_id }}"
                   class="col-form-label"
@@ -462,9 +459,7 @@ Notifications
               </td>
               {% else %}
               <td class="table-sm-col">Template</td>
-              <td class="{{ email_items_col_class }}">
-                <em class="text-muted">Cannot fetch templates</em>
-              </td>
+              <td><em class="text-muted">Cannot fetch templates</em></td>
               {% endif %}
             </tr>
             <tr>
@@ -476,7 +471,7 @@ Notifications
                    )
                 }}
               </td>
-              <td class="{{ email_items_col_class }}">
+              <td>
                 {{ macros.form_input(
                      match_notif_email_subject_input_id,
                      value=last_match_subject,
@@ -500,7 +495,7 @@ Notifications
               <td class="table-sm-col">
                 Also Send To
               </td>
-              <td class="{{ email_items_col_class }}">
+              <td>
                 {{ macros.form_checkbox(
                      send_to_coaches_checkbox_id,
                      "School Coaches",
@@ -660,6 +655,9 @@ Notifications
               <p>
                 Note that the character set for the subject is limited to
                 letters, digits, spaces, and any of the following:
+                {# these characters are specifically chosen to not allow XSS, so
+                   it should be fine to not escape them
+                 #}
                 <code>{{ EMAIL_SUBJECT_VALID_CHARS }}</code>.
               </p>
             </div>
@@ -678,7 +676,7 @@ Notifications
         <div class="col-auto col-md-6">
           <h5>Send Blast Notifications</h5>
           <div class="mb-2">
-            You can also send a blast notification to either the
+            You can send a blast notification to either the
             {% if audience_tag is none %}
             entire audience
             {% else %}
@@ -697,10 +695,7 @@ Notifications
                    )
                 }}
               </td>
-              <td
-                id="{{ blast_notif_mc_templates_dropdown_wrapper_id }}"
-                class="{{ email_items_col_class }}"
-              >
+              <td id="{{ blast_notif_mc_templates_dropdown_wrapper_id }}">
                 <div
                   id="{{ blast_notif_mc_fetch_templates_id }}"
                   class="col-form-label"
@@ -715,9 +710,7 @@ Notifications
               </td>
               {% else %}
               <td class="table-sm-col">Template</td>
-              <td class="{{ email_items_col_class }}">
-                <em class="text-muted">Cannot fetch templates</em>
-              </td>
+              <td><em class="text-muted">Cannot fetch templates</em></td>
               {% endif %}
             </tr>
             <tr>
@@ -729,7 +722,7 @@ Notifications
                    )
                 }}
               </td>
-              <td class="{{ email_items_col_class }}">
+              <td>
                 {{ macros.form_input(
                      blast_notif_email_subject_input_id,
                      value=last_blast_subject,
@@ -739,24 +732,41 @@ Notifications
               </td>
             </tr>
             <tr>
-              {% if no_divisions %}
-              <td class="table-sm-col">Divisions</td>
-              <td class="{{ email_items_col_class }}">
-                <em class="col-form-label text-muted">No divisions</em>
-              </td>
-              {% else %}
+              {% with blast_recipients =
+                   "Entire audience" if audience_tag is none
+                   else ("Tag: " ~ audience_tag)
+               %}
               <td class="table-sm-col">
-                <div class="col-form-label">Division</div>
-                <button
-                  type="button"
-                  id="{{ clear_division_btn_id }}"
-                  class="btn btn-sm btn-outline-danger"
-                >
-                  Clear
-                </button>
+                <div class="col-form-label">Recipients</div>
               </td>
-              <td class="{{ email_items_col_class }}">
+              <td>
                 <div class="row g-2">
+                  <div class="col-auto">
+                    <div class="btn-group" role="group">
+                      <input
+                        type="radio"
+                        id="{{ recipients_everyone_radio_id }}"
+                        class="btn-check"
+                        name="{{ recipients_radio_name }}"
+                        value="BLAST"
+                        {% if audience_tag is not none %}
+                        tag="{{ audience_tag|e }}"
+                        {% endif %}
+                        autocomplete="off"
+                      />
+                      {{ macros.form_label(
+                           recipients_everyone_radio_id,
+                           blast_recipients,
+                           "btn btn-outline-success",
+                         )
+                      }}
+                    </div>
+                  </div>
+                  {% if no_divisions %}
+                  <div class="col-auto col-form-label ms-2">
+                    <em class="text-muted">(No divisions)</em>
+                  </div>
+                  {% else %}
                   {% for division_group in division_groups %}
                   <div class="col-auto">
                     <div class="btn-group" role="group">
@@ -766,38 +776,38 @@ Notifications
                         type="radio"
                         id="{{ input_id }}"
                         class="btn-check"
-                        name="{{ division_radio_name }}"
+                        name="{{ recipients_radio_name }}"
                         value="{{ division|e }}"
                         autocomplete="off"
                       />
                       {{ macros.form_label(
-                           input_id, division|e, "btn btn-outline-success"
+                           input_id, division, "btn btn-outline-success"
                          )
                       }}
                       {% endfor %}
                     </div>
                   </div>
                   {% endfor %}
+                  {% endif %}
                 </div>
+                {# dummy div so that .invalid-feedback works #}
+                <div class="is-invalid"></div>
                 <div
-                  id="{{ division_invalid_div_id }}"
-                  class="text-danger"
+                  id="{{ recipients_invalid_div_id }}"
+                  class="invalid-feedback"
                 ></div>
               </td>
-              {% endif %}
+              {% endwith %}
             </tr>
           </table>
           <div class="mb-1">
-            {% call macros.loading_btn(
+            {{ macros.loading_btn(
                  send_blast_notif_btn_id,
                  "warning",
                  "Send Blast Notification",
                  "Sending...",
                )
-             %}
-            data-bs-toggle="modal"
-            data-bs-target="#{{ blast_notif_modal_id }}"
-            {% endcall %}
+            }}
           </div>
           <div id="{{ send_blast_notif_error_id }}" class="text-danger"></div>
           {% if send_notifications_section_enabled %}
@@ -832,7 +842,7 @@ Notifications
                     </p>
                     {% else %}
                     Are you sure you want to send a blast notification email to
-                    all contacts with the tag <code>{{ audience_tag }}</code>?
+                    all contacts with the tag <code>{{ audience_tag|e }}</code>?
                     {% endif %}
                   </div>
                   <div id="{{ confirm_blast_division_div_id }}" class="d-none">
@@ -891,8 +901,8 @@ Notifications
     }
 
     // clear messages
-    $('#{{ fetch_roster_messages_id }}').html('');
     clearInvalid('{{ fetch_roster_dummy_input_id }}');
+    clearElement('{{ fetch_roster_messages_id }}');
 
     setButtonLoading('{{ fetch_roster_btn_id }}');
     ajaxRequest('POST', '{{ url_for("fetch_roster") }}', {
@@ -927,7 +937,7 @@ Notifications
     }
 
     // clear messages
-    $('#{{ fetch_roster_messages_id }}').html('');
+    clearElement('{{ fetch_roster_messages_id }}');
 
     setButtonLoading('{{ clear_roster_btn_id }}');
     // just reload once the clearing is done
@@ -985,13 +995,14 @@ Notifications
     $('#{{ remove_all_matches_btn_id }}').prop('disabled', true);
     if (clearWarnings) {
       // clear and hide the warnings
-      $('#{{ fetch_matches_warnings_id }}').addClass('d-none').html('');
+      $('#{{ fetch_matches_warnings_id }}').addClass('d-none');
+      clearElement('{{ fetch_matches_warnings_id }}');
     }
     // hide the fetch info
     $('#{{ matches_fetch_info_id }}').addClass('d-none');
-    $('#{{ last_matches_query_id }}').html('');
+    clearElement('{{ last_matches_query_id }}');
     $('#{{ refresh_matches_btn_id }}').prop('disabled', true); // just in case
-    $('#{{ refresh_matches_status_id }}').addClass('d-none').html('');
+    clearElement('{{ refresh_matches_status_id }}');
     // clear the matches query input
     $('#{{ match_numbers_input_id }}').val('');
     // show the no matches row
@@ -1029,7 +1040,7 @@ Notifications
     const lastMatchesQuery = response['last_matches_query'];
     // show the fetch info
     $('#{{ refresh_matches_btn_id }}').prop('disabled', false);
-    $('#{{ last_matches_query_id }}').html(lastMatchesQuery);
+    $('#{{ last_matches_query_id }}').text(lastMatchesQuery);
     $('#{{ matches_fetch_info_id }}').removeClass('d-none');
     // update last query button
     $('#{{ set_last_matches_query_btn_id }}')
@@ -1060,7 +1071,7 @@ Notifications
     resetSendNotificationErrors();
 
     clearInvalid('{{ match_numbers_input_id }}');
-    $('#{{ refresh_matches_status_id }}').addClass('d-none').html('');
+    clearElement('{{ refresh_matches_status_id }}');
 
     const matchesQuery = getInputValue('{{ match_numbers_input_id }}');
     if (matchesQuery === '') {
@@ -1118,7 +1129,7 @@ Notifications
     // clear the input and any errors
     $('#{{ match_numbers_input_id }}').val('');
     clearInvalid('{{ match_numbers_input_id }}');
-    $('#{{ refresh_matches_status_id }}').addClass('d-none').html('');
+    clearElement('{{ refresh_matches_status_id }}');
 
     const currentMatchNumbers = getCurrentMatchRows({ onlyNumbers: true });
     if (currentMatchNumbers.length === 0) {
@@ -1136,16 +1147,14 @@ Notifications
           populateMatchInfoTable(response);
         } else {
           // some failure
-          $('#{{ refresh_matches_status_id }}')
-            .removeClass('d-none')
-            .html(response.reason ?? 'Unknown error: please try again');
+          $('#{{ refresh_matches_status_id }}').text(
+            response.reason ?? 'Unknown error: please try again'
+          );
         }
       },
       error: (jqXHR, status, errorThrown) => {
         stopButtonLoading('{{ refresh_matches_btn_id }}');
-        $('#{{ refresh_matches_status_id }}')
-          .removeClass('d-none')
-          .html(jqXHR.statusText);
+        $('#{{ refresh_matches_status_id }}').text(jqXHR.statusText);
       },
     });
   }
@@ -1187,7 +1196,7 @@ Notifications
         if (response.success) {
           const cleanMatchesQuery = response['matches_query'];
           // update matches query text
-          $('#{{ last_matches_query_id }}').html(cleanMatchesQuery);
+          $('#{{ last_matches_query_id }}').text(cleanMatchesQuery);
           // update last query button
           $('#{{ set_last_matches_query_btn_id }}').attr(
             'lastquery',
@@ -1208,7 +1217,6 @@ Notifications
     const hasBlastLoadingDiv =
       $('#{{ blast_notif_mc_fetch_templates_id }}').length > 0;
     if (!hasMatchLoadingDiv && !hasBlastLoadingDiv) return;
-
     ajaxRequest('GET', '{{ url_for("get_mailchimp_templates") }}', {
       success: (response, status, jqXHR) => {
         if (response.success) {
@@ -1256,14 +1264,14 @@ Notifications
 
   function resetSendNotificationErrors() {
     // clear messages
-    $('#{{ send_notif_messages_id }}').html('');
+    clearElement('{{ send_notif_messages_id }}');
     clearInvalid('{{ match_notif_mc_templates_select_id }}');
     clearInvalid('{{ match_notif_email_subject_input_id }}');
-    $('#{{ send_match_notif_error_id }}').html('');
+    clearElement('{{ send_match_notif_error_id }}');
     clearInvalid('{{ blast_notif_mc_templates_select_id }}');
     clearInvalid('{{ blast_notif_email_subject_input_id }}');
-    $('#{{ division_invalid_div_id }}').html('');
-    $('#{{ send_blast_notif_error_id }}').html('');
+    clearElement('{{ recipients_invalid_div_id }}');
+    clearElement('{{ send_blast_notif_error_id }}');
   }
 
   function disableAllButtons(exclude = []) {
@@ -1291,7 +1299,12 @@ Notifications
 
   function handleSendNotificationErrors(
     response,
-    { generalErrorId, templateSelectId, subjectInputId, divisionErrorId = null }
+    {
+      generalErrorId,
+      templateSelectId,
+      subjectInputId,
+      recipientsErrorId = null,
+    }
   ) {
     const errorMessages = response.errors ?? {};
     let errorSomewhere = false;
@@ -1308,28 +1321,28 @@ Notifications
       setInvalid(subjectInputId, subjectError);
     }
 
-    if (divisionErrorId != null) {
-      const divisionError = errorMessages['DIVISION'];
-      if (divisionError != null) {
+    if (recipientsErrorId != null) {
+      const recipientsError = errorMessages['RECIPIENTS'];
+      if (recipientsError != null) {
         errorSomewhere = true;
-        $('#' + divisionErrorId).html(divisionError);
+        $('#' + recipientsErrorId).text(recipientsError);
       }
     }
 
     const errorMessage = errorMessages['GENERAL'];
     if (errorMessage != null) {
       errorSomewhere = true;
-      $('#' + generalErrorId).html(errorMessage);
+      $('#' + generalErrorId).text(errorMessage);
     }
 
     if (!errorSomewhere) {
-      $('#' + generalErrorId).html('Unknown error: please try again');
+      $('#' + generalErrorId).text('Unknown error: please try again');
     }
   }
 
   function handleSendMatchNotificationClicked() {
     function generalError(msg) {
-      $('#{{ send_match_notif_error_id }}').html(msg);
+      $('#{{ send_match_notif_error_id }}').text(msg);
     }
 
     if (isCurrentlySending()) {
@@ -1428,34 +1441,23 @@ Notifications
     });
   }
 
-  function handleClearDivisionClicked() {
-    // clear all the radio inputs
-    getRadioInputs('{{ division_radio_name }}').prop('checked', false);
-    // show the proper confirm text in the modal
-    $('#{{ confirm_blast_audience_div_id }}').removeClass('d-none');
-    $('#{{ confirm_blast_division_div_id }}').addClass('d-none');
+  function handleRecipientSelected() {
+    if ($('#{{ recipients_everyone_radio_id }}').prop('checked')) {
+      // show the proper confirm text in the modal
+      $('#{{ confirm_blast_division_div_id }}').addClass('d-none');
+      $('#{{ confirm_blast_audience_div_id }}').removeClass('d-none');
+    } else {
+      // show the proper confirm text in the modal
+      $('#{{ confirm_blast_audience_div_id }}').addClass('d-none');
+      $('#{{ confirm_blast_division_div_id }}').removeClass('d-none');
+      // update the division text
+      $('#{{ confirm_blast_division_id }}').text(
+        getRadioValue('{{ recipients_radio_name }}') ?? ''
+      );
+    }
   }
 
-  function handleDivisionSelected() {
-    // show the proper confirm text in the modal
-    $('#{{ confirm_blast_audience_div_id }}').addClass('d-none');
-    $('#{{ confirm_blast_division_div_id }}').removeClass('d-none');
-    // update the division text
-    $('#{{ confirm_blast_division_id }}').html(
-      getRadioValue('{{ division_radio_name }}') ?? ''
-    );
-  }
-
-  function handleSendBlastNotificationClicked() {
-    function generalError(msg) {
-      $('#{{ send_blast_notif_error_id }}').html(msg);
-    }
-
-    if (isCurrentlySending()) {
-      // currently sending something; ignore the click
-      return;
-    }
-
+  function validateSendBlastNotificationArgs() {
     resetSendNotificationErrors();
 
     let invalid = false;
@@ -1489,9 +1491,48 @@ Notifications
       );
     }
 
+    const recipients = getRadioValue('{{ recipients_radio_name }}');
+    if (recipients == null) {
+      invalid = true;
+      $('#{{ recipients_invalid_div_id }}').text(
+        'Please select the recipients.'
+      );
+    }
+
+    return {
+      invalid: invalid,
+      templateId: selectedTemplateId,
+      emailSubject: emailSubject,
+      recipients: recipients,
+    };
+  }
+
+  function handleSendBlastNotificationClicked() {
+    if (isCurrentlySending()) {
+      // currently sending something; ignore the click
+      return;
+    }
+
+    const { invalid } = validateSendBlastNotificationArgs();
     if (invalid) return;
 
-    const division = getRadioValue('{{ division_radio_name }}');
+    // if everything is valid, show the confirmation modal
+    $('#{{ blast_notif_modal_id }}').modal('show');
+  }
+
+  function handleSendBlastNotificationConfirmClicked() {
+    function generalError(msg) {
+      $('#{{ send_blast_notif_error_id }}').text(msg);
+    }
+
+    if (isCurrentlySending()) {
+      // currently sending something; ignore the click
+      return;
+    }
+
+    const { invalid, templateId, emailSubject, recipients } =
+      validateSendBlastNotificationArgs();
+    if (invalid) return;
 
     setButtonLoading('{{ send_blast_notif_btn_id }}');
 
@@ -1501,12 +1542,23 @@ Notifications
     ]);
 
     const requestData = {
-      templateId: selectedTemplateId,
+      templateId: templateId,
       subject: emailSubject,
     };
-    if (division != null) {
-      requestData.division = division;
+    const $recipientsEveryoneRadio = $('#{{ recipients_everyone_radio_id }}');
+    if ($recipientsEveryoneRadio.prop('checked')) {
+      {% if audience_tag is none %}
+      // send to entire audience
+      requestData.entireAudience = true;
+      {% else %}
+      // send to the audience tag
+      requestData.tag = getElementAttr($recipientsEveryoneRadio, 'tag');
+      {% endif %}
+    } else {
+      // the selected recipients is the division to send to
+      requestData.division = recipients;
     }
+
     ajaxRequest('POST', '{{ url_for("send_blast_notification") }}', {
       contentType: 'application/json',
       data: JSON.stringify(requestData),
@@ -1524,20 +1576,18 @@ Notifications
           if (response.error != null) {
             alertMessageText += bsAlert(response.error, 'danger');
           }
-          setElementTextFor(
+          setElementHtmlFor(
             '{{ send_notif_messages_id }}',
             alertMessageText,
             60
           );
-          // clear the selected division, if any
-          handleClearDivisionClicked();
         } else {
           // some failure(s)
           handleSendNotificationErrors(response, {
             generalErrorId: '{{ send_blast_notif_error_id }}',
             templateSelectId: '{{ blast_notif_mc_templates_select_id }}',
             subjectInputId: '{{ blast_notif_email_subject_input_id }}',
-            divisionErrorId: '{{ division_invalid_div_id }}',
+            recipientsErrorId: '{{ recipients_invalid_div_id }}',
           });
         }
       },
@@ -1600,14 +1650,14 @@ Notifications
     // clear the flashed text after 60 seconds
     clearElementAfter('{{ send_notif_messages_id }}', 60);
     // Blast notifications
-    $('#{{ clear_division_btn_id }}').click((event) => {
-      handleClearDivisionClicked();
+    getRadioInputs('{{ recipients_radio_name }}').on('input', (event) => {
+      handleRecipientSelected();
     });
-    getRadioInputs('{{ division_radio_name }}').on('input', (event) => {
-      handleDivisionSelected();
+    $('#{{ send_blast_notif_btn_id }}').click((event) => {
+      handleSendBlastNotificationClicked();
     });
     $('#{{ blast_notif_confirm_btn_id }}').click((event) => {
-      handleSendBlastNotificationClicked();
+      handleSendBlastNotificationConfirmClicked();
     });
     {% endif %}
     {% endif %}

@@ -58,10 +58,6 @@ code {
      */
     width: 457px;
   }
-
-  .email-items-col {
-    width: 550px;
-  }
 }
 
 @media (max-width: 799.98px) {

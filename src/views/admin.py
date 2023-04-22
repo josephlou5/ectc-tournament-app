@@ -22,7 +22,7 @@ app = AppRoutes()
 # =============================================================================
 
 
-@app.route("/notifications/fetch_roster", methods=["POST", "DELETE"])
+@app.route("/fetch_roster", methods=["POST", "DELETE"])
 @login_required(admin=True, save_redirect=False)
 def fetch_roster():
     if request.method == "DELETE":
@@ -100,7 +100,9 @@ def fetch_roster():
                 email = user["email"]
                 users_by_email[email] = user
                 deleted_emails.discard(email)
+
             tournament_tag = db.global_state.get_mailchimp_audience_tag()
+
             error_msg, invalid_emails = mailchimp_utils.add_members(
                 audience_id,
                 list(users_by_email.keys()),

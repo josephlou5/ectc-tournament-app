@@ -31,8 +31,12 @@ table-warning
       {% for log in logs %}
       {% set log_level = log["level"] %}
       <tr class="text-monospace">
-        <td class="table-sm-col {{ log_level_class(log_level) }}">{{ log_level }}</td>
-        <td class="table-sm-col">{{ log["row_num"] or "" }}</td>
+        <td class="table-sm-col {{ log_level_class(log_level) }}">
+          {{ log_level|e }}
+        </td>
+        <td class="table-sm-col">
+          {{ log["row_num"]|e if log["row_num"] is not none }}
+        </td>
         <td>{{ log["message"]|e }}</td>
       </tr>
       {% endfor %}

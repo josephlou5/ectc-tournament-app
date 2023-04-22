@@ -774,6 +774,8 @@ def send_blast_notification():
     error_msg, request_args = get_request_json(
         "templateId",
         "subject",
+        {"key": "tag", "required": False},
+        {"key": "entireAudience", "type": bool, "required": False},
         {"key": "division", "required": False},
     )
     if error_msg is not None:
@@ -782,6 +784,8 @@ def send_blast_notification():
     # get and validate request args
     template_id = request_args["templateId"].strip()
     subject = request_args["subject"].strip()
+    tag = request_args.get("tag", None)
+    entire_audience = "entireAudience" in request_args
     division = request_args.get("division", None)
 
     errors = {}
@@ -794,15 +798,30 @@ def send_blast_notification():
         error_msg, subject = helpers.validate_subject(subject, blast=True)
         if error_msg is not None:
             errors["SUBJECT"] = error_msg
-    if division is not None:
+    if tag is not None:
+        # send to the given tag
+        entire_audience = False
+        division = None
+        if tag == "":
+            errors["RECIPIENTS"] = "Tag is empty"
+    elif entire_audience:
+        # send to entire audience
+        tag = None
+        division = None
+    elif division is not None:
+        # send to the given division
+        tag = None
+        entire_audience = False
         if division == "":
-            errors["DIVISION"] = "Division is empty"
+            errors["RECIPIENTS"] = "Division is empty"
         else:
             division_emails = db.roster.get_emails_for_division(division)
             if len(division_emails) == 0:
                 errors[
-                    "DIVISION"
+                    "RECIPIENTS"
                 ] = "Selected division does not have any valid emails"
+    else:
+        errors["RECIPIENTS"] = "No recipients specified"
 
     if len(errors) > 0:
         print(" ", "Error with request args:")
@@ -829,7 +848,36 @@ def send_blast_notification():
         "subject": subject,
     }
 
-    if division is not None:
+    if tag is not None:
+        recipients = f"tag {tag!r}"
+        print(" ", " ", "Sending to tag:", tag)
+
+        error_msg, tag_id = mailchimp_utils.get_segment_id(audience_id, tag)
+        if error_msg is not None:
+            print(" ", f"Error while getting segment {tag!r}:", error_msg)
+            return helpers.unsuccessful_notif(
+                "Mailchimp error", print_error=False
+            )
+        if tag_id is None:
+            return helpers.unsuccessful_notif(
+                f"Mailchimp tag {tag!r} not found"
+            )
+
+        email_sent_info["tag"] = tag
+
+        # send email
+        error_msg, campaign_info = mailchimp_utils.create_and_send_campaign(
+            audience_id, template_id, subject, tag_id
+        )
+    elif entire_audience:
+        recipients = "entire audience"
+        print(" ", " ", "Sending to entire audience")
+
+        # send email
+        error_msg, campaign_info = mailchimp_utils.create_and_send_campaign(
+            audience_id, template_id, subject
+        )
+    else:  # division is not None
         recipients = f"division {division!r}"
         print(
             " ",
@@ -861,39 +909,6 @@ def send_blast_notification():
             subject,
             tns_segment_id,
             list(division_emails),
-        )
-    else:
-        # get the audience tag
-        audience_tag = db.global_state.get_mailchimp_audience_tag()
-        if audience_tag is None:
-            audience_tag_id = None
-            recipients = "entire audience"
-            print(" ", " ", "Sending to entire audience")
-        else:
-            recipients = f"tag {audience_tag!r}"
-            print(" ", " ", "Sending to tag:", audience_tag)
-            error_msg, audience_tag_id = mailchimp_utils.get_segment_id(
-                audience_id, audience_tag
-            )
-            if error_msg is not None:
-                print(
-                    " ",
-                    f"Error while getting segment {audience_tag!r}:",
-                    error_msg,
-                )
-                return helpers.unsuccessful_notif(
-                    "Mailchimp error", print_error=False
-                )
-            if audience_tag_id is None:
-                return helpers.unsuccessful_notif(
-                    f"Mailchimp audience tag {audience_tag!r} not found"
-                )
-
-            email_sent_info["tag"] = audience_tag
-
-        # send email
-        error_msg, campaign_info = mailchimp_utils.create_and_send_campaign(
-            audience_id, template_id, subject, audience_tag_id
         )
 
     if error_msg is not None:

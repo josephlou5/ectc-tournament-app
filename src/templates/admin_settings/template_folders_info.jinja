@@ -31,7 +31,7 @@
            num_campaigns ~ " template" ~ ("s" if num_campaigns != 1)
        %}
       <option
-        value="{{ folder_id }}"
+        value="{{ folder_id|e }}"
         {% if folder_id == selected_folder_id %} selected {% endif %}
       >
         {{ (folder_name ~ " (" ~ num_campaigns_str ~ ")")|e }}

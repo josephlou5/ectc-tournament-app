@@ -30,133 +30,34 @@ function ajaxRequest(method, url, options = {}) {
   $.ajax({ method, url, ...options });
 }
 
-/** TIMEOUTS **/
-
-// maps: element id -> current timeout
-const TIMEOUTS = {};
-
-/**
- * Clears an element after the given amount of seconds.
- */
-function clearElementAfter(elementId, seconds = 60) {
-  const $element = $('#' + elementId);
-  if ($element.length == 0) {
-    console.log('clearElementAfter(): Error: element not found: #' + elementId);
-    return;
-  }
-  // clear any current timeouts
-  if (TIMEOUTS[elementId] != null) {
-    clearTimeout(TIMEOUTS[elementId]);
-    delete TIMEOUTS[elementId];
-  }
-  // if the element has text, clear it after the specified time
-  if ($element.html().trim() === '') return;
-  TIMEOUTS[elementId] = setTimeout(() => {
-    const $element = $('#' + elementId);
-    if ($element.length > 0) {
-      $element.html('');
-    }
-    if (TIMEOUTS[elementId] != null) {
-      delete TIMEOUTS[elementId];
-    }
-  }, seconds * 1000);
-}
-
-/**
- * Sets the text of an element for the given amount of seconds.
- */
-function setElementTextFor(elementId, text, seconds = 60) {
-  $('#' + elementId).html(text);
-  clearElementAfter(elementId, seconds);
-}
-
-/** FORMS **/
-
-function getInputValue(elementId) {
-  const $element = $('#' + elementId);
-  if (getElementAttr($element, 'type') === 'checkbox') {
-    return $element.prop('checked');
-  }
-  return $element.val()?.trim() ?? '';
-}
-
-function getRadioInputs(elementName) {
-  return $(`input[type="radio"][name="${elementName}"]`);
-}
-
-function getRadioValue(elementName) {
-  let value = null;
-  getRadioInputs(elementName).each((index, element) => {
-    const $element = $(element);
-    if ($element.prop('checked')) {
-      value = $element.val()?.trim() ?? '';
-      return false;
-    }
-  });
-  return value;
-}
-
-function clearInvalid(elementId) {
-  $('#' + elementId).removeClass('is-invalid');
-  $('#' + elementId + '-invalid').html('');
-}
-
-function setInvalid(elementId, message = null) {
-  if (message != null) {
-    $('#' + elementId + '-invalid').html(message);
-  }
-  $('#' + elementId).addClass('is-invalid');
-}
-
-/** LOADING BUTTONS **/
-
-function isButtonLoading(elementId) {
-  // if the spinner is not hidden, it is loading
-  return !$('#' + elementId + '-spinner').hasClass('d-none');
-}
-
-function setButtonLoading(elementId) {
-  // disable the button
-  $('#' + elementId).prop('disabled', true);
-  // set the button text, if possible
-  const $buttonText = $('#' + elementId + '-text');
-  if ($buttonText.length > 0) {
-    $buttonText.html(getElementAttr($buttonText, 'loading'));
-  }
-  // show the spinner
-  $('#' + elementId + '-spinner').removeClass('d-none');
-}
-
-function stopButtonLoading(elementId) {
-  // hide the spinner
-  $('#' + elementId + '-spinner').addClass('d-none');
-  // set the button text, if possible
-  const $buttonText = $('#' + elementId + '-text');
-  if ($buttonText.length > 0) {
-    $buttonText.html(getElementAttr($buttonText, 'waiting'));
-  }
-  // enable the button
-  $('#' + elementId).prop('disabled', false);
-}
-
 /** MISC **/
 
-function getElementAttr($element, attrName) {
-  return $element.attr(attrName)?.trim() ?? '';
-}
-
-function getAttr(elementId, attrName) {
-  return getElementAttr($('#' + elementId), attrName);
+function trim(value) {
+  return value?.trim() ?? '';
 }
 
 function elementHasAttr($element, attrName) {
   return $element.attr(attrName) != null;
 }
 
+function getElementAttr($element, attrName) {
+  return trim($element.attr(attrName));
+}
+
+function getAttr(elementId, attrName) {
+  return getElementAttr($('#' + elementId), attrName);
+}
+
+function getElementText($element) {
+  return trim($element.text());
+}
+
+function getText(elementId) {
+  return getElementText($('#' + elementId));
+}
+
 function copyElementContent(elementId, callback = null) {
-  const text = $('#' + elementId)
-    .text()
-    .trim();
+  const text = getText(elementId);
   navigator.clipboard.writeText(text).then(() => {
     callback?.();
   });
@@ -174,7 +75,7 @@ function toggleDisplay(
     } else {
       // show
       $toggleElement.removeClass('d-none');
-      $toggleButton.html(hide);
+      $toggleButton.text(hide);
     }
   } else {
     if (forceShow === true) {
@@ -182,9 +83,128 @@ function toggleDisplay(
     } else {
       // hide
       $toggleElement.addClass('d-none');
-      $toggleButton.html(show);
+      $toggleButton.text(show);
     }
   }
+}
+
+/** TIMEOUTS **/
+
+// maps: element id -> current timeout
+const TIMEOUTS = {};
+
+function clearElement(elementId) {
+  $('#' + elementId).html('');
+}
+
+/**
+ * Clears an element after the given amount of seconds.
+ */
+function clearElementAfter(elementId, seconds = 60) {
+  if (elementId === '') {
+    console.log('clearElementAfter(): Error: empty element id given');
+    return;
+  }
+  const $element = $('#' + elementId);
+  if ($element.length == 0) {
+    console.log('clearElementAfter(): Error: element not found: #' + elementId);
+    return;
+  }
+  // clear any current timeouts
+  if (TIMEOUTS[elementId] != null) {
+    clearTimeout(TIMEOUTS[elementId]);
+    delete TIMEOUTS[elementId];
+  }
+  // if the element has text, clear it after the specified time
+  if (getElementText($element) === '') return;
+  TIMEOUTS[elementId] = setTimeout(() => {
+    clearElement(elementId);
+    if (TIMEOUTS[elementId] != null) {
+      delete TIMEOUTS[elementId];
+    }
+  }, seconds * 1000);
+}
+
+/**
+ * Sets the text of an element for the given amount of seconds.
+ */
+function setElementHtmlFor(elementId, text, seconds = 60) {
+  $('#' + elementId).html(text);
+  clearElementAfter(elementId, seconds);
+}
+
+/** FORMS **/
+
+function getInputValue(elementId) {
+  const $element = $('#' + elementId);
+  if (getElementAttr($element, 'type') === 'checkbox') {
+    return $element.prop('checked');
+  }
+  return trim($element.val());
+}
+
+function getRadioInputs(elementName) {
+  return $(`input[type="radio"][name="${elementName}"]`);
+}
+
+function getRadioValue(elementName) {
+  let value = null;
+  getRadioInputs(elementName).each((index, element) => {
+    const $element = $(element);
+    if ($element.prop('checked')) {
+      value = trim($element.val());
+      return false;
+    }
+  });
+  return value;
+}
+
+function clearInvalid(elementId) {
+  $('#' + elementId).removeClass('is-invalid');
+  clearElement(elementId + '-invalid');
+}
+
+/**
+ * Given the id of an input element, sets the text of its '.invalid-feedback'
+ * element, which is assumed to have the id "#{elementId}-invalid", and marks
+ * the input as invalid.
+ */
+function setInvalid(elementId, message = null) {
+  if (message != null) {
+    $('#' + elementId + '-invalid').text(message);
+  }
+  $('#' + elementId).addClass('is-invalid');
+}
+
+/** LOADING BUTTONS **/
+
+function isButtonLoading(elementId) {
+  // if the spinner is not hidden, it is loading
+  return !$('#' + elementId + '-spinner').hasClass('d-none');
+}
+
+function setButtonLoading(elementId) {
+  // disable the button
+  $('#' + elementId).prop('disabled', true);
+  // set the button text, if possible
+  const $buttonText = $('#' + elementId + '-text');
+  if ($buttonText.length > 0) {
+    $buttonText.text(getElementAttr($buttonText, 'loading'));
+  }
+  // show the spinner
+  $('#' + elementId + '-spinner').removeClass('d-none');
+}
+
+function stopButtonLoading(elementId) {
+  // hide the spinner
+  $('#' + elementId + '-spinner').addClass('d-none');
+  // set the button text, if possible
+  const $buttonText = $('#' + elementId + '-text');
+  if ($buttonText.length > 0) {
+    $buttonText.text(getElementAttr($buttonText, 'waiting'));
+  }
+  // enable the button
+  $('#' + elementId).prop('disabled', false);
 }
 
 /** BOOTSTRAP **/
@@ -305,7 +325,7 @@ function handleBsPagination(
       // "all" button clicked
       handlePagination();
     } else {
-      handlePagination($pageBtn.html()?.trim() ?? '');
+      handlePagination(getElementText($pageBtn));
     }
   });
 }

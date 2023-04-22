@@ -26,7 +26,7 @@ Matches Status
     data-bs-toggle="tooltip"
     data-bs-placement="right"
     data-bs-html="true"
-    title="Last updated:<br/>{{ last_updated }}"
+    title="Last updated:<br/>{{ last_updated|e }}"
   >
     {{ status|e }}
   </span>
@@ -144,7 +144,7 @@ Matches Status
               class="{{ match_status_row_class }}"
               hundred="{{ hundred_str }}"
             >
-              <th class="table-sm-col">{{ status_info["number"] }}</th>
+              <th class="table-sm-col">{{ status_info["number"]|e }}</th>
               {{ _match_status_col(
                    status_info["tms_status"],
                    status_info["tms_status_last_updated"],
@@ -167,7 +167,7 @@ Matches Status
             >
               {% if loop.first %}
               <th {{ row_span_attr }} class="table-sm-col">
-                {{ status_info["number"] }}
+                {{ status_info["number"]|e }}
               </th>
               {{ _match_status_col(
                   status_info["tms_status"],
