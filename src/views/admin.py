@@ -24,7 +24,7 @@ app = AppRoutes()
 # To prevent server timeouts, set a limit on the number of new contacts
 # that can be added during a single roster fetch.
 # This number was chosen arbitrarily; I'm not sure if it's good or bad.
-NEW_CONTACTS_LIMIT = 5
+NEW_CONTACTS_LIMIT = 200
 
 # =============================================================================
 
