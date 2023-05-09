@@ -351,13 +351,12 @@ def view_full_roster():
         divisions, key=fetch_tms.division_sort_key
     )
 
-    full_roster["is_roster_empty"] = all(
-        len(objs) == 0 for objs in full_roster.values()
-    )
+    is_roster_empty = all(len(objs) == 0 for objs in full_roster.values())
 
     return _render(
         "notifications/full_roster.jinja",
         **full_roster,
+        is_roster_empty=is_roster_empty,
         has_fetch_logs=has_fetch_logs,
     )
 

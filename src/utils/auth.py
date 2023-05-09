@@ -26,11 +26,13 @@ __all__ = (
 # =============================================================================
 
 
-def _redirect_last():
+def _redirect_last(force_default=False):
     """Redirects to the redirect page."""
-    redirect_uri = session.get("redirect_page", None)
-    if redirect_uri is None:
-        return redirect(url_for("index"))
+    default_uri = url_for("index")
+    if force_default:
+        redirect_uri = default_uri
+    else:
+        redirect_uri = session.get("redirect_page", default_uri)
     return redirect(redirect_uri)
 
 
@@ -102,17 +104,28 @@ def login_required(admin=False, super_admin=False, save_redirect=True):
     def login_wrapper(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            redirected_to_this_page = (
+                session.get("redirect_page", None) == request.path
+            )
             if save_redirect:
                 set_redirect_page()
             if not is_logged_in():
                 return redirect(url_for("log_in"))
+            # if the user was redirected to a page they don't have
+            # permission to view, redirect them elsewhere. however, if
+            # they went to this page specifically, show them a forbidden
+            # page
             if super_admin and not is_logged_in_super_admin():
                 # not a super admin
+                if redirected_to_this_page:
+                    return _redirect_last(force_default=True)
                 raise Forbidden(
                     "You do not have permission to view a super admin page."
                 )
             if admin and not is_logged_in_admin():
                 # not an admin
+                if redirected_to_this_page:
+                    return _redirect_last(force_default=True)
                 raise Forbidden(
                     "You do not have permission to view an admin page."
                 )

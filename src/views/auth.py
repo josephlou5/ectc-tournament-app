@@ -102,11 +102,10 @@ def login_callback():
 
     if not user_info.get("email_verified", False):
         return "User email not available or not verified by Google.", 400
-
-    # save user as logged in
     if user_info.get("email", None) is None:
         return "User email could not be found.", 400
 
+    # save user as logged in
     # convert email to lowercase to be consistent with Mailchimp
     session["email"] = user_info["email"].lower()
     session["user_info"] = user_info

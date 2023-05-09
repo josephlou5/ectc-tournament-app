@@ -39,18 +39,19 @@ def has_all_admin_settings():
         Optional[str]: An error message if any of the admin settings are
             missing.
     """
+    ALL_ADMIN_SETTINGS = {
+        "service_account": "service account",
+        "tms_spreadsheet_id": "TMS spreadsheet url",
+        "mailchimp_api_key": "Mailchimp API key",
+        "mailchimp_audience_id": "Mailchimp audience",
+        "mailchimp_folder_id": "Mailchimp template folder",
+    }
+
     global_state = get()
     missing = []
-    if global_state.service_account is None:
-        missing.append("service account")
-    if global_state.tms_spreadsheet_id is None:
-        missing.append("TMS spreadsheet url")
-    if global_state.mailchimp_api_key is None:
-        missing.append("Mailchimp API key")
-    if global_state.mailchimp_audience_id is None:
-        missing.append("Mailchimp audience")
-    if global_state.mailchimp_folder_id is None:
-        missing.append("Mailchimp template folder")
+    for key, description in ALL_ADMIN_SETTINGS.items():
+        if getattr(global_state, key) is None:
+            missing.append(description)
     if len(missing) == 0:
         return None
     return f"Missing: {utils.list_of_items(missing)}"

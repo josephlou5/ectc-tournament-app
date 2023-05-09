@@ -313,21 +313,18 @@ def division_sort_key(division):
 
 def split_divisions_by_groups(divisions):
     # assumes the only division groups are these three
-    p_group = []
+    poomsae_group = []
     mens_group = []
     womens_group = []
+    groups = {"P": poomsae_group, "M": mens_group, "W": womens_group}
     for division in sorted(divisions, key=division_sort_key):
-        if division.startswith("P"):
-            p_group.append(division)
-        elif division.startswith("M"):
-            mens_group.append(division)
-        elif division.startswith("W"):
-            womens_group.append(division)
-    return list(
-        filter(
-            lambda group: len(group) > 0, [p_group, mens_group, womens_group]
-        )
-    )
+        if len(division) == 0:
+            continue
+        group_list = groups.get(division[0], None)
+        if group_list is None:
+            continue
+        group_list.append(division)
+    return list(filter(lambda group: len(group) > 0, groups.values()))
 
 
 def school_team_code_sort_key(school_team_code):
@@ -779,13 +776,11 @@ def process_roster(row_generator):
 
 def match_number_sort_key(match_number):
     try:
-        return (
-            MATCH_NUMBER_HUNDREDS_ORDER.index(match_number // 100),
-            match_number,
-        )
+        index = MATCH_NUMBER_HUNDREDS_ORDER.index(match_number // 100)
     except ValueError:
         # just put everything else at the end
-        return (len(MATCH_NUMBER_HUNDREDS_ORDER), match_number)
+        index = len(MATCH_NUMBER_HUNDREDS_ORDER)
+    return (index, match_number)
 
 
 def _extract_school_team_code(team_name):
@@ -835,7 +830,7 @@ def fetch_match_teams(match_numbers):
         return _fetch_error(error_msg)
 
     error_msg, worksheet = get_worksheet(
-        spreadsheet, MATCHES_WORKSHEET_NAME, description="Matches spreadsheet"
+        spreadsheet, MATCHES_WORKSHEET_NAME, description="Matches worksheet"
     )
     if error_msg is not None:
         return _fetch_error(error_msg)
