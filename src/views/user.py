@@ -71,12 +71,11 @@ def subscriptions():
             print(" ", f"{action} all teams for {specific_target}")
 
             if request.method == "POST":
-                # add all teams
+                # add all teams (that the user isn't on)
                 school_team_codes = [
                     team.school_team_code
-                    for team in db.roster.get_all_teams(
-                        **teams_filter, without_email=user_email
-                    )
+                    for team in db.roster.get_all_teams(**teams_filter)
+                    if not team.has_user_email(user_email)
                 ]
                 success = db.subscriptions.add_all_teams(
                     user_email, school_team_codes
@@ -139,11 +138,6 @@ def subscriptions():
     # get subscriptions
     user_subscriptions = db.subscriptions.get_all_subscriptions(user_email)
 
-    # get all user team codes
-    user_school_team_codes = set(
-        team.school_team_code for team in db.roster.get_user_teams(user_email)
-    )
-
     divisions = set()
 
     # maps: school -> division -> team number ->
@@ -165,7 +159,7 @@ def subscriptions():
         division_subscriptions[team_number] = {
             "name": team.name,
             "is_subscribed": school_team_code in user_subscriptions,
-            "is_user_on_team": school_team_code in user_school_team_codes,
+            "is_user_on_team": team.has_user_email(user_email),
         }
 
     return _render(
