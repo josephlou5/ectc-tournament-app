@@ -255,10 +255,6 @@ def validate_subject(subject, blast=False):
             in_placeholder = False
             placeholder_chars.clear()
         elif in_placeholder:
-            if not c.isalpha():
-                return _error(
-                    f"Index {i+1}: invalid character inside placeholder: {c}"
-                )
             placeholder_chars.append(c.lower())
         elif not (
             c.isalpha()
