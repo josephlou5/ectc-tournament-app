@@ -13,5 +13,14 @@
     "timestamp": "2023-04-22 12:51",
     "title": "",
     "descriptions": ["Add limit on new contacts when fetching roster"]
+  },
+  {
+    "version": "0.0.102",
+    "timestamp": "2023-05-09 12:00",
+    "title": "",
+    "descriptions": [
+      "Redirecting to a page the user doesn't have permission for will redirect back to the index",
+      "Improve subject validation error messages"
+    ]
   }
 ]
