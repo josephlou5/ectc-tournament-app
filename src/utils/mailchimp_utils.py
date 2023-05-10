@@ -249,7 +249,7 @@ def get_audiences():
 
     Returns:
         Union[Tuple[str, None], Tuple[None, List[Dict]]]:
-            A tuple of an error messages, or a list of audience infos in
+            A tuple of an error message, or a list of audience infos in
             the format:
                 'id': audience id
                 'name': audience name
@@ -294,19 +294,68 @@ def get_audience(audience_id):
 
 # =============================================================================
 
+MEMBER_FIELDS = {
+    "hash": {"path": "id"},  # MD5 hash of the user's lowercase email
+    "email": {"path": "email_address"},
+    "status": {"path": "status"},
+}
 
-def add_members(audience_id, emails, tournament_tag=None, remove_emails=None):
-    """Adds the given member emails to the given audience with the
-    optional given tournament tag.
 
-    If `remove_emails` is given, the given tournament tag will be
-    removed from those emails.
+def find_missing_members(audience_id, emails):
+    """Returns all the emails from the given list that are not currently
+    in the given audience.
+
+    Unsubscribed or archived members still count as "in the audience".
+    This function does not currently check the subscription status of
+    the audience members.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, List[str]]:
+            A tuple of an error message, or a list of emails to add.
+    """
+
+    remaining_emails = set(emails)
+    if len(remaining_emails) == 0:
+        return None, []
+
+    error_msg, client = get_client()
+    if error_msg is not None:
+        return error_msg, None
+
+    # find all members that need to be added
+    try:
+        # https://mailchimp.com/developer/marketing/api/list-members/list-members-info/
+        for member_info in _yield_paginated_data(
+            client.lists.get_list_members_info,
+            MEMBER_FIELDS,
+            "members",
+            audience_id,
+        ):
+            email = member_info["email"].lower()
+            # TODO: should check subscription status?
+            remaining_emails.discard(email)
+            if len(remaining_emails) == 0:
+                # no one else to look for on Mailchimp
+                break
+    except ApiClientError as ex:
+        error_msg = str(ex.text)
+        print("Mailchimp API error:", error_msg)
+        return error_msg, None
+
+    return None, list(remaining_emails)
+
+
+def add_members(audience_id, emails):
+    """Adds the given member emails to the given audience.
 
     An error will be returned upon the first invalid request (except for
     invalid emails), but all previous requests will have gone through.
-    Multiple calls to this function will not have any ill effects (the
-    members list will only be updated with these emails), so it is safe
-    to retry the function call if there is any error.
+    Each member email will be subscribed to the audience, even if they
+    previously unsubscribed.
+
+    Note that this function makes one API call per member email, which
+    makes it very slow. For this reason, the number of emails passed in
+    should be monitored so that this call does not time out.
 
     Returns:
         Tuple[Optional[str], Set[str]]: An error message, which is None
@@ -318,34 +367,9 @@ def add_members(audience_id, emails, tournament_tag=None, remove_emails=None):
     if error_msg is not None:
         return error_msg, set()
 
-    # remove existing tag from deleted emails
-    # remove first because there are no errors here
-    if tournament_tag is not None and remove_emails is not None:
-        for email in remove_emails:
-            # remove the tournament tag
-            subscriber_hash = _get_subscriber_hash(email)
-            try:
-                # https://mailchimp.com/developer/marketing/api/list-member-tags/add-or-remove-member-tags/
-                client.lists.update_list_member_tags(
-                    audience_id,
-                    subscriber_hash,
-                    {"tags": [{"name": tournament_tag, "status": "inactive"}]},
-                )
-            except ApiClientError as ex:
-                # most likely error is that the user doesn't exist; ignore
-                error_msg = ex.text
-                print(
-                    f"Error while removing tag {tournament_tag!r} from "
-                    f"{email!r}: {error_msg}"
-                )
-
     invalid_emails = set()
-
-    tags_kwargs = {}
-    if tournament_tag is not None:
-        tags_kwargs["tags"] = [tournament_tag]
     for email in emails:
-        # add user and tag if doesn't exist
+        # add user if doesn't exist
         try:
             # https://mailchimp.com/developer/marketing/api/list-members/add-or-update-list-member/
             client.lists.set_list_member(
@@ -357,12 +381,11 @@ def add_members(audience_id, emails, tournament_tag=None, remove_emails=None):
                     # re-subscribe them for this tournament
                     # if they unsubscribed for this tournament, oops...
                     "status": "subscribed",
-                    **tags_kwargs,
                 },
             )
         except ApiClientError as ex:
-            error_msg = ex.text
-            if "Please provide a valid email address." in str(error_msg):
+            error_msg = str(ex.text)
+            if "Please provide a valid email address." in error_msg:
                 # invalid email address
                 print("Invalid email address:", email)
                 invalid_emails.add(email)
@@ -524,9 +547,8 @@ def get_segment_id(audience_id, segment_name):
     return None, None
 
 
-def get_or_create_tns_segment(audience_id, index):
-    """Gets the TNS email segment with the given index, or creates it if
-    it doesn't exist.
+def get_or_create_segment(audience_id, segment_name):
+    """Gets the specified segment, or creates it if it doesn't exist.
 
     Returns:
         Union[Tuple[str, None], Tuple[None, int]]:
@@ -536,8 +558,6 @@ def get_or_create_tns_segment(audience_id, index):
     error_msg, client = get_client()
     if error_msg is not None:
         return error_msg, None
-
-    segment_name = TNS_SEGMENT_NAME.format(index=index)
 
     error_msg, segment_id = get_segment_id(audience_id, segment_name)
     if error_msg is not None:
@@ -560,13 +580,23 @@ def get_or_create_tns_segment(audience_id, index):
     return None, segment_id
 
 
+def get_or_create_tns_segment(audience_id, index):
+    """Gets the TNS email segment with the given index, or creates it if
+    it doesn't exist.
+
+    Returns:
+        Union[Tuple[str, None], Tuple[None, int]]:
+            An error message, or the segment id.
+    """
+    segment_name = TNS_SEGMENT_NAME.format(index=index)
+    return get_or_create_segment(audience_id, segment_name)
+
+
 def update_segment_emails(audience_id, segment_id, emails):
     """Replaces the emails in the given segment with the given emails.
 
-    Assumes the given segment is the reserved TNS segment.
-
     Returns:
-        Union[str, None]: An error message if an error occurred.
+        Optional[str]: An error message if an error occurred.
     """
     INVALID_EMAILS_MSG = (
         "None of the emails provided were subscribed to the list"
@@ -588,9 +618,9 @@ def update_segment_emails(audience_id, segment_id, emails):
         )
     except ApiClientError as ex:
         error_msg = str(ex.text)
+        print("Mailchimp API error while updating segment:", error_msg)
         if INVALID_EMAILS_MSG in error_msg:
             error_msg = "All given emails were not subscribed to the audience"
-        print("Mailchimp API error while updating segment:", error_msg)
         return error_msg
 
     if response["member_count"] != len(emails):

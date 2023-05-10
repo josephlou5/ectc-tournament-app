@@ -4,11 +4,24 @@
 Changelog
 {% endblock %}
 
+{% set repo_url = "https://github.com/josephlou5/ectc-tournament-app" %}
+
+{% macro _issue(num) %}
+{% if num is number %}
+(<a href="{{ repo_url }}/issues/{{ num }}" target="_blank">issue #{{ num }}</a>)
+{% endif %}
+{% endmacro %}
+
 {% block body %}
 <div id="changelog-body" class="container-fluid">
-  <div class="row align-items-end">
+  <div class="row">
     <div class="col">
       <h2>Changelog</h2>
+    </div>
+  </div>
+  <div class="row mb-2">
+    <div class="col">
+      GitHub repo: <a href="{{ repo_url }}" target="_blank">{{ repo_url }}</a>
     </div>
   </div>
   <div class="row">
@@ -39,7 +52,14 @@ Changelog
           {% else %}
           <ul>
             {% for description in descriptions %}
+            {% if description is mapping %}
+            <li>
+              {{ description["description"]|e }}
+              {{ _issue(description["issue"]) }}
+            </li>
+            {% else %}
             <li>{{ description|e }}</li>
+            {% endif %}
             {% endfor %}
           </ul>
           {% endif %}

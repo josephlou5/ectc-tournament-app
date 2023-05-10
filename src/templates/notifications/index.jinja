@@ -285,20 +285,20 @@ Notifications
         <p>
           All the emails in the fetched roster will also be added to the
           Mailchimp audience selected on the
-          <a href="{{ url_for('admin_settings') }}">Admin Settings</a> page. If
-          an audience tag was given, these contacts will also be tagged with
-          that tag. If any emails were removed from the
-          <code>{{ roster_worksheet_name|e }}</code> worksheet between the last
-          fetch and a new fetch, the removed emails will have the audience tag
-          removed from their contact. This step may be a little finnicky, so may
-          not always work.
+          <a href="{{ url_for('admin_settings') }}">Admin Settings</a> page.
+          (This will validate emails if any of them are rejected by Mailchimp.)
+          If an audience tag was given, these contacts will also be tagged with
+          that tag. Any other contacts on Mailchimp that were not in the fetched
+          roster will be untagged, so the use of the audience tag is constrained
+          to the emails in the roster.
         </p>
         <p class="ms-3">
           (Note that adding many contacts may take a long time, causing a server
           timeout. To avoid this, try fetching the roster multiple times, each
           time adding incrementally more contacts until your entire roster is
-          fetched. I don't have any real cutoff numbers, but maybe around
-          100-150 contacts at a time should be fine.)
+          fetched. [Fetching multiple times will not unnecessarily add contacts
+          that are already on Mailchimp.] I don't have any real cutoff numbers,
+          but maybe around 100-150 contacts at a time should be fine.)
         </p>
       </div>
     </div>

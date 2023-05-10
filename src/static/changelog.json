@@ -22,5 +22,17 @@
       "Redirecting to a page the user doesn't have permission for will redirect back to the index",
       "Improve subject validation error messages"
     ]
+  },
+  {
+    "version": "0.0.103",
+    "timestamp": "2023-05-10 10:15",
+    "title": "",
+    "descriptions": [
+      {
+        "description": "Check Mailchimp audience contacts list so that only missing contacts are ever added (no unnecessary API calls)",
+        "issue": 3
+      },
+      "Replace the contacts in the given audience tag rather than updating each individual contact's tags (much more efficient)"
+    ]
   }
 ]

@@ -29,6 +29,92 @@ NEW_CONTACTS_LIMIT = 200
 # =============================================================================
 
 
+def _edit_mailchimp_contacts(emails):
+    """Adds the given user emails to Mailchimp.
+
+    If there are Mailchimp errors, the errors themselves will be
+    returned, which may be a bit too detailed for actual end users. This
+    could be improved in the future for clearer error messages.
+
+    Returns:
+        Union[
+            Tuple[str, None, None],
+            Tuple[None, Optional[str], Set[str]]
+        ]:
+            An abort message, or a fetch error message and a set of the
+            invalid emails that were added.
+    """
+
+    def _error(msg, invalid=None):
+        if invalid is None:
+            invalid = set()
+        return None, msg, invalid
+
+    print(" ", "Adding contacts to Mailchimp")
+
+    if not db.global_state.has_mailchimp_api_key():
+        return _error("No Mailchimp API key to import contacts")
+
+    audience_id = db.global_state.get_mailchimp_audience_id()
+    if audience_id is None:
+        return _error("No selected Mailchimp audience id")
+
+    error_msg, add_emails = mailchimp_utils.find_missing_members(
+        audience_id, list(emails)
+    )
+    if error_msg is not None:
+        return _error(error_msg)
+
+    over_contacts_limit = len(add_emails) > NEW_CONTACTS_LIMIT
+    print(
+        " ",
+        " ",
+        f"{len(add_emails)} new contacts to add",
+        "(over limit)" if over_contacts_limit else "",
+    )
+
+    if over_contacts_limit:
+        abort_msg = (
+            "Too many new contacts to add. "
+            "Please see the fetch help page for a workaround."
+        )
+        return abort_msg, None, None
+
+    invalid_emails = set()
+    if len(add_emails) > 0:
+        error_msg, invalid_emails = mailchimp_utils.add_members(
+            audience_id, add_emails
+        )
+        if error_msg is not None:
+            return _error(error_msg)
+        print(" ", " ", f"{len(invalid_emails)} invalid emails found")
+
+    tournament_tag = db.global_state.get_mailchimp_audience_tag()
+    if tournament_tag is None:
+        print(" ", " ", "No audience tag found in database")
+    else:
+        error_msg, tournament_tag_id = mailchimp_utils.get_or_create_segment(
+            audience_id, tournament_tag
+        )
+        if error_msg is not None:
+            return _error(error_msg, invalid_emails)
+
+        tag_emails = set(emails) - invalid_emails
+        print(
+            " ",
+            " ",
+            f"Tagging all {len(tag_emails)} valid contacts with:",
+            tournament_tag,
+        )
+        error_msg = mailchimp_utils.update_segment_emails(
+            audience_id, tournament_tag_id, tag_emails
+        )
+        if error_msg is not None:
+            return _error(error_msg, invalid_emails)
+
+    return None, None, invalid_emails
+
+
 @app.route("/fetch_roster", methods=["POST", "DELETE"])
 @login_required(admin=True, save_redirect=False)
 def fetch_roster():
@@ -81,102 +167,42 @@ def fetch_roster():
         if logs_has_error and logs_has_warning:
             break
 
-    # add contacts to mailchimp (also validates emails)
-    print(" ", "Adding contacts to Mailchimp")
+    # add contacts to mailchimp and tag/untag them
+    users_by_email = {user["email"]: user for user in roster["users"]}
+    abort_msg, error_msg, invalid_emails = _edit_mailchimp_contacts(
+        users_by_email.keys()
+    )
+    if abort_msg is not None:
+        return unsuccessful(abort_msg)
+    if error_msg is not None:
+        error_messages.append(error_msg)
+        logs.append({"level": "ERROR", "row_num": None, "message": error_msg})
+        if flash_all:
+            flash(error_msg, "fetch-roster.danger")
+
     all_emails_invalid = False
-    if not db.global_state.has_mailchimp_api_key():
-        error_msg = "No Mailchimp API key to import contacts"
+    if len(invalid_emails) == 0:
+        pass
+    elif len(invalid_emails) == len(users_by_email):
+        # all emails were invalid
+        all_emails_invalid = True
+        error_msg = "All emails are invalid"
         error_messages.append(error_msg)
         logs.append({"level": "ERROR", "row_num": None, "message": error_msg})
         if flash_all:
             flash(error_msg, "fetch-roster.danger")
     else:
-        audience_id = db.global_state.get_mailchimp_audience_id()
-        if audience_id is None:
-            error_msg = "No selected Mailchimp audience id"
-            error_messages.append(error_msg)
+        flash("There are some invalid emails", "fetch-roster.warning")
+        for email in invalid_emails:
+            user = users_by_email[email]
+            user["email_valid"] = False
             logs.append(
-                {"level": "ERROR", "row_num": None, "message": error_msg}
+                {
+                    "level": "WARNING",
+                    "row_num": user["row_num"],
+                    "message": f"Invalid email: {email}",
+                }
             )
-            if flash_all:
-                flash(error_msg, "fetch-roster.danger")
-        else:
-            existing_user_emails = db.roster.get_all_user_emails()
-            # only need to delete the email if it was valid and doesn't
-            # appear in the newly fetched roster
-            deleted_emails = set(
-                email
-                for email, email_valid in existing_user_emails.items()
-                if email_valid
-            )
-            users_by_email = {}
-            for user in roster["users"]:
-                email = user["email"]
-                users_by_email[email] = user
-                deleted_emails.discard(email)
-
-            tournament_tag = db.global_state.get_mailchimp_audience_tag()
-
-            # only add the new emails
-            new_emails = set(users_by_email.keys()) - set(
-                existing_user_emails.keys()
-            )
-            print(
-                " ",
-                " ",
-                f"{len(existing_user_emails)} existing users in the database",
-            )
-            print(
-                " ",
-                " ",
-                f"{len(users_by_email)} users being added through this fetch",
-            )
-            print(" ", " ", f"{len(new_emails)} new emails being added")
-            print(" ", " ", f"{len(deleted_emails)} emails being removed")
-
-            if len(new_emails) > NEW_CONTACTS_LIMIT:
-                return unsuccessful(
-                    "Too many new contacts to add. "
-                    "Please see the fetch help page for a workaround."
-                )
-
-            error_msg, invalid_emails = mailchimp_utils.add_members(
-                audience_id,
-                list(new_emails),
-                tournament_tag=tournament_tag,
-                remove_emails=deleted_emails,
-            )
-            if error_msg is not None:
-                error_messages.append(error_msg)
-                logs.append(
-                    {"level": "ERROR", "row_num": None, "message": error_msg}
-                )
-                if flash_all:
-                    flash(error_msg, "fetch-roster.danger")
-            if len(invalid_emails) == 0:
-                pass
-            elif len(invalid_emails) == len(users_by_email):
-                # all emails were invalid
-                all_emails_invalid = True
-                error_msg = "All emails are invalid"
-                error_messages.append(error_msg)
-                logs.append(
-                    {"level": "ERROR", "row_num": None, "message": error_msg}
-                )
-                if flash_all:
-                    flash(error_msg, "fetch-roster.danger")
-            else:
-                flash("There are some invalid emails", "fetch-roster.warning")
-                for email in invalid_emails:
-                    user = users_by_email[email]
-                    user["email_valid"] = False
-                    logs.append(
-                        {
-                            "level": "WARNING",
-                            "row_num": user["row_num"],
-                            "message": f"Invalid email: {email}",
-                        }
-                    )
 
     if not all_emails_invalid:
         # save in database
@@ -191,8 +217,8 @@ def fetch_roster():
                 }
             )
         else:
-            # probably won't happen, since `fetch_roster()` should have
-            # good enough checks
+            # probably won't happen due to validation/constraint errors,
+            # since `fetch_roster()` should have good enough checks
             error_msg = "Database error"
             error_messages.append(error_msg)
             logs.append(
