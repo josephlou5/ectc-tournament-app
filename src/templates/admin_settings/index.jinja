@@ -19,11 +19,6 @@ Please contact a
 {% endif %}
 {% endmacro %}
 
-{# Service account #}
-{% set service_account_email_id = "service-account-email" %}
-{% set copy_email_btn_id = "copy-service-account-email-btn" %}
-{% set copy_email_status_id = "copy-service-account-email-status" %}
-
 {# TMS spreadsheet #}
 {% set tms_url_input_id = "tms-url-input" %}
 {% set tms_url_messages_id = "tms-url-messages" %}
@@ -98,29 +93,9 @@ Please contact a
       <div class="row">
         <div class="col">
           <h4>Service Account</h4>
-          <div class="mb-2">
-            The service account is used to access Google Spreadsheets. Either
-            make your spreadsheet publicly accessible or share the spreadsheet
-            with the service account email with at least view permissions.
-          </div>
-          <div class="mb-2">
-            Current service account:
-            {% if service_account_email is none %}
-            <em class="text-muted">None</em>
-            {% else %}
-            <strong id="{{ service_account_email_id }}">
-              {{ service_account_email|e }}
-            </strong>
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-success ms-2"
-              id="{{ copy_email_btn_id }}"
-            >
-              Copy
-            </button>
-            <span id="{{ copy_email_status_id }}" class="ms-2"></span>
-            {% endif %}
-          </div>
+          {% with service_account_email = service_account_email %}
+          {% include "admin/service_account_info.jinja" %}
+          {% endwith %}
         </div>
       </div>
       {% if service_account_email is none %}
@@ -570,18 +545,6 @@ Please contact a
   }
 
   $(document).ready(() => {
-    // Service account
-    $('#{{ copy_email_btn_id }}').click((event) => {
-      // copy the email to the user's clipboard
-      copyElementContent('{{ service_account_email_id }}', () => {
-        setElementHtmlFor(
-          '{{ copy_email_status_id }}',
-          bsAlertSm('Copied!', 'success'),
-          5
-        );
-      });
-    });
-
     // TMS Spreadsheet
     handleTMSSpreadsheetUrlChanged();
     $('#{{ tms_url_input_id }}').on('input', (event) => {

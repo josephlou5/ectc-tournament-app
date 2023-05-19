@@ -116,16 +116,27 @@ Manage Admins
                 <th class="table-sm-col">{{ loop.index }}</th>
                 <td>{{ email|e }}</td>
                 <td class="table-sm-col">
-                  {% call macros.loading_btn(
-                       ("delete-admin-btn-" ~ loop.index0),
-                       "danger",
-                       "Delete",
-                       "Deleting...",
-                       classes=("btn-sm " ~ delete_admin_class),
-                     )
+                  {% with delete_button_id = "delete-admin-btn-" ~ loop.index0
                    %}
-                  email="{{ email|e }}"
-                  {% endcall %}
+                  <button
+                    type="button"
+                    id="{{ delete_button_id }}"
+                    class="btn btn-sm btn-danger {{ delete_admin_class }}"
+                    email="{{ email|e }}"
+                  >
+                    {# a mini-version of the loading button #}
+                    <span
+                      id="{{ delete_button_id }}-spinner"
+                      class="spinner-border spinner-border-sm d-none"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
+                    <i
+                      id="{{ delete_button_id }}-icon"
+                      class="bi bi-trash3"
+                    ></i>
+                  </button>
+                  {% endwith %}
                 </td>
               </tr>
               {% endfor %}
@@ -183,7 +194,7 @@ Manage Admins
   }
 
   function handleDeleteAdminClicked(buttonId) {
-    if (isButtonLoading(buttonId)) {
+    if (!$(`#${buttonId}-spinner`).hasClass('d-none')) {
       // currently deleting; ignore click
       return;
     }
@@ -197,7 +208,10 @@ Manage Admins
       return;
     }
 
-    setButtonLoading(buttonId);
+    // set the button as "loading"
+    $(`#${buttonId}-spinner`).removeClass('d-none');
+    $(`#${buttonId}-icon`).addClass('d-none');
+
     // just reload once the deleting is done
     ajaxRequest('DELETE', '{{ url_for("manage_admins") }}', {
       contentType: 'application/json',
@@ -213,7 +227,7 @@ Manage Admins
       handleAddAdminClicked();
     });
     $('.{{ delete_admin_class }}').click((event) => {
-      // can't use `event.target` because that would be the span for the text
+      // can't use `event.target` because that would be the button contents
       const buttonElement = event.currentTarget;
       handleDeleteAdminClicked(buttonElement.id);
     });
