@@ -16,3 +16,8 @@ at Princeton University in Spring 2023, advised by Dr. Robert Dondero.
 
 Helpful representatives from the ECTC included William Estey, Carissa Fu, and
 Tara Sarathi (many thanks!).
+
+## Development
+
+For a developer guide on information about how the codebase is structured and
+what the system does, see [`DeveloperGuide.md`](DeveloperGuide.md).
