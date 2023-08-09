@@ -29,7 +29,7 @@ def main():
             print("Environment variable not set:", key)
 
     root = (Path(__file__).parent / "..").resolve()
-    for file in ("cert.pem", "key.pem"):
+    for file in ("keys.py", "cert.pem", "key.pem"):
         path = (root / file).resolve()
         if not path.exists():
             invalid = True
